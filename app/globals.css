@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,600..900,100,1;1,9..144,600..900,100,1&family=Kalam:wght@400;700&family=Nunito+Sans:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Colors from Story-me prototype */
+  --color-brand-dark: #14163A;
+  --color-brand-darker: #0C0D26;
+  --color-brand-purple: #1E1B4B;
+  --color-brand-purple-light: #221F5C;
+  --color-brand-purple-muted: #3B3680;
+  --color-brand-teal: #0F3B47;
+
+  --color-accent-gold: #F4C95D;
+  --color-accent-gold-light: #FFE39A;
+  --color-accent-rust: #B8431F;
+  --color-accent-teal: #0F8C7A;
+  --color-accent-teal-light: #9FE3D6;
+  --color-accent-pink: #FF6B8A;
+
+  --color-cream: #FBF1DC;
+  --color-cream-light: #FCF4E3;
+  --color-text-light: #F3F0FF;
+  --color-text-muted: #C9C5EE;
+  --color-text-dark: #1E1B4B;
+  --color-text-dark-muted: #4F4A6E;
+
+  /* Fonts */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-handwritten: 'Kalam', cursive;
+  --font-body: 'Nunito Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Font variation settings for Fraunces */
+.font-display {
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
+
+/* Animations */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.animate-twinkle {
+  animation: twinkle 3.6s ease-in-out infinite;
+}
+
+.animate-floaty {
+  animation: floaty 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-twinkle, .animate-floaty {
+    animation: none;
+  }
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-body);
+  background: var(--color-brand-dark);
+  color: var(--color-text-light);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 100, "WONK" 1;
+}
