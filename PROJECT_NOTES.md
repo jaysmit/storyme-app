@@ -16,7 +16,7 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 
 ## Current Status
 
-### Completed (Slices 0-3)
+### Completed (Slices 0-4)
 - [x] Next.js 15 project setup with TypeScript
 - [x] Tailwind CSS with custom theme matching prototype design
 - [x] Custom fonts (Fraunces, Kalam, Nunito Sans)
@@ -49,17 +49,32 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] "Save as crew" from create wizard
 - [x] Member avatars display
 
+**Slice 4: Stories & Styles**
+- [x] Stories API routes (GET /api/stories, GET /api/stories/[slug])
+- [x] Art styles API route (GET /api/art-styles)
+- [x] /worlds page - Browse all 6 story templates
+  - Category filters (fantasy, magical, sports, adventure, superhero, space)
+  - Featured stories section
+  - Colorful gradient cards with icons
+- [x] /worlds/[slug] page - Story detail with role assignment
+  - Hero section with category gradient
+  - Story description and metadata
+  - Role assignment UI (drag characters to roles)
+  - Art style selector
+  - Sidebar with selections summary
+- [x] Static params generation for all story slugs
+- [x] Service client for public data (no cookies)
+
 ### Needs Setup
 - [ ] Create Supabase project for Story-me
 - [ ] Run database migrations
 - [ ] Add real Supabase credentials to Vercel
 - [ ] Add OpenAI API key to Vercel
 
-### Remaining Work (Slices 4-6)
-- [ ] Stories page (/worlds)
-- [ ] Story detail with role assignment
-- [ ] Book preview generation
+### Remaining Work (Slices 5-6)
+- [ ] Book preview generation with DALL-E
 - [ ] Full book viewer component
+- [ ] Page-by-page navigation
 
 ## API Routes
 
@@ -80,6 +95,11 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - `POST /api/crews/[id]/members` - Add member
 - `DELETE /api/crews/[id]/members?characterId=&crewId=` - Remove member
 
+### Stories & Styles (Public)
+- `GET /api/stories` - List all stories (public, with demo fallback)
+- `GET /api/stories/[slug]` - Get story with roles (public, with demo fallback)
+- `GET /api/art-styles` - List all art styles (public, with demo fallback)
+
 ## Database Schema
 
 Tables defined in `supabase/migrations/001_initial_schema.sql`:
@@ -95,10 +115,13 @@ Tables defined in `supabase/migrations/001_initial_schema.sql`:
 - `app/page.tsx` - Landing page
 - `app/create/page.tsx` - Creation wizard
 - `app/crews/page.tsx` - Crews management
+- `app/worlds/page.tsx` - Story worlds browse page
+- `app/worlds/[slug]/page.tsx` - Story detail with role assignment
+- `app/worlds/[slug]/StoryDetailContent.tsx` - Client component for story detail
 - `app/(auth)/login/page.tsx` - Login form
 - `app/(auth)/register/page.tsx` - Registration form
 - `lib/supabase/client.ts` - Browser Supabase client
-- `lib/supabase/server.ts` - Server Supabase client
+- `lib/supabase/server.ts` - Server Supabase client (includes service client)
 - `lib/openai.ts` - DALL-E integration (lazy-loaded)
 - `lib/types.ts` - TypeScript types
 - `components/CharacterCard.tsx` - Character display component
