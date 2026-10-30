@@ -196,16 +196,20 @@ export default function CharacterCard({
             !character.generatedUrl && (
               <button
                 onClick={() => onGenerate?.(character.id)}
-                className="w-10 h-10 rounded-full bg-accent-gold text-brand-dark flex items-center justify-center hover:bg-accent-gold-light transition-colors"
-                title="Generate character"
+                className="w-10 h-10 rounded-full bg-accent-teal text-white flex items-center justify-center hover:bg-accent-teal/80 transition-colors"
+                title="Confirm & generate"
               >
                 <svg
                   width="18"
                   height="18"
                   viewBox="0 0 24 24"
-                  fill="currentColor"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                  <path d="M20 6L9 17l-5-5" />
                 </svg>
               </button>
             )}
