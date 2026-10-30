@@ -297,7 +297,7 @@ export default function HomePage() {
                     24 pages
                   </span>
                   <Link
-                    href={`/stories/${story.slug}`}
+                    href={`/worlds/${story.slug}`}
                     className="text-accent-gold font-extrabold text-sm hover:text-accent-gold-light"
                   >
                     Preview the book
