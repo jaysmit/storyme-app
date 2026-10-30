@@ -8,42 +8,49 @@ const artStyles = [
     name: "Enchanted glow",
     desc: "Our signature look. Rich painted light, golden sparkles and starry skies — pure bedtime wonder.",
     ages: "3–10",
+    image: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=120&h=128&fit=crop", // magical glow
   },
   {
     slug: "watercolour",
     name: "Watercolour dream",
     desc: "Soft washes and pastel skies that melt into the page. Gentle, calm and dreamy.",
     ages: "0–5",
+    image: "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?w=120&h=128&fit=crop", // watercolor
   },
   {
     slug: "sketch",
     name: "Pencil sketch",
     desc: "Hand-drawn graphite on cream paper, like an illustrator's sketchbook come to life.",
     ages: "3–10",
+    image: "https://images.unsplash.com/photo-1572953109213-3be62398eb95?w=120&h=128&fit=crop", // sketch
   },
   {
     slug: "papercut",
     name: "Paper-cut",
     desc: "Layered paper and felt with real depth and texture, like a handmade pop-up book.",
     ages: "2–8",
+    image: "https://images.unsplash.com/photo-1582845512747-e42001c95638?w=120&h=128&fit=crop", // paper craft
   },
   {
     slug: "anim",
     name: "3D animated",
     desc: "Cinematic, glossy and bursting with colour, like stepping into an animated film.",
     ages: "4–10",
+    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=120&h=128&fit=crop", // 3D colorful
   },
   {
     slug: "silhouette",
     name: "Shadow silhouette",
     desc: "Bold black silhouettes against a glowing sunset sky, like a shadow-puppet show.",
     ages: "3–10",
+    image: "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=120&h=128&fit=crop", // silhouette sunset
   },
   {
     slug: "bricks",
     name: "Toy bricks",
     desc: "A whole world built from bright toy bricks — castles, dragons and all.",
     ages: "3–10",
+    image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=120&h=128&fit=crop", // lego bricks
   },
 ];
 
@@ -53,36 +60,42 @@ const stories = [
     title: "The Dragon of Castle Valley",
     tagline: "A dragon guards the road to the glowing castle. Only a brave crew can win their way past.",
     cast: "4 parts",
+    image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=272&fit=crop", // castle
   },
   {
     slug: "fairy-glade",
     title: "The Fairy Glade",
     tagline: "Follow the fireflies past the mushroom houses to a glade where the fairies are waiting.",
     cast: "4 parts",
+    image: "https://images.unsplash.com/photo-1518882605630-8eb582c4b5c5?w=400&h=272&fit=crop", // magical forest
   },
   {
     slug: "grand-final-day",
     title: "Grand Final Day",
     tagline: "One game, one final siren, and a whole family in the stands cheering.",
     cast: "5 parts",
+    image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&h=272&fit=crop", // stadium sports
   },
   {
     slug: "cloud-ship",
     title: "Captain of the Cloud Ship",
     tagline: "Your little one takes the helm of a flying ship, with family as the crew.",
     cast: "4 parts",
+    image: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&h=272&fit=crop", // clouds sky
   },
   {
     slug: "super-squad",
     title: "The Super Squad and the Sorceress",
     tagline: "A cheeky sorceress is turning the city upside down. Time to suit up.",
     cast: "4 parts",
+    image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=400&h=272&fit=crop", // superhero
   },
   {
     slug: "galaxy-road-trip",
     title: "The Great Galaxy Road Trip",
     tagline: "An old rocket turns out to be the fastest ride in the galaxy — and home before bedtime.",
     cast: "4 parts",
+    image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&h=272&fit=crop", // galaxy
   },
 ];
 
@@ -178,25 +191,34 @@ export default function HomePage() {
         </div>
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {["Mia", "Leo", "Nan", "Pip"].map((name) => (
+          {[
+            { name: "Mia", photo: "https://images.unsplash.com/photo-1518882605630-8eb582c4b5c5?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=150&h=192&fit=crop", role: "Hero" },
+            { name: "Leo", photo: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1566888596782-c7f41cc184c5?w=150&h=192&fit=crop", role: "Hero" },
+            { name: "Nan", photo: "https://images.unsplash.com/photo-1556745753-b2904692b3cd?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1596434000703-31c2ed8cdde8?w=150&h=192&fit=crop", role: "Hero" },
+            { name: "Pip", photo: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?w=150&h=192&fit=crop", role: "The family dog" },
+          ].map((char) => (
             <div
-              key={name}
+              key={char.name}
               className="bg-cream rounded-[28px] p-4 flex flex-col gap-4 shadow-xl"
             >
               <div className="relative grid grid-cols-2 gap-2">
-                {/* Photo placeholder */}
+                {/* Photo */}
                 <div className="h-48 rounded-2xl overflow-hidden bg-[#EFE3C8] border-2 border-[#B9A67E]">
                   <img
-                    src={`/api/placeholder/150/192?text=${encodeURIComponent(name + " Photo")}`}
-                    alt={`${name} photo`}
-                    className="w-full h-full object-cover opacity-60"
+                    src={char.photo}
+                    alt={`${char.name} photo`}
+                    width={150}
+                    height={192}
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                {/* Storybook placeholder */}
+                {/* Storybook character */}
                 <div className="h-48 rounded-2xl overflow-hidden bg-gradient-to-b from-[#6B5BB0] via-[#2A2470] to-[#1E1B4B] border-2 border-[#6E67B8]">
                   <img
-                    src={`/api/placeholder/150/192?text=${encodeURIComponent(name + " Character")}`}
-                    alt={`${name} character`}
+                    src={char.character}
+                    alt={`${char.name} character`}
+                    width={150}
+                    height={192}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -219,10 +241,10 @@ export default function HomePage() {
               <div className="flex justify-between items-center">
                 <div>
                   <strong className="font-display text-2xl font-black text-text-dark">
-                    {name}
+                    {char.name}
                   </strong>
                   <span className="block text-sm text-text-dark-muted">
-                    {name === "Pip" ? "The family dog" : `Hero`}
+                    {char.role}
                   </span>
                 </div>
                 <span className="text-xs font-extrabold px-3 py-1.5 rounded-full bg-[#FFD9C7] text-text-dark">
@@ -277,8 +299,10 @@ export default function HomePage() {
             >
               <div className="h-[272px] bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] relative overflow-hidden">
                 <img
-                  src={`/api/placeholder/400/272?text=${encodeURIComponent(story.title)}`}
+                  src={story.image}
                   alt={story.title}
+                  width={400}
+                  height={272}
                   className="w-full h-full object-cover"
                 />
                 <span className="absolute left-4 top-4 bg-[rgba(20,22,58,0.85)] text-white text-sm font-extrabold px-3 py-1.5 rounded-full">
@@ -349,8 +373,10 @@ export default function HomePage() {
                 }`}
               >
                 <img
-                  src={`/api/placeholder/120/128?text=${encodeURIComponent(style.name)}`}
+                  src={style.image}
                   alt={style.name}
+                  width={120}
+                  height={128}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -388,6 +414,7 @@ export default function HomePage() {
               name: "Digital book",
               price: "$14.20",
               ship: "no shipping",
+              image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=180&fit=crop",
               items: [
                 "Illustrated PDF and e-reader version",
                 "Read on any screen in minutes",
@@ -400,6 +427,7 @@ export default function HomePage() {
               name: "Softcover",
               price: "$23",
               ship: "+ shipping",
+              image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=180&fit=crop",
               items: [
                 "Matte paperback for everyday reading",
                 "Includes the digital copy",
@@ -412,6 +440,7 @@ export default function HomePage() {
               name: "Deluxe hardcover",
               price: "$34",
               ship: "+ shipping",
+              image: "https://images.unsplash.com/photo-1589998059171-988d887df646?w=300&h=180&fit=crop",
               items: [
                 "Gold-foil hardcover, premium paper",
                 "Personalised dedication page",
@@ -425,6 +454,7 @@ export default function HomePage() {
               name: "Treasure chest",
               price: "$119",
               ship: "+ shipping",
+              image: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=300&h=180&fit=crop",
               items: [
                 "Deluxe hardcover in a keepsake box",
                 "Character poster print",
@@ -450,8 +480,10 @@ export default function HomePage() {
                 }`}
               >
                 <img
-                  src={`/api/placeholder/300/180?text=${encodeURIComponent(plan.name)}`}
+                  src={plan.image}
                   alt={plan.name}
+                  width={300}
+                  height={180}
                   className="w-full h-full object-cover"
                 />
               </div>
