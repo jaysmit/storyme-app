@@ -14,8 +14,8 @@ export default function Header({ theme = "dark", user }: HeaderProps) {
 
   const navLinks = [
     { href: "/worlds", label: "Worlds" },
+    { href: "/books", label: "My Books" },
     { href: "/pricing", label: "Pricing" },
-    { href: "/faq", label: "FAQ" },
   ];
 
   const accentLine = isLight ? "#B8431F" : "#F4C95D";

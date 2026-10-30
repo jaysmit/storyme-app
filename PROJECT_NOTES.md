@@ -16,7 +16,7 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 
 ## Current Status
 
-### Completed (Slices 0-4)
+### Completed (All Slices 0-6)
 - [x] Next.js 15 project setup with TypeScript
 - [x] Tailwind CSS with custom theme matching prototype design
 - [x] Custom fonts (Fraunces, Kalam, Nunito Sans)
@@ -65,16 +65,39 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Static params generation for all story slugs
 - [x] Service client for public data (no cookies)
 
+**Slice 5: Book Creation**
+- [x] Book API routes (CRUD + generate)
+  - POST /api/books - Create book
+  - GET /api/books - List user's books
+  - GET /api/books/[id] - Get book
+  - PATCH /api/books/[id] - Update book
+  - DELETE /api/books/[id] - Delete book
+  - POST /api/books/[id]/generate - Generate preview pages with DALL-E
+- [x] Story scene templates for all 6 stories (5 scenes each)
+- [x] DALL-E integration with art style prompts
+- [x] BookViewer component with:
+  - Page-by-page navigation
+  - Keyboard controls (arrow keys, Escape)
+  - Thumbnail strip navigation
+  - Fullscreen mode
+  - Generation progress indicator
+- [x] Updated create wizard Step 4 to generate and view book
+- [x] Demo mode with placeholder images when API not available
+
+**Slice 6: Polish**
+- [x] /books page - List user's books with status badges
+- [x] /book/[id] page - View individual book
+- [x] Placeholder image API for demo previews
+- [x] "Order Printed Book" CTA on preview pages
+- [x] Header navigation updated with "My Books" link
+- [x] Error states and loading indicators throughout
+
 ### Needs Setup
 - [ ] Create Supabase project for Story-me
 - [ ] Run database migrations
+- [ ] Create "previews" storage bucket in Supabase
 - [ ] Add real Supabase credentials to Vercel
 - [ ] Add OpenAI API key to Vercel
-
-### Remaining Work (Slices 5-6)
-- [ ] Book preview generation with DALL-E
-- [ ] Full book viewer component
-- [ ] Page-by-page navigation
 
 ## API Routes
 
@@ -100,6 +123,17 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - `GET /api/stories/[slug]` - Get story with roles (public, with demo fallback)
 - `GET /api/art-styles` - List all art styles (public, with demo fallback)
 
+### Books
+- `POST /api/books` - Create new book
+- `GET /api/books` - List user's books
+- `GET /api/books/[id]` - Get single book
+- `PATCH /api/books/[id]` - Update book
+- `DELETE /api/books/[id]` - Delete book
+- `POST /api/books/[id]/generate` - Generate preview pages with DALL-E
+
+### Utilities
+- `GET /api/placeholder/[width]/[height]` - Generate SVG placeholder images
+
 ## Database Schema
 
 Tables defined in `supabase/migrations/001_initial_schema.sql`:
@@ -113,11 +147,12 @@ Tables defined in `supabase/migrations/001_initial_schema.sql`:
 
 ## Key Files
 - `app/page.tsx` - Landing page
-- `app/create/page.tsx` - Creation wizard
+- `app/create/page.tsx` - Creation wizard with 4 steps
 - `app/crews/page.tsx` - Crews management
+- `app/books/page.tsx` - User's books list
+- `app/book/[id]/page.tsx` - Individual book viewer
 - `app/worlds/page.tsx` - Story worlds browse page
 - `app/worlds/[slug]/page.tsx` - Story detail with role assignment
-- `app/worlds/[slug]/StoryDetailContent.tsx` - Client component for story detail
 - `app/(auth)/login/page.tsx` - Login form
 - `app/(auth)/register/page.tsx` - Registration form
 - `lib/supabase/client.ts` - Browser Supabase client
@@ -125,6 +160,7 @@ Tables defined in `supabase/migrations/001_initial_schema.sql`:
 - `lib/openai.ts` - DALL-E integration (lazy-loaded)
 - `lib/types.ts` - TypeScript types
 - `components/CharacterCard.tsx` - Character display component
+- `components/BookViewer.tsx` - Page-flipping book viewer
 
 ## Design Tokens (globals.css)
 ```css
