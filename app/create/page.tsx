@@ -459,7 +459,7 @@ export default function CreatePage() {
                     accept="image/*"
                     multiple
                     onChange={handleFileSelect}
-                    className="hidden"
+                    className="absolute w-0 h-0 opacity-0 pointer-events-none"
                   />
                   Choose photos
                 </label>
