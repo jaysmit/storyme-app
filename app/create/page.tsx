@@ -22,6 +22,7 @@ const stories = [
     tagline: "A dragon guards the road to the glowing castle.",
     cast: 4,
     category: "fantasy",
+    image: "/images/the-dragon-of-castle-valley.jpg",
   },
   {
     slug: "fairy-glade",
@@ -29,6 +30,7 @@ const stories = [
     tagline: "Follow the fireflies to where the fairies are waiting.",
     cast: 4,
     category: "magical",
+    image: "/images/the-fairy-glade.jpg",
   },
   {
     slug: "grand-final-day",
@@ -36,6 +38,7 @@ const stories = [
     tagline: "One game, one final siren, one family cheering.",
     cast: 5,
     category: "sports",
+    image: "/images/grand-final-day.jpg",
   },
   {
     slug: "cloud-ship",
@@ -43,6 +46,7 @@ const stories = [
     tagline: "Take the helm of a flying ship through the clouds.",
     cast: 4,
     category: "adventure",
+    image: "/images/captain-of-the-cloud-ship.jpg",
   },
   {
     slug: "super-squad",
@@ -50,6 +54,7 @@ const stories = [
     tagline: "Suit up to save the city from a cheeky sorceress.",
     cast: 4,
     category: "superhero",
+    image: "/images/the-super-squad-and-the-sorceress.jpg",
   },
   {
     slug: "galaxy-road-trip",
@@ -57,17 +62,18 @@ const stories = [
     tagline: "Blast off through the solar system and back before bedtime.",
     cast: 4,
     category: "space",
+    image: "/images/the-great-galaxy-road-trip.jpg",
   },
 ];
 
 const artStyles = [
-  { slug: "glow", name: "Enchanted glow", desc: "Rich painted light with golden sparkles" },
-  { slug: "watercolour", name: "Watercolour dream", desc: "Soft washes and pastel skies" },
-  { slug: "sketch", name: "Pencil sketch", desc: "Hand-drawn graphite on cream paper" },
-  { slug: "papercut", name: "Paper-cut", desc: "Layered paper with depth and texture" },
-  { slug: "anim", name: "3D animated", desc: "Cinematic Pixar-style rendering" },
-  { slug: "silhouette", name: "Shadow silhouette", desc: "Bold silhouettes against sunset" },
-  { slug: "bricks", name: "Toy bricks", desc: "LEGO-style brick world" },
+  { slug: "glow", name: "Enchanted glow", desc: "Rich painted light with golden sparkles", image: "/images/enchanted-glow.jpg" },
+  { slug: "watercolour", name: "Watercolour dream", desc: "Soft washes and pastel skies", image: "/images/watercolour-dream.jpg" },
+  { slug: "sketch", name: "Pencil sketch", desc: "Hand-drawn graphite on cream paper", image: "/images/pencil-sketch.jpg" },
+  { slug: "papercut", name: "Paper-cut", desc: "Layered paper with depth and texture", image: "/images/paper-cut.jpg" },
+  { slug: "anim", name: "3D animated", desc: "Cinematic Pixar-style rendering", image: "/images/3d-animated.jpg" },
+  { slug: "silhouette", name: "Shadow silhouette", desc: "Bold silhouettes against sunset", image: "/images/shadow-silhouette.jpg" },
+  { slug: "bricks", name: "Toy bricks", desc: "LEGO-style brick world", image: "/images/toy-bricks.jpg" },
 ];
 
 export default function CreatePage() {
@@ -573,8 +579,12 @@ export default function CreatePage() {
                         : "border-brand-purple-muted hover:border-accent-gold/50"
                     }`}
                   >
-                    <div className="h-40 bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] flex items-center justify-center text-text-muted text-sm">
-                      [Cover]
+                    <div className="h-40 bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] overflow-hidden">
+                      <img
+                        src={story.image}
+                        alt={story.title}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="p-5">
                       <span className="text-xs font-bold text-accent-gold uppercase">
@@ -605,8 +615,12 @@ export default function CreatePage() {
 
               {/* Large preview */}
               <div className="mb-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden">
-                <div className="h-64 md:h-80 bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] flex items-center justify-center text-text-muted">
-                  [Style Preview: {artStyles.find((s) => s.slug === selectedStyle)?.name}]
+                <div className="h-64 md:h-80 bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] overflow-hidden">
+                  <img
+                    src={artStyles.find((s) => s.slug === selectedStyle)?.image}
+                    alt={artStyles.find((s) => s.slug === selectedStyle)?.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="p-6">
                   <h3 className="text-2xl font-black text-white">
@@ -631,13 +645,17 @@ export default function CreatePage() {
                     }`}
                   >
                     <div
-                      className={`aspect-square rounded-xl bg-brand-dark flex items-center justify-center text-text-muted text-[10px] font-bold ${
+                      className={`aspect-square rounded-xl bg-brand-dark overflow-hidden ${
                         selectedStyle === style.slug
                           ? "ring-3 ring-accent-gold"
                           : "ring-1 ring-brand-purple-muted"
                       }`}
                     >
-                      Preview
+                      <img
+                        src={style.image}
+                        alt={style.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <span
                       className={`text-xs font-bold leading-tight ${

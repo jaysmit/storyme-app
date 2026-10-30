@@ -25,6 +25,33 @@ const categoryColors: Record<string, string> = {
   space: "from-indigo-600 to-violet-800",
 };
 
+// Fallback images for stories by slug
+const storyImages: Record<string, string> = {
+  "dragon-castle-valley": "/images/the-dragon-of-castle-valley.jpg",
+  "fairy-glade": "/images/the-fairy-glade.jpg",
+  "grand-final-day": "/images/grand-final-day.jpg",
+  "cloud-ship": "/images/captain-of-the-cloud-ship.jpg",
+  "super-squad": "/images/the-super-squad-and-the-sorceress.jpg",
+  "galaxy-road-trip": "/images/the-great-galaxy-road-trip.jpg",
+  "the-dragon-of-castle-valley": "/images/the-dragon-of-castle-valley.jpg",
+  "the-fairy-glade": "/images/the-fairy-glade.jpg",
+  "captain-of-the-cloud-ship": "/images/captain-of-the-cloud-ship.jpg",
+  "the-super-squad-and-the-sorceress": "/images/the-super-squad-and-the-sorceress.jpg",
+  "the-great-galaxy-road-trip": "/images/the-great-galaxy-road-trip.jpg",
+  "the-birthday-that-wouldnt-end": "/images/the-birthday-that-wouldnt-end.jpg",
+  "the-brick-by-brick-kingdom": "/images/the-brick-by-brick-kingdom.jpg",
+  "the-crystal-asteroid": "/images/the-crystal-asteroid.jpg",
+  "the-dinosaur-egg-dig": "/images/the-dinosaur-egg-dig.jpg",
+  "the-great-backyard-expedition": "/images/the-great-backyard-expedition.jpg",
+  "the-great-lighthouse-rescue": "/images/the-great-lighthouse-rescue.jpg",
+  "the-lost-jungle-temple": "/images/the-lost-jungle-temple.jpg",
+  "the-moon-borrowers": "/images/the-moon-borrowers.jpg",
+  "the-outback-star-train": "/images/the-outback-star-train.jpg",
+  "the-quest-for-unicorn-valley": "/images/the-quest-for-unicorn-valley.jpg",
+  "the-snow-globe-kingdom": "/images/the-snow-globe-kingdom.jpg",
+  "under-the-kelp-forest": "/images/under-the-kelp-forest.jpg",
+};
+
 export default function WorldsPage() {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,15 +182,16 @@ export default function WorldsPage() {
 function StoryCard({ story, featured = false }: { story: Story; featured?: boolean }) {
   const gradient = categoryColors[story.category || "fantasy"] || "from-purple-600 to-indigo-800";
   const icon = categoryIcons[story.category || "fantasy"] || "📖";
+  const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
 
   return (
     <Link href={`/worlds/${story.slug}`} className="group block">
       <div className={`relative rounded-3xl overflow-hidden ${featured ? "ring-2 ring-accent-gold" : ""}`}>
         {/* Cover image or gradient */}
         <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
-          {story.cover_image_url ? (
+          {imageUrl ? (
             <img
-              src={story.cover_image_url}
+              src={imageUrl}
               alt={story.title}
               className="w-full h-full object-cover"
             />

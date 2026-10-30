@@ -81,11 +81,19 @@ export default function CharacterCard({
         {/* Generated Image */}
         <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-b from-[#6B5BB0] via-[#2A2470] to-[#1E1B4B] relative">
           {character.generatedUrl ? (
-            <img
-              src={character.generatedUrl}
-              alt={`${character.name} as character`}
-              className="w-full h-full object-cover"
-            />
+            <>
+              <img
+                src={character.generatedUrl}
+                alt={`${character.name} as character`}
+                className="w-full h-full object-cover"
+              />
+              {/* Tick overlay when completed */}
+              <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-accent-teal flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </div>
+            </>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#C9C5EE] p-2">
               {character.status === "generating" ? (
@@ -95,9 +103,13 @@ export default function CharacterCard({
                   width="24"
                   height="24"
                   viewBox="0 0 24 24"
-                  fill="#F4C95D"
+                  fill="none"
+                  stroke="#C9C5EE"
+                  strokeWidth="1.5"
                 >
-                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
                 </svg>
               )}
               <span className="text-xs font-bold text-center">
@@ -105,7 +117,7 @@ export default function CharacterCard({
                   ? "Creating..."
                   : character.status === "failed"
                   ? "Failed"
-                  : "Preview"}
+                  : "Awaiting preview"}
               </span>
             </div>
           )}
@@ -144,10 +156,7 @@ export default function CharacterCard({
             className="flex-1 px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
           />
         ) : (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="flex-1 text-left px-3 py-2 rounded-lg hover:bg-white/50 transition-colors"
-          >
+          <div className="flex-1 px-3 py-2">
             <span className="font-display text-xl font-black text-text-dark block">
               {character.name}
             </span>
@@ -155,10 +164,33 @@ export default function CharacterCard({
               {character.type === "pet" ? "Pet" : "Person"}
               {character.ageGroup && ` · ${character.ageGroup}`}
             </span>
-          </button>
+          </div>
         )}
 
         <div className="flex gap-2">
+          {/* Edit button */}
+          {!isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-10 h-10 rounded-full bg-[#E8E4F0] text-[#6B5BB0] flex items-center justify-center hover:bg-[#D8D0F0] transition-colors"
+              title="Edit name & role"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          )}
+
           {showGenerateButton &&
             character.status !== "generating" &&
             !character.generatedUrl && (
