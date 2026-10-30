@@ -83,7 +83,6 @@ export default function CreatePage() {
   const [selectedStyle, setSelectedStyle] = useState<string>("glow");
   const [dragOver, setDragOver] = useState(false);
   const [crewName, setCrewName] = useState("");
-  const [showSaveCrew, setShowSaveCrew] = useState(false);
   const [generating, setGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -115,6 +114,7 @@ export default function CreatePage() {
         status: "pending",
         type: "person",
         ageGroup: null,
+        role: null,
       };
       setCharacters((prev) => [...prev, newChar]);
     };
@@ -153,6 +153,12 @@ export default function CreatePage() {
   const updateCharacterName = (id: string, name: string) => {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, name } : c))
+    );
+  };
+
+  const updateCharacterRole = (id: string, role: string) => {
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, role } : c))
     );
   };
 
@@ -403,23 +409,13 @@ export default function CreatePage() {
           {/* Step 1: Gather Crew */}
           {currentStep === "crew" && (
             <div>
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h1 className="text-4xl font-black text-white mb-2">
-                    Gather your crew
-                  </h1>
-                  <p className="text-lg text-text-muted">
-                    Upload photos of the people who'll star in your story.
-                  </p>
-                </div>
-                {characters.length > 0 && (
-                  <button
-                    onClick={() => setShowSaveCrew(true)}
-                    className="px-4 py-2 rounded-full border border-brand-purple-muted text-text-muted hover:border-accent-gold hover:text-white transition-colors text-sm font-bold"
-                  >
-                    Save as crew
-                  </button>
-                )}
+              <div className="mb-8">
+                <h1 className="text-4xl font-black text-white mb-2">
+                  Gather your crew
+                </h1>
+                <p className="text-lg text-text-muted">
+                  Upload photos of the people who'll star in your story.
+                </p>
               </div>
 
               {/* Upload area */}
@@ -472,7 +468,21 @@ export default function CreatePage() {
               {/* Character list */}
               {characters.length > 0 && (
                 <>
-                  <div className="mt-8 flex justify-between items-center">
+                  {/* Crew name input */}
+                  <div className="mt-8 bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-4">
+                    <label className="block text-sm font-bold text-text-muted mb-2">
+                      Crew name
+                    </label>
+                    <input
+                      type="text"
+                      value={crewName}
+                      onChange={(e) => setCrewName(e.target.value)}
+                      placeholder="e.g., The Smith Family, Adventure Squad..."
+                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold text-lg"
+                    />
+                  </div>
+
+                  <div className="mt-6 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white">
                       Your crew ({characters.length})
                     </h2>
@@ -508,6 +518,7 @@ export default function CreatePage() {
                         character={char}
                         onRemove={removeCharacter}
                         onUpdateName={updateCharacterName}
+                        onUpdateRole={updateCharacterRole}
                         onGenerate={generateCharacter}
                         showGenerateButton
                       />
@@ -516,45 +527,6 @@ export default function CreatePage() {
                 </>
               )}
 
-              {/* Save Crew Modal */}
-              {showSaveCrew && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
-                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-md w-full">
-                    <h2 className="text-2xl font-black text-white mb-4">
-                      Save this crew
-                    </h2>
-                    <p className="text-text-muted mb-6">
-                      Give your crew a name so you can use them again later.
-                    </p>
-                    <input
-                      type="text"
-                      value={crewName}
-                      onChange={(e) => setCrewName(e.target.value)}
-                      placeholder="e.g., The Smith Family"
-                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold mb-6"
-                    />
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowSaveCrew(false)}
-                        className="flex-1 px-4 py-3 rounded-full border border-brand-purple-muted text-text-muted hover:text-white transition-colors font-bold"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => {
-                          // TODO: Save crew to API
-                          setShowSaveCrew(false);
-                          setCrewName("");
-                        }}
-                        disabled={!crewName.trim()}
-                        className="flex-1 px-4 py-3 rounded-full bg-accent-gold text-brand-dark font-extrabold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
-                      >
-                        Save crew
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

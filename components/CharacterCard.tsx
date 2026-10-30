@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import type { LocalCharacter } from "@/lib/types";
+import { CHARACTER_ROLES } from "@/lib/types";
 
 interface CharacterCardProps {
   character: LocalCharacter;
   onRemove: (id: string) => void;
   onUpdateName: (id: string, name: string) => void;
+  onUpdateRole: (id: string, role: string) => void;
   onGenerate?: (id: string) => void;
   showGenerateButton?: boolean;
 }
@@ -15,11 +17,13 @@ export default function CharacterCard({
   character,
   onRemove,
   onUpdateName,
+  onUpdateRole,
   onGenerate,
   showGenerateButton = false,
 }: CharacterCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(character.name);
+  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
 
   const handleNameBlur = () => {
     setIsEditing(false);
@@ -160,10 +164,36 @@ export default function CharacterCard({
             <span className="font-display text-xl font-black text-text-dark block">
               {character.name}
             </span>
-            <span className="text-xs text-text-dark-muted">
-              {character.type === "pet" ? "Pet" : "Person"}
-              {character.ageGroup && ` · ${character.ageGroup}`}
-            </span>
+            {/* Role selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                className="text-xs text-text-dark-muted hover:text-text-dark flex items-center gap-1 transition-colors"
+              >
+                {character.role || "Select role"}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {showRoleDropdown && (
+                <div className="absolute left-0 top-full mt-1 bg-white border border-[#EADBBE] rounded-lg shadow-lg z-20 min-w-[120px]">
+                  {CHARACTER_ROLES.map((role) => (
+                    <button
+                      key={role}
+                      onClick={() => {
+                        onUpdateRole(character.id, role);
+                        setShowRoleDropdown(false);
+                      }}
+                      className={`block w-full text-left px-3 py-2 text-sm hover:bg-[#F5F0E6] transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                        character.role === role ? "font-bold text-accent-teal" : "text-text-dark"
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -173,7 +203,7 @@ export default function CharacterCard({
             <button
               onClick={() => setIsEditing(true)}
               className="w-10 h-10 rounded-full bg-[#E8E4F0] text-[#6B5BB0] flex items-center justify-center hover:bg-[#D8D0F0] transition-colors"
-              title="Edit name & role"
+              title="Edit name"
             >
               <svg
                 width="16"

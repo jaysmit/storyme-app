@@ -91,4 +91,15 @@ export interface LocalCharacter {
   status: "pending" | "uploading" | "generating" | "completed" | "failed";
   type: "person" | "pet";
   ageGroup: "child" | "adult" | "senior" | null;
+  role: string | null;
 }
+
+// Available roles for characters
+export const CHARACTER_ROLES = [
+  "Hero",
+  "Sidekick",
+  "Guide",
+  "Companion",
+  "Pet",
+  "Villain",
+] as const;
