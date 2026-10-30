@@ -16,7 +16,7 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 
 ## Current Status
 
-### Completed (Slice 0-1)
+### Completed (Slices 0-3)
 - [x] Next.js 15 project setup with TypeScript
 - [x] Tailwind CSS with custom theme matching prototype design
 - [x] Custom fonts (Fraunces, Kalam, Nunito Sans)
@@ -27,12 +27,27 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Create wizard with 4 steps:
   - Photo upload with drag-and-drop
   - Story selection grid
-  - Art style picker
-  - Preview placeholder
+  - Art style picker with large preview
+  - Preview with character avatars
 - [x] Supabase client/server utilities
-- [x] OpenAI integration utilities
+- [x] OpenAI integration utilities (lazy-loaded)
 - [x] Database schema with RLS policies
 - [x] Deployed to Vercel
+
+**Slice 2: Characters**
+- [x] Character API routes (CRUD)
+- [x] Character generation API with DALL-E 3
+- [x] CharacterCard component with status indicators
+- [x] "Generate all previews" button
+- [x] Photo upload to Supabase Storage (ready, needs credentials)
+- [x] TypeScript types for all entities
+
+**Slice 3: Crews**
+- [x] Crew API routes (CRUD + members)
+- [x] /crews page with list view
+- [x] Create crew modal
+- [x] "Save as crew" from create wizard
+- [x] Member avatars display
 
 ### Needs Setup
 - [ ] Create Supabase project for Story-me
@@ -40,12 +55,30 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [ ] Add real Supabase credentials to Vercel
 - [ ] Add OpenAI API key to Vercel
 
-### Remaining Work (Slices 2-6)
-- [ ] Photo upload to Supabase Storage
-- [ ] Character generation API with DALL-E
-- [ ] Crew management (save/load crews)
+### Remaining Work (Slices 4-6)
+- [ ] Stories page (/worlds)
+- [ ] Story detail with role assignment
 - [ ] Book preview generation
 - [ ] Full book viewer component
+
+## API Routes
+
+### Characters
+- `GET /api/characters` - List user's characters
+- `POST /api/characters` - Upload photo, create character
+- `GET /api/characters/[id]` - Get single character
+- `PATCH /api/characters/[id]` - Update character
+- `DELETE /api/characters/[id]` - Delete character
+- `POST /api/characters/[id]/generate` - Generate AI image
+
+### Crews
+- `GET /api/crews` - List user's crews with members
+- `POST /api/crews` - Create crew
+- `GET /api/crews/[id]` - Get crew with members
+- `PATCH /api/crews/[id]` - Update crew name
+- `DELETE /api/crews/[id]` - Delete crew
+- `POST /api/crews/[id]/members` - Add member
+- `DELETE /api/crews/[id]/members?characterId=&crewId=` - Remove member
 
 ## Database Schema
 
@@ -61,11 +94,14 @@ Tables defined in `supabase/migrations/001_initial_schema.sql`:
 ## Key Files
 - `app/page.tsx` - Landing page
 - `app/create/page.tsx` - Creation wizard
+- `app/crews/page.tsx` - Crews management
 - `app/(auth)/login/page.tsx` - Login form
 - `app/(auth)/register/page.tsx` - Registration form
 - `lib/supabase/client.ts` - Browser Supabase client
 - `lib/supabase/server.ts` - Server Supabase client
-- `lib/openai.ts` - DALL-E integration
+- `lib/openai.ts` - DALL-E integration (lazy-loaded)
+- `lib/types.ts` - TypeScript types
+- `components/CharacterCard.tsx` - Character display component
 
 ## Design Tokens (globals.css)
 ```css
