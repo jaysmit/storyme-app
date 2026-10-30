@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { openai, artStylePrompts } from "@/lib/openai";
+import { getOpenAI, artStylePrompts } from "@/lib/openai";
 
 // POST /api/characters/[id]/generate - Generate AI character image
 export async function POST(
@@ -69,6 +69,7 @@ High quality children's picture book illustration with a clean background.
 Full body or upper body portrait, looking at the viewer with a friendly expression.`;
 
     // Call DALL-E 3
+    const openai = getOpenAI();
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt,

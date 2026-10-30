@@ -1,8 +1,16 @@
 import OpenAI from "openai";
 
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-load OpenAI client to avoid build-time initialization errors
+let _openai: OpenAI | null = null;
+
+export function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return _openai;
+}
 
 // Art style prompt modifiers for DALL-E
 export const artStylePrompts: Record<string, string> = {
@@ -21,6 +29,7 @@ export async function generateCharacterImage(
   artStyle: keyof typeof artStylePrompts,
   characterDescription?: string
 ): Promise<string> {
+  const openai = getOpenAI();
   const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
 
   const prompt = `Transform this photo into a children's storybook character illustration.
@@ -47,6 +56,7 @@ export async function generatePageImage(
   characters: { name: string; description: string }[],
   artStyle: keyof typeof artStylePrompts
 ): Promise<string> {
+  const openai = getOpenAI();
   const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
   const characterList = characters
     .map((c) => `${c.name}: ${c.description}`)
