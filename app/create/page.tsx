@@ -1,20 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useCallback, useRef } from "react";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
+import CharacterCard from "@/components/CharacterCard";
+import type { LocalCharacter } from "@/lib/types";
 
 type Step = "crew" | "story" | "style" | "preview";
-
-interface Character {
-  id: string;
-  name: string;
-  photoUrl: string | null;
-  generatedUrl: string | null;
-  status: "pending" | "generating" | "completed" | "failed";
-  type: "person" | "pet";
-}
 
 const stories = [
   {
@@ -62,21 +54,25 @@ const stories = [
 ];
 
 const artStyles = [
-  { slug: "glow", name: "Enchanted glow" },
-  { slug: "watercolour", name: "Watercolour dream" },
-  { slug: "sketch", name: "Pencil sketch" },
-  { slug: "papercut", name: "Paper-cut" },
-  { slug: "anim", name: "3D animated" },
-  { slug: "silhouette", name: "Shadow silhouette" },
-  { slug: "bricks", name: "Toy bricks" },
+  { slug: "glow", name: "Enchanted glow", desc: "Rich painted light with golden sparkles" },
+  { slug: "watercolour", name: "Watercolour dream", desc: "Soft washes and pastel skies" },
+  { slug: "sketch", name: "Pencil sketch", desc: "Hand-drawn graphite on cream paper" },
+  { slug: "papercut", name: "Paper-cut", desc: "Layered paper with depth and texture" },
+  { slug: "anim", name: "3D animated", desc: "Cinematic Pixar-style rendering" },
+  { slug: "silhouette", name: "Shadow silhouette", desc: "Bold silhouettes against sunset" },
+  { slug: "bricks", name: "Toy bricks", desc: "LEGO-style brick world" },
 ];
 
 export default function CreatePage() {
   const [currentStep, setCurrentStep] = useState<Step>("crew");
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [characters, setCharacters] = useState<LocalCharacter[]>([]);
   const [selectedStory, setSelectedStory] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string>("glow");
   const [dragOver, setDragOver] = useState(false);
+  const [crewName, setCrewName] = useState("");
+  const [showSaveCrew, setShowSaveCrew] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "crew", label: "Gather crew", number: 1 },
@@ -87,6 +83,24 @@ export default function CreatePage() {
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
+  const addCharacterFromFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const newChar: LocalCharacter = {
+        id: crypto.randomUUID(),
+        name: file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "),
+        photoUrl: reader.result as string,
+        photoFile: file,
+        generatedUrl: null,
+        status: "pending",
+        type: "person",
+        ageGroup: null,
+      };
+      setCharacters((prev) => [...prev, newChar]);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
   const handleFileDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -95,46 +109,21 @@ export default function CreatePage() {
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith("image/")
       );
-
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const newChar: Character = {
-            id: crypto.randomUUID(),
-            name: file.name.replace(/\.[^/.]+$/, ""),
-            photoUrl: reader.result as string,
-            generatedUrl: null,
-            status: "pending",
-            type: "person",
-          };
-          setCharacters((prev) => [...prev, newChar]);
-        };
-        reader.readAsDataURL(file);
-      });
+      files.forEach(addCharacterFromFile);
     },
-    []
+    [addCharacterFromFile]
   );
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
-      files.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const newChar: Character = {
-            id: crypto.randomUUID(),
-            name: file.name.replace(/\.[^/.]+$/, ""),
-            photoUrl: reader.result as string,
-            generatedUrl: null,
-            status: "pending",
-            type: "person",
-          };
-          setCharacters((prev) => [...prev, newChar]);
-        };
-        reader.readAsDataURL(file);
-      });
+      files.forEach(addCharacterFromFile);
+      // Reset input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     },
-    []
+    [addCharacterFromFile]
   );
 
   const removeCharacter = (id: string) => {
@@ -145,6 +134,47 @@ export default function CreatePage() {
     setCharacters((prev) =>
       prev.map((c) => (c.id === id ? { ...c, name } : c))
     );
+  };
+
+  const generateCharacter = async (id: string) => {
+    // Update status to generating
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, status: "generating" } : c))
+    );
+
+    // In a real implementation, this would:
+    // 1. Upload the photo to Supabase Storage
+    // 2. Call the generate API
+    // 3. Update with the generated image URL
+
+    // For now, simulate with a timeout
+    setTimeout(() => {
+      setCharacters((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                status: "completed",
+                // Use a placeholder for now
+                generatedUrl: c.photoUrl,
+              }
+            : c
+        )
+      );
+    }, 2000);
+  };
+
+  const generateAllCharacters = async () => {
+    setGenerating(true);
+    // Generate all pending characters sequentially
+    for (const char of characters) {
+      if (char.status === "pending" && !char.generatedUrl) {
+        await generateCharacter(char.id);
+        // Wait a bit between generations
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+    setGenerating(false);
   };
 
   const canProceed = () => {
@@ -210,9 +240,7 @@ export default function CreatePage() {
                   </span>
                   <span
                     className={`hidden sm:block text-sm font-bold ${
-                      i === currentStepIndex
-                        ? "text-white"
-                        : "text-text-muted"
+                      i === currentStepIndex ? "text-white" : "text-text-muted"
                     }`}
                   >
                     {step.label}
@@ -238,12 +266,24 @@ export default function CreatePage() {
           {/* Step 1: Gather Crew */}
           {currentStep === "crew" && (
             <div>
-              <h1 className="text-4xl font-black text-white mb-2">
-                Gather your crew
-              </h1>
-              <p className="text-lg text-text-muted mb-8">
-                Upload photos of the people who'll star in your story.
-              </p>
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h1 className="text-4xl font-black text-white mb-2">
+                    Gather your crew
+                  </h1>
+                  <p className="text-lg text-text-muted">
+                    Upload photos of the people who'll star in your story.
+                  </p>
+                </div>
+                {characters.length > 0 && (
+                  <button
+                    onClick={() => setShowSaveCrew(true)}
+                    className="px-4 py-2 rounded-full border border-brand-purple-muted text-text-muted hover:border-accent-gold hover:text-white transition-colors text-sm font-bold"
+                  >
+                    Save as crew
+                  </button>
+                )}
+              </div>
 
               {/* Upload area */}
               <div
@@ -281,6 +321,7 @@ export default function CreatePage() {
                 </p>
                 <label className="inline-block bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors">
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     multiple
@@ -293,85 +334,88 @@ export default function CreatePage() {
 
               {/* Character list */}
               {characters.length > 0 && (
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {characters.map((char) => (
-                    <div
-                      key={char.id}
-                      className="bg-cream rounded-2xl p-4 flex flex-col gap-4"
+                <>
+                  <div className="mt-8 flex justify-between items-center">
+                    <h2 className="text-xl font-bold text-white">
+                      Your crew ({characters.length})
+                    </h2>
+                    <button
+                      onClick={generateAllCharacters}
+                      disabled={generating || characters.every((c) => c.generatedUrl)}
+                      className="px-4 py-2 rounded-full bg-accent-gold text-brand-dark font-bold text-sm hover:bg-accent-gold-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                     >
-                      <div className="relative grid grid-cols-2 gap-2">
-                        {/* Photo */}
-                        <div className="aspect-square rounded-xl overflow-hidden bg-[#EFE3C8]">
-                          {char.photoUrl && (
-                            <img
-                              src={char.photoUrl}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                        </div>
-                        {/* Generated preview */}
-                        <div className="aspect-square rounded-xl overflow-hidden bg-gradient-to-b from-[#6B5BB0] via-[#2A2470] to-[#1E1B4B] flex items-center justify-center">
-                          {char.generatedUrl ? (
-                            <img
-                              src={char.generatedUrl}
-                              alt={`${char.name} as character`}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="text-center text-[#C9C5EE] p-2">
-                              <svg
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="#F4C95D"
-                                className="mx-auto mb-1"
-                              >
-                                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                              </svg>
-                              <span className="text-xs font-bold">
-                                {char.status === "generating"
-                                  ? "Creating..."
-                                  : "Preview"}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {/* Arrow */}
-                        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-accent-gold flex items-center justify-center">
+                      {generating ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
                           <svg
-                            width="14"
-                            height="14"
+                            width="16"
+                            height="16"
                             viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="#14163A"
-                            strokeWidth="2.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                            fill="currentColor"
                           >
-                            <path d="M5 12h14M13 6l6 6-6 6" />
+                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
                           </svg>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="text"
-                          value={char.name}
-                          onChange={(e) =>
-                            updateCharacterName(char.id, e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
-                          placeholder="Name"
-                        />
-                        <button
-                          onClick={() => removeCharacter(char.id)}
-                          className="w-10 h-10 rounded-full bg-[#FFE3E3] text-accent-rust flex items-center justify-center hover:bg-accent-rust hover:text-white transition-colors"
-                        >
-                          ×
-                        </button>
-                      </div>
+                          Generate all previews
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {characters.map((char) => (
+                      <CharacterCard
+                        key={char.id}
+                        character={char}
+                        onRemove={removeCharacter}
+                        onUpdateName={updateCharacterName}
+                        onGenerate={generateCharacter}
+                        showGenerateButton
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Save Crew Modal */}
+              {showSaveCrew && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
+                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-md w-full">
+                    <h2 className="text-2xl font-black text-white mb-4">
+                      Save this crew
+                    </h2>
+                    <p className="text-text-muted mb-6">
+                      Give your crew a name so you can use them again later.
+                    </p>
+                    <input
+                      type="text"
+                      value={crewName}
+                      onChange={(e) => setCrewName(e.target.value)}
+                      placeholder="e.g., The Smith Family"
+                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold mb-6"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowSaveCrew(false)}
+                        className="flex-1 px-4 py-3 rounded-full border border-brand-purple-muted text-text-muted hover:text-white transition-colors font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          // TODO: Save crew to API
+                          setShowSaveCrew(false);
+                          setCrewName("");
+                        }}
+                        disabled={!crewName.trim()}
+                        className="flex-1 px-4 py-3 rounded-full bg-accent-gold text-brand-dark font-extrabold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
+                      >
+                        Save crew
+                      </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -428,19 +472,35 @@ export default function CreatePage() {
                 Choose the art style for your storybook.
               </p>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
+              {/* Large preview */}
+              <div className="mb-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden">
+                <div className="h-64 md:h-80 bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] flex items-center justify-center text-text-muted">
+                  [Style Preview: {artStyles.find((s) => s.slug === selectedStyle)?.name}]
+                </div>
+                <div className="p-6">
+                  <h3 className="text-2xl font-black text-white">
+                    {artStyles.find((s) => s.slug === selectedStyle)?.name}
+                  </h3>
+                  <p className="text-text-muted mt-1">
+                    {artStyles.find((s) => s.slug === selectedStyle)?.desc}
+                  </p>
+                </div>
+              </div>
+
+              {/* Style selector */}
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 {artStyles.map((style) => (
                   <button
                     key={style.slug}
                     onClick={() => setSelectedStyle(style.slug)}
-                    className={`text-left flex flex-col gap-3 ${
+                    className={`text-left flex flex-col gap-2 transition-opacity ${
                       selectedStyle === style.slug
                         ? "opacity-100"
-                        : "opacity-60 hover:opacity-100"
+                        : "opacity-50 hover:opacity-80"
                     }`}
                   >
                     <div
-                      className={`h-28 rounded-2xl bg-brand-dark flex items-center justify-center text-text-muted text-xs font-bold ${
+                      className={`aspect-square rounded-xl bg-brand-dark flex items-center justify-center text-text-muted text-[10px] font-bold ${
                         selectedStyle === style.slug
                           ? "ring-3 ring-accent-gold"
                           : "ring-1 ring-brand-purple-muted"
@@ -449,7 +509,7 @@ export default function CreatePage() {
                       Preview
                     </div>
                     <span
-                      className={`text-sm font-extrabold ${
+                      className={`text-xs font-bold leading-tight ${
                         selectedStyle === style.slug
                           ? "text-white"
                           : "text-text-muted"
@@ -478,16 +538,39 @@ export default function CreatePage() {
                 <h2 className="text-2xl font-black text-white mb-2">
                   {stories.find((s) => s.slug === selectedStory)?.title}
                 </h2>
-                <p className="text-text-muted mb-4">
-                  {characters.length} characters ·{" "}
+                <p className="text-text-muted mb-6">
+                  {characters.length} character{characters.length !== 1 && "s"} ·{" "}
                   {artStyles.find((s) => s.slug === selectedStyle)?.name} style
                 </p>
-                <button className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors">
+
+                {/* Character preview row */}
+                <div className="flex justify-center gap-2 mb-6">
+                  {characters.slice(0, 5).map((char) => (
+                    <div
+                      key={char.id}
+                      className="w-12 h-12 rounded-full overflow-hidden bg-brand-dark border-2 border-accent-gold"
+                    >
+                      {(char.generatedUrl || char.photoUrl) && (
+                        <img
+                          src={char.generatedUrl || char.photoUrl || ""}
+                          alt={char.name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {characters.length > 5 && (
+                    <div className="w-12 h-12 rounded-full bg-brand-purple-muted flex items-center justify-center text-text-muted text-sm font-bold">
+                      +{characters.length - 5}
+                    </div>
+                  )}
+                </div>
+
+                <button className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full">
                   Generate Preview
                 </button>
                 <p className="text-xs text-text-muted mt-4">
-                  This will use AI to generate your book preview. Takes about
-                  1-2 minutes.
+                  This will use AI to generate your book preview.
                 </p>
               </div>
             </div>
