@@ -461,7 +461,7 @@ export default function CreatePage() {
                       accept="image/*"
                       multiple
                       onChange={handleFileSelect}
-                      className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                      className="sr-only"
                     />
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
