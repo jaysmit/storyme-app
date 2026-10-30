@@ -185,28 +185,20 @@ export default function HomePage() {
             >
               <div className="relative grid grid-cols-2 gap-2">
                 {/* Photo placeholder */}
-                <div className="h-48 rounded-2xl bg-[#EFE3C8] border-2 border-dashed border-[#B9A67E] flex flex-col items-center justify-center gap-2 text-[#6B5A3A] text-center">
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#6B5A3A"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                  <span className="text-xs font-extrabold">Photo</span>
+                <div className="h-48 rounded-2xl overflow-hidden bg-[#EFE3C8] border-2 border-[#B9A67E]">
+                  <img
+                    src={`/api/placeholder/150/192?text=${encodeURIComponent(name + " Photo")}`}
+                    alt={`${name} photo`}
+                    className="w-full h-full object-cover opacity-60"
+                  />
                 </div>
                 {/* Storybook placeholder */}
-                <div className="h-48 rounded-2xl bg-gradient-to-b from-[#6B5BB0] via-[#2A2470] to-[#1E1B4B] border-2 border-dashed border-[#6E67B8] flex flex-col items-center justify-center gap-2 text-[#C9C5EE] text-center">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#F4C95D">
-                    <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                  </svg>
-                  <span className="text-xs font-extrabold">Storybook</span>
+                <div className="h-48 rounded-2xl overflow-hidden bg-gradient-to-b from-[#6B5BB0] via-[#2A2470] to-[#1E1B4B] border-2 border-[#6E67B8]">
+                  <img
+                    src={`/api/placeholder/150/192?text=${encodeURIComponent(name + " Character")}`}
+                    alt={`${name} character`}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 {/* Arrow */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-accent-gold border-4 border-cream flex items-center justify-center">
@@ -283,10 +275,12 @@ export default function HomePage() {
               key={story.slug}
               className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden flex flex-col"
             >
-              <div className="h-[272px] bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] relative">
-                <div className="absolute inset-0 flex items-center justify-center text-text-muted text-sm">
-                  [Cover Image]
-                </div>
+              <div className="h-[272px] bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] relative overflow-hidden">
+                <img
+                  src={`/api/placeholder/400/272?text=${encodeURIComponent(story.title)}`}
+                  alt={story.title}
+                  className="w-full h-full object-cover"
+                />
                 <span className="absolute left-4 top-4 bg-[rgba(20,22,58,0.85)] text-white text-sm font-extrabold px-3 py-1.5 rounded-full">
                   {story.cast}
                 </span>
@@ -354,9 +348,11 @@ export default function HomePage() {
                     : "ring-1 ring-brand-purple-muted"
                 }`}
               >
-                <div className="w-full h-full flex items-center justify-center text-text-muted text-xs font-bold">
-                  Preview
-                </div>
+                <img
+                  src={`/api/placeholder/120/128?text=${encodeURIComponent(style.name)}`}
+                  alt={style.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span
                 className={`text-sm font-extrabold ${
@@ -447,13 +443,17 @@ export default function HomePage() {
               }`}
             >
               <div
-                className={`h-[180px] flex items-center justify-center text-sm font-bold ${
+                className={`h-[180px] overflow-hidden ${
                   plan.featured
-                    ? "bg-[#2A2470] text-text-muted"
-                    : "bg-[#F4E4C8] text-text-dark-muted"
+                    ? "bg-[#2A2470]"
+                    : "bg-[#F4E4C8]"
                 }`}
               >
-                [Product Image]
+                <img
+                  src={`/api/placeholder/300/180?text=${encodeURIComponent(plan.name)}`}
+                  alt={plan.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="p-6 flex flex-col gap-4 flex-1">
                 <span
