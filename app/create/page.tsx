@@ -523,6 +523,32 @@ export default function CreatePage() {
                         showGenerateButton
                       />
                     ))}
+
+                    {/* Add new member card - shows when at least one character is completed */}
+                    {characters.some((c) => c.generatedUrl) && characters.length < 5 && (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[280px] hover:border-accent-gold hover:bg-brand-purple-light/80 transition-colors group"
+                      >
+                        <div className="w-16 h-16 rounded-full bg-brand-dark flex items-center justify-center group-hover:bg-accent-gold transition-colors">
+                          <svg
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-accent-gold group-hover:text-brand-dark transition-colors"
+                          >
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        </div>
+                        <span className="text-lg font-bold text-white">Add crew member</span>
+                        <span className="text-sm text-text-muted">Up to {5 - characters.length} more</span>
+                      </button>
+                    )}
                   </div>
                 </>
               )}
