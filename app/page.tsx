@@ -8,49 +8,49 @@ const artStyles = [
     name: "Enchanted glow",
     desc: "Our signature look. Rich painted light, golden sparkles and starry skies — pure bedtime wonder.",
     ages: "3–10",
-    image: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=120&h=128&fit=crop", // magical glow
+    image: "/images/enchanted-glow.jpg",
   },
   {
     slug: "watercolour",
     name: "Watercolour dream",
     desc: "Soft washes and pastel skies that melt into the page. Gentle, calm and dreamy.",
     ages: "0–5",
-    image: "https://images.unsplash.com/photo-1579762715118-a6f1d4b934f1?w=120&h=128&fit=crop", // watercolor
+    image: "/images/watercolour-dream.jpg",
   },
   {
     slug: "sketch",
     name: "Pencil sketch",
     desc: "Hand-drawn graphite on cream paper, like an illustrator's sketchbook come to life.",
     ages: "3–10",
-    image: "https://images.unsplash.com/photo-1572953109213-3be62398eb95?w=120&h=128&fit=crop", // sketch
+    image: "/images/pencil-sketch.jpg",
   },
   {
     slug: "papercut",
     name: "Paper-cut",
     desc: "Layered paper and felt with real depth and texture, like a handmade pop-up book.",
     ages: "2–8",
-    image: "https://images.unsplash.com/photo-1582845512747-e42001c95638?w=120&h=128&fit=crop", // paper craft
+    image: "/images/paper-cut.jpg",
   },
   {
     slug: "anim",
     name: "3D animated",
     desc: "Cinematic, glossy and bursting with colour, like stepping into an animated film.",
     ages: "4–10",
-    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=120&h=128&fit=crop", // 3D colorful
+    image: "/images/3d-animated.jpg",
   },
   {
     slug: "silhouette",
     name: "Shadow silhouette",
     desc: "Bold black silhouettes against a glowing sunset sky, like a shadow-puppet show.",
     ages: "3–10",
-    image: "https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=120&h=128&fit=crop", // silhouette sunset
+    image: "/images/shadow-silhouette.jpg",
   },
   {
     slug: "bricks",
     name: "Toy bricks",
     desc: "A whole world built from bright toy bricks — castles, dragons and all.",
     ages: "3–10",
-    image: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=120&h=128&fit=crop", // lego bricks
+    image: "/images/toy-bricks.jpg",
   },
 ];
 
@@ -60,42 +60,42 @@ const stories = [
     title: "The Dragon of Castle Valley",
     tagline: "A dragon guards the road to the glowing castle. Only a brave crew can win their way past.",
     cast: "4 parts",
-    image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=400&h=272&fit=crop", // castle
+    image: "/images/the-dragon-of-castle-valley.jpg",
   },
   {
     slug: "fairy-glade",
     title: "The Fairy Glade",
     tagline: "Follow the fireflies past the mushroom houses to a glade where the fairies are waiting.",
     cast: "4 parts",
-    image: "https://images.unsplash.com/photo-1518882605630-8eb582c4b5c5?w=400&h=272&fit=crop", // magical forest
+    image: "/images/the-fairy-glade.jpg",
   },
   {
     slug: "grand-final-day",
     title: "Grand Final Day",
     tagline: "One game, one final siren, and a whole family in the stands cheering.",
     cast: "5 parts",
-    image: "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&h=272&fit=crop", // stadium sports
+    image: "/images/grand-final-day.jpg",
   },
   {
     slug: "cloud-ship",
     title: "Captain of the Cloud Ship",
     tagline: "Your little one takes the helm of a flying ship, with family as the crew.",
     cast: "4 parts",
-    image: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=400&h=272&fit=crop", // clouds sky
+    image: "/images/captain-of-the-cloud-ship.jpg",
   },
   {
     slug: "super-squad",
     title: "The Super Squad and the Sorceress",
     tagline: "A cheeky sorceress is turning the city upside down. Time to suit up.",
     cast: "4 parts",
-    image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=400&h=272&fit=crop", // superhero
+    image: "/images/the-super-squad-and-the-sorceress.jpg",
   },
   {
     slug: "galaxy-road-trip",
     title: "The Great Galaxy Road Trip",
     tagline: "An old rocket turns out to be the fastest ride in the galaxy — and home before bedtime.",
     cast: "4 parts",
-    image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=400&h=272&fit=crop", // galaxy
+    image: "/images/the-great-galaxy-road-trip.jpg",
   },
 ];
 
@@ -192,10 +192,10 @@ export default function HomePage() {
 
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { name: "Mia", photo: "https://images.unsplash.com/photo-1518882605630-8eb582c4b5c5?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=150&h=192&fit=crop", role: "Hero" },
-            { name: "Leo", photo: "https://images.unsplash.com/photo-1503919545889-aef636e10ad4?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1566888596782-c7f41cc184c5?w=150&h=192&fit=crop", role: "Hero" },
-            { name: "Nan", photo: "https://images.unsplash.com/photo-1556745753-b2904692b3cd?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1596434000703-31c2ed8cdde8?w=150&h=192&fit=crop", role: "Hero" },
-            { name: "Pip", photo: "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=150&h=192&fit=crop&crop=face", character: "https://images.unsplash.com/photo-1535930891776-0c2dfb7fda1a?w=150&h=192&fit=crop", role: "The family dog" },
+            { name: "Mia", photo: "/images/mia-photo.jpg", character: "/images/mia-storybook.png", role: "Hero" },
+            { name: "Leo", photo: "/images/leo-photo.jpg", character: "/images/leo-storybook.png", role: "Hero" },
+            { name: "Nan", photo: "/images/nan-photo.jpg", character: "/images/nan-storybook.png", role: "Hero" },
+            { name: "Pip", photo: "/images/pip-photo.jpg", character: "/images/pip-storybook.png", role: "The family dog" },
           ].map((char) => (
             <div
               key={char.name}
@@ -414,7 +414,7 @@ export default function HomePage() {
               name: "Digital book",
               price: "$14.20",
               ship: "no shipping",
-              image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&h=180&fit=crop",
+              image: "/images/digital-book.jpg",
               items: [
                 "Illustrated PDF and e-reader version",
                 "Read on any screen in minutes",
@@ -427,7 +427,7 @@ export default function HomePage() {
               name: "Softcover",
               price: "$23",
               ship: "+ shipping",
-              image: "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=180&fit=crop",
+              image: "/images/softcover.jpg",
               items: [
                 "Matte paperback for everyday reading",
                 "Includes the digital copy",
@@ -440,7 +440,7 @@ export default function HomePage() {
               name: "Deluxe hardcover",
               price: "$34",
               ship: "+ shipping",
-              image: "https://images.unsplash.com/photo-1589998059171-988d887df646?w=300&h=180&fit=crop",
+              image: "/images/deluxe-hardcover.jpg",
               items: [
                 "Gold-foil hardcover, premium paper",
                 "Personalised dedication page",
@@ -454,7 +454,7 @@ export default function HomePage() {
               name: "Treasure chest",
               price: "$119",
               ship: "+ shipping",
-              image: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=300&h=180&fit=crop",
+              image: "/images/treasure-chest.jpg",
               items: [
                 "Deluxe hardcover in a keepsake box",
                 "Character poster print",
