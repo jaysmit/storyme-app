@@ -127,7 +127,7 @@ Requirements:
     console.log("Generating character illustration...");
     const openai = getOpenAI();
     const response = await openai.images.generate({
-      model: "gpt-image-1",
+      model: "gpt-image-1.5",
       prompt,
       n: 1,
       size: "1024x1024",

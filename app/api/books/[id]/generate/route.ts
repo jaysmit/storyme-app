@@ -193,7 +193,7 @@ Wide landscape format, vibrant colors, detailed background.`;
       try {
         console.log(`Generating page ${i + 1} for book ${id}...`);
         const response = await openai.images.generate({
-          model: "gpt-image-1",
+          model: "gpt-image-1.5",
           prompt,
           n: 1,
           size: "1792x1024", // Landscape for book pages
