@@ -110,13 +110,18 @@ ${characterTypeContext} Their name is ${character.name}.
 
 Art style: ${styleModifier}
 
-Requirements:
+FRAMING (CRITICAL):
+- Pure white background (#FFFFFF), no patterns or gradients
+- Portrait framing: head and upper body/shoulders visible (like a passport photo but showing down to chest/upper torso)
+- Character centered in frame, facing forward or slightly angled
+- Consistent medium distance - not too close (just face) and not too far (full body)
+- Leave some white space around the character
+
+STYLE REQUIREMENTS:
 - KEEP THE EXACT SAME facial features, face shape, eye color, hair color, skin tone, and likeness
 - Transform into a warm, friendly cartoon/illustrated style
 - Suitable for a children's picture book (ages 4-10)
-- Clean, simple background with soft pastel colors
-- Upper body or full body portrait
-- Warm, welcoming expression
+- Warm, welcoming expression with a gentle smile
 - The illustrated character must be clearly recognizable as the same person/pet in the photo`;
 
     // Step 3: Use images.edit to transform the photo
