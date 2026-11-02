@@ -118,8 +118,10 @@ FRAMING (CRITICAL):
 - Leave some white space around the character
 
 STYLE REQUIREMENTS:
+- ANIMATED CARTOON STYLE - like Pixar, Disney, or DreamWorks animated characters
+- Smooth, clean lines with bold colors and soft shading
+- Stylized but expressive features with large, bright eyes
 - KEEP THE EXACT SAME facial features, face shape, eye color, hair color, skin tone, and likeness
-- Transform into a warm, friendly cartoon/illustrated style
 - Suitable for a children's picture book (ages 4-10)
 - Warm, welcoming expression with a gentle smile
 - The illustrated character must be clearly recognizable as the same person/pet in the photo`;
