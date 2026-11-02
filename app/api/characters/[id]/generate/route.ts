@@ -137,16 +137,16 @@ Avoid photorealism, realistic skin textures, detailed pores and photographic lig
 Use a clean white background with the character centred, showing their head and upper body.${feedbackSection}`;
 
     // Step 3: Use images.edit to transform the photo
-    // Premium settings from ChatGPT recommendation
+    // StoryMe character generation settings
     console.log("Transforming photo into illustration...");
     const openai = getOpenAI();
     const response = await openai.images.edit({
-      model: "gpt-image-2.5-sunburst",
+      model: "gpt-image-2",
       image: photoFile,
       prompt,
       n: 1,
-      size: "800x832",
-      quality: "max",
+      size: "1024x1024",
+      quality: "low",
     });
 
     // Handle the response (base64 or URL)
