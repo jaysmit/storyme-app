@@ -136,7 +136,7 @@ STYLE:
 - Warm, friendly expression
 - Suitable for children's picture book (ages 4-10)${feedbackSection}`;
 
-    // Step 3: Use images.edit to transform the photo (512x512 for cost efficiency)
+    // Step 3: Use images.edit to transform the photo
     console.log("Transforming photo into illustration...");
     const openai = getOpenAI();
     const response = await openai.images.edit({
@@ -144,7 +144,8 @@ STYLE:
       image: photoFile,
       prompt,
       n: 1,
-      size: "512x512",
+      size: "1024x1024",
+      quality: "low", // Use low quality for cost efficiency
     });
 
     // Handle the response (base64 or URL)
