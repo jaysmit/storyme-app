@@ -48,6 +48,15 @@ const storyScenes: Record<string, { title: string; scene: string }[]> = {
   ],
 };
 
+// Character type for generation
+interface CharacterInput {
+  id: string;
+  name: string;
+  physical_description?: string;
+  character_type?: string;
+  pet_type?: string;
+}
+
 // POST /api/books/[id]/generate - Generate preview pages
 export async function POST(
   request: NextRequest,
@@ -89,13 +98,23 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const storySlug = body.storySlug || book.metadata?.storySlug;
     const artStyle = body.artStyle || book.metadata?.artStyle || "glow";
-    const characters = body.characters || book.metadata?.characters || [];
+    const characterIds: string[] = body.characterIds || book.metadata?.characterIds || [];
 
     if (!storySlug) {
       return NextResponse.json(
         { error: "Missing story selection" },
         { status: 400 }
       );
+    }
+
+    // Fetch full character data including physical descriptions
+    let characters: CharacterInput[] = [];
+    if (characterIds.length > 0) {
+      const { data: charData } = await supabase
+        .from("characters")
+        .select("id, name, physical_description, character_type, pet_type")
+        .in("id", characterIds);
+      characters = charData || [];
     }
 
     // Update status to generating
@@ -108,11 +127,20 @@ export async function POST(
     const scenes = storyScenes[storySlug] || storyScenes["dragon-castle-valley"];
     const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
 
-    // Build character description
-    const characterNames = characters.map((c: { name: string }) => c.name).join(", ");
-    const characterDesc = characters.length > 0
-      ? `The main characters are: ${characterNames}. Include them in the scene as warm, friendly storybook characters.`
-      : "Include friendly storybook characters in the scene.";
+    // Build detailed character descriptions for consistent appearance
+    const characterDescriptions = characters.map((c) => {
+      if (c.physical_description) {
+        return `${c.name}: ${c.physical_description}`;
+      }
+      // Fallback if no physical description
+      if (c.character_type === "pet") {
+        return `${c.name}: A friendly ${c.pet_type || "pet"} companion`;
+      }
+      return `${c.name}: A warm, friendly character`;
+    }).join("\n");
+
+    const characterNames = characters.map((c) => c.name).join(", ");
+    const hasCharacters = characters.length > 0;
 
     // Generate preview pages (3 pages for preview)
     const previewScenes = [scenes[0], scenes[2], scenes[4]]; // First, middle, last
@@ -123,14 +151,29 @@ export async function POST(
     for (let i = 0; i < previewScenes.length; i++) {
       const scene = previewScenes[i];
 
-      const prompt = `Children's picture book illustration for page ${i + 1}:
+      // Build comprehensive prompt with character physical descriptions
+      const prompt = hasCharacters
+        ? `Children's picture book illustration for page ${i + 1}:
+
+Scene: ${scene.scene}
+
+Characters in this scene (MUST match these exact physical descriptions):
+${characterDescriptions}
+
+The characters ${characterNames} should be prominently featured in the scene, interacting naturally with the environment.
+
+Art style: ${styleModifier}
+High quality children's book illustration, warm and friendly, suitable for ages 4-10.
+Wide landscape format, vibrant colors, detailed background.
+Keep character appearances consistent with their physical descriptions.`
+        : `Children's picture book illustration for page ${i + 1}:
 ${scene.scene}
-${characterDesc}
 Art style: ${styleModifier}
 High quality children's book illustration, warm and friendly, suitable for ages 4-10.
 Wide landscape format, vibrant colors, detailed background.`;
 
       try {
+        console.log(`Generating page ${i + 1} for book ${id}...`);
         const response = await openai.images.generate({
           model: "dall-e-3",
           prompt,
@@ -165,6 +208,9 @@ Wide landscape format, vibrant colors, detailed background.`;
               url: publicUrl,
               title: scene.title,
             });
+            console.log(`Page ${i + 1} generated successfully`);
+          } else {
+            console.error(`Upload error for page ${i + 1}:`, uploadError);
           }
         }
       } catch (genError) {

@@ -34,6 +34,7 @@ export default function CharactersPage() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -187,6 +188,47 @@ export default function CharactersPage() {
 
     setEditingId(null);
     setEditName("");
+  }
+
+  async function generateIllustration(char: Character) {
+    if (generatingId) return; // Already generating another
+
+    setGeneratingId(char.id);
+
+    // Update local state to show generating status
+    setCharacters((prev) =>
+      prev.map((c) => (c.id === char.id ? { ...c, generation_status: "generating" } : c))
+    );
+
+    try {
+      const res = await fetch(`/api/characters/${char.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artStyle: "glow" }), // Default art style
+      });
+
+      if (res.ok) {
+        const { character: updatedChar } = await res.json();
+        setCharacters((prev) =>
+          prev.map((c) => (c.id === char.id ? updatedChar : c))
+        );
+      } else {
+        const error = await res.json();
+        alert(`Failed to generate: ${error.error || "Unknown error"}`);
+        // Revert status
+        setCharacters((prev) =>
+          prev.map((c) => (c.id === char.id ? { ...c, generation_status: "failed" } : c))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to generate illustration:", error);
+      alert("Failed to generate illustration. Please try again.");
+      setCharacters((prev) =>
+        prev.map((c) => (c.id === char.id ? { ...c, generation_status: "failed" } : c))
+      );
+    }
+
+    setGeneratingId(null);
   }
 
   return (
@@ -400,23 +442,46 @@ export default function CharactersPage() {
                     {/* Caricature */}
                     <div className="w-1/2 relative border-l border-brand-purple-muted">
                       {char.generated_image_url ? (
-                        <img
-                          src={char.generated_image_url}
-                          alt={`${char.name} - Caricature`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : char.generation_status === "generating" ? (
+                        <>
+                          <img
+                            src={char.generated_image_url}
+                            alt={`${char.name} - Illustrated`}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Regenerate button */}
+                          <button
+                            onClick={() => generateIllustration(char)}
+                            disabled={!!generatingId}
+                            className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
+                            title="Regenerate illustration"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 4v6h6M23 20v-6h-6" />
+                              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                            </svg>
+                          </button>
+                        </>
+                      ) : char.generation_status === "generating" || generatingId === char.id ? (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-brand-dark">
                           <div className="w-8 h-8 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                          <p className="text-text-muted text-xs">Generating...</p>
+                          <p className="text-text-muted text-xs">Creating...</p>
                         </div>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-brand-dark">
-                          <p className="text-text-muted text-xs text-center px-2">Caricature pending</p>
-                        </div>
+                        <button
+                          onClick={() => generateIllustration(char)}
+                          disabled={!!generatingId}
+                          className="w-full h-full flex flex-col items-center justify-center bg-brand-dark hover:bg-brand-purple-muted transition-colors group disabled:opacity-50"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-brand-purple-muted group-hover:bg-accent-gold flex items-center justify-center mb-2 transition-colors">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-accent-gold group-hover:text-brand-dark transition-colors">
+                              <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                            </svg>
+                          </div>
+                          <p className="text-accent-gold text-xs font-bold group-hover:text-white">Illustrate</p>
+                        </button>
                       )}
                       <div className="absolute bottom-1 right-1 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
-                        Caricature
+                        Illustrated
                       </div>
                     </div>
                   </div>

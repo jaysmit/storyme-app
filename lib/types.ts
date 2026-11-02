@@ -19,6 +19,7 @@ export interface Character {
   character_type: "person" | "pet" | "other";
   pet_type: string | null;
   age_group: "child" | "adult" | "senior" | null;
+  physical_description: string | null; // AI-generated description from photo for story scenes
   created_at: string;
 }
 

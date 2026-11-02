@@ -112,6 +112,9 @@ export default function CreatePage() {
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
+  // Character generation state
+  const [generatingCharacterId, setGeneratingCharacterId] = useState<string | null>(null);
+
   // New characters being added
   const [pendingCharacters, setPendingCharacters] = useState<PendingCharacter[]>([]);
 
@@ -240,6 +243,37 @@ export default function CreatePage() {
     } catch (error) {
       console.error("Failed to delete character:", error);
     }
+  };
+
+  // Generate caricature for a character
+  const generateCaricature = async (char: Character, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingCharacterId) return; // Already generating
+
+    setGeneratingCharacterId(char.id);
+
+    try {
+      const res = await fetch(`/api/characters/${char.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ artStyle: selectedStyle }),
+      });
+
+      if (res.ok) {
+        const { character: updatedChar } = await res.json();
+        setExistingCharacters((prev) =>
+          prev.map((c) => (c.id === char.id ? updatedChar : c))
+        );
+      } else {
+        const error = await res.json();
+        alert(`Failed to generate: ${error.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Failed to generate caricature:", error);
+      alert("Failed to generate caricature. Please try again.");
+    }
+
+    setGeneratingCharacterId(null);
   };
 
   // Add photo to pending characters
@@ -439,11 +473,7 @@ export default function CreatePage() {
         body: JSON.stringify({
           storySlug: selectedStory,
           artStyle: selectedStyle,
-          characters: selectedCharacters.map((c) => ({
-            id: c.id,
-            name: c.name,
-            type: c.character_type,
-          })),
+          characterIds: selectedCharacters.map((c) => c.id),
         }),
       });
 
@@ -457,11 +487,7 @@ export default function CreatePage() {
           body: JSON.stringify({
             storySlug: selectedStory,
             artStyle: selectedStyle,
-            characters: selectedCharacters.map((c) => ({
-              id: c.id,
-              name: c.name,
-              type: c.character_type,
-            })),
+            characterIds: selectedCharacters.map((c) => c.id),
           }),
         });
 
@@ -604,6 +630,8 @@ export default function CreatePage() {
                     {existingCharacters.map((char) => {
                       const isSelected = selectedCharacterIds.has(char.id);
                       const isEditing = editingCharacterId === char.id;
+                      const isGenerating = generatingCharacterId === char.id;
+                      const hasGeneratedImage = !!char.generated_image_url;
                       return (
                         <div
                           key={char.id}
@@ -616,14 +644,63 @@ export default function CreatePage() {
                           {/* Clickable image area for selection */}
                           <button
                             onClick={() => toggleCharacterSelection(char.id)}
-                            className="w-full aspect-square bg-brand-dark"
+                            className="w-full bg-brand-dark"
                           >
-                            <img
-                              src={char.generated_image_url || char.original_photo_url}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
+                            {hasGeneratedImage ? (
+                              // Side-by-side comparison
+                              <div className="flex">
+                                <div className="w-1/2 aspect-square relative">
+                                  <img
+                                    src={char.original_photo_url}
+                                    alt={`${char.name} - Original`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1 rounded">
+                                    Photo
+                                  </span>
+                                </div>
+                                <div className="w-1/2 aspect-square relative">
+                                  <img
+                                    src={char.generated_image_url!}
+                                    alt={`${char.name} - Illustrated`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <span className="absolute bottom-1 right-1 text-[9px] bg-accent-gold/80 text-brand-dark px-1 rounded font-bold">
+                                    Illustrated
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              // Just original photo
+                              <div className="aspect-square relative">
+                                <img
+                                  src={char.original_photo_url}
+                                  alt={char.name}
+                                  className="w-full h-full object-cover"
+                                />
+                                {isGenerating && (
+                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                                    <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
+                                    <span className="text-white text-xs font-bold">Creating...</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </button>
+
+                          {/* Generate button (only show if no generated image and not generating) */}
+                          {!hasGeneratedImage && !isGenerating && (
+                            <button
+                              onClick={(e) => generateCaricature(char, e)}
+                              className="absolute top-2 left-2 bg-accent-gold text-brand-dark text-xs font-bold px-2 py-1 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-1"
+                              title="Generate illustrated version"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                              </svg>
+                              Illustrate
+                            </button>
+                          )}
 
                           {/* Name and controls */}
                           <div className="p-3">
@@ -665,6 +742,19 @@ export default function CreatePage() {
                                   </p>
                                 </div>
                                 <div className="flex gap-1 shrink-0">
+                                  {hasGeneratedImage && (
+                                    <button
+                                      onClick={(e) => generateCaricature(char, e)}
+                                      className="w-6 h-6 rounded-full bg-brand-dark text-accent-gold hover:text-accent-gold-light flex items-center justify-center"
+                                      title="Regenerate illustration"
+                                      disabled={isGenerating}
+                                    >
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M1 4v6h6M23 20v-6h-6" />
+                                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                                      </svg>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => startEditingCharacter(char, e)}
                                     className="w-6 h-6 rounded-full bg-brand-dark text-text-muted hover:text-white flex items-center justify-center"

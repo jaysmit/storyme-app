@@ -12,6 +12,48 @@ export function getOpenAI(): OpenAI {
   return _openai;
 }
 
+// Analyze a photo using GPT-4 Vision and get detailed physical description
+export async function analyzePhotoForCharacter(
+  photoBase64OrUrl: string,
+  characterType: "person" | "pet" | "other" = "person",
+  petType?: string
+): Promise<string> {
+  const openai = getOpenAI();
+
+  // Determine if it's a URL or base64
+  const imageContent = photoBase64OrUrl.startsWith("data:")
+    ? { type: "image_url" as const, image_url: { url: photoBase64OrUrl } }
+    : { type: "image_url" as const, image_url: { url: photoBase64OrUrl } };
+
+  const typePrompt =
+    characterType === "pet"
+      ? `This is a pet (${petType || "unknown type"}). Describe the animal's breed, size, coloring, fur texture, eye color, distinctive markings, and any unique features.`
+      : characterType === "other"
+      ? "Describe this character/object in detail including its appearance, colors, and distinctive features."
+      : "Describe this person's physical features in detail: approximate age, hair color and style, eye color, face shape, skin tone, any distinctive features like glasses, freckles, dimples, or facial hair.";
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `You are helping create a children's storybook character. ${typePrompt}
+
+Be specific and detailed so an illustrator could recreate the likeness. Focus on physical appearance only, not clothing. Keep the description under 150 words. Do not include any commentary, just the description.`,
+          },
+          imageContent,
+        ],
+      },
+    ],
+    max_tokens: 300,
+  });
+
+  return response.choices[0]?.message?.content || "";
+}
+
 // Art style prompt modifiers for DALL-E
 export const artStylePrompts: Record<string, string> = {
   glow: "rich painted light with golden sparkles and starry skies, warm enchanted atmosphere, magical glow effects",

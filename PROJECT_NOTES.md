@@ -92,12 +92,23 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-02)
+- [x] Integrated GPT-4 Vision for photo analysis before character illustration
+- [x] Characters now show side-by-side original photo vs illustrated caricature
+- [x] "Illustrate" button on character cards to trigger AI generation
+- [x] "Regenerate" button to re-generate illustrations
+- [x] Book generation uses character physical descriptions for consistent appearances
+- [x] Added physical_description column to characters table (migration 006)
+- [x] Removed crews page (simplified flow - select characters directly in create wizard)
+- [x] Edit/delete buttons on character cards in both /characters and /create pages
+- [x] Person/Pet/Other character type selection with pet type dropdown
+
 ### Needs Setup
-- [ ] Create Supabase project for Story-me
-- [ ] Run database migrations
-- [ ] Create "previews" storage bucket in Supabase
-- [ ] Add real Supabase credentials to Vercel
-- [ ] Add OpenAI API key to Vercel
+- [ ] Run SQL migration: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS pet_type TEXT;`
+- [ ] Run SQL migration: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS physical_description TEXT;`
+- [ ] Create "characters" storage bucket in Supabase (for generated illustrations)
+- [ ] Create "previews" storage bucket in Supabase (for book pages)
+- [ ] **Add OpenAI API key to Vercel**: `vercel env add OPENAI_API_KEY`
 
 ## API Routes
 
@@ -147,8 +158,8 @@ Tables defined in `supabase/migrations/001_initial_schema.sql`:
 
 ## Key Files
 - `app/page.tsx` - Landing page
-- `app/create/page.tsx` - Creation wizard with 4 steps
-- `app/crews/page.tsx` - Crews management
+- `app/create/page.tsx` - Creation wizard with 4 steps (character selection + creation inline)
+- `app/characters/page.tsx` - Character management with illustration generation
 - `app/books/page.tsx` - User's books list
 - `app/book/[id]/page.tsx` - Individual book viewer
 - `app/worlds/page.tsx` - Story worlds browse page
