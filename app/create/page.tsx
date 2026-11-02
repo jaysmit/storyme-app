@@ -430,16 +430,6 @@ export default function CreatePage() {
                 </p>
               </div>
 
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
-                multiple
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-
               {/* Upload area */}
               <div
                 onDragOver={(e) => {
@@ -448,11 +438,10 @@ export default function CreatePage() {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleFileDrop}
-                onClick={openFilePicker}
-                className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-colors cursor-pointer ${
+                className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-colors ${
                   dragOver
                     ? "border-accent-gold bg-accent-gold/10"
-                    : "border-brand-purple-muted hover:border-accent-gold/50"
+                    : "border-brand-purple-muted"
                 }`}
               >
                 <svg
@@ -470,21 +459,36 @@ export default function CreatePage() {
                   <circle cx="12" cy="13" r="4" />
                 </svg>
                 <p className="text-white font-bold mb-2">
-                  Tap to add photos
+                  Add photos of your crew
                 </p>
                 <p className="text-text-muted text-sm mb-4">
                   Clear, front-facing photos work best. One photo per person.
                 </p>
-                <span className="inline-flex items-center justify-center gap-2 bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full">
+
+                {/* Standard HTML label wrapping input - most reliable approach */}
+                <label
+                  htmlFor="photo-upload"
+                  className="inline-flex items-center justify-center gap-2 bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors"
+                >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
                   Choose photos
-                </span>
+                </label>
+                <input
+                  id="photo-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="sr-only"
+                />
+
                 <p className="text-text-muted text-xs mt-4">
-                  Select "Photo Library" on mobile
+                  Drag and drop also works
                 </p>
               </div>
 
