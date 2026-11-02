@@ -648,7 +648,7 @@ export default function CreatePage() {
                           >
                             {hasGeneratedImage ? (
                               // Side-by-side comparison
-                              <div className="flex">
+                              <div className="flex relative">
                                 <div className="w-1/2 aspect-square relative">
                                   <img
                                     src={char.original_photo_url}
@@ -669,6 +669,13 @@ export default function CreatePage() {
                                     Illustrated
                                   </span>
                                 </div>
+                                {/* Regenerating overlay */}
+                                {isGenerating && (
+                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                                    <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
+                                    <span className="text-white text-xs font-bold">Regenerating...</span>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               // Just original photo

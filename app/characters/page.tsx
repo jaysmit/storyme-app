@@ -449,17 +449,26 @@ export default function CharactersPage() {
                             className="w-full h-full object-cover"
                           />
                           {/* Regenerate button */}
-                          <button
-                            onClick={() => generateIllustration(char)}
-                            disabled={!!generatingId}
-                            className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
-                            title="Regenerate illustration"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 4v6h6M23 20v-6h-6" />
-                              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                            </svg>
-                          </button>
+                          {generatingId !== char.id && (
+                            <button
+                              onClick={() => generateIllustration(char)}
+                              disabled={!!generatingId}
+                              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
+                              title="Regenerate illustration"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 4v6h6M23 20v-6h-6" />
+                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                              </svg>
+                            </button>
+                          )}
+                          {/* Regenerating overlay */}
+                          {generatingId === char.id && (
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                              <div className="w-8 h-8 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
+                              <p className="text-white text-xs font-bold">Regenerating...</p>
+                            </div>
+                          )}
                         </>
                       ) : char.generation_status === "generating" || generatingId === char.id ? (
                         <div className="w-full h-full flex flex-col items-center justify-center bg-brand-dark">
