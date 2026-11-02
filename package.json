@@ -23,6 +23,8 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "pg": "^8.23.1",
+    "postgres": "^4.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

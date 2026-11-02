@@ -5,9 +5,20 @@ export interface Profile {
   name: string | null;
   email: string | null;
   avatar_url: string | null;
+  tokens: number;
+  tokens_used: number;
   created_at: string;
   updated_at: string;
 }
+
+// Token costs for different actions
+export const TOKEN_COSTS = {
+  CHARACTER_ILLUSTRATION: 1,
+  BOOK_PREVIEW_PAGE: 1,
+  BOOK_PREVIEW_FULL: 3, // 3 preview pages
+} as const;
+
+export const NEW_USER_TOKENS = 5;
 
 export interface Character {
   id: string;

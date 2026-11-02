@@ -24,6 +24,7 @@ export default function Header({ theme = "dark" }: HeaderProps) {
   const [loading, setLoading] = useState(cachedUser === null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [tokens, setTokens] = useState<number | null>(null);
 
   useEffect(() => {
     // Only fetch if we don't have cached user
@@ -32,16 +33,33 @@ export default function Header({ theme = "dark" }: HeaderProps) {
       cachedUser = user;
       setUser(user);
       setLoading(false);
+      if (user) fetchTokens();
+    }
+
+    async function fetchTokens() {
+      try {
+        const res = await fetch("/api/tokens");
+        if (res.ok) {
+          const data = await res.json();
+          setTokens(data.tokens);
+        }
+      } catch {
+        // Ignore errors
+      }
     }
 
     if (cachedUser === null) {
       getUser();
+    } else if (cachedUser) {
+      fetchTokens();
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       cachedUser = session?.user ?? null;
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) fetchTokens();
+      else setTokens(null);
     });
 
     return () => subscription.unsubscribe();
@@ -175,6 +193,14 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                   <div className="px-4 py-3 border-b" style={{ borderColor: "#3D3A6E" }}>
                     <p className="text-sm font-bold text-white truncate">{displayName}</p>
                     <p className="text-xs text-text-muted truncate">{user.email}</p>
+                    {tokens !== null && (
+                      <div className="flex items-center gap-1 mt-2">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#F4C95D">
+                          <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                        </svg>
+                        <span className="text-xs font-bold text-accent-gold">{tokens} tokens</span>
+                      </div>
+                    )}
                   </div>
                   <div className="py-2">
                     <Link

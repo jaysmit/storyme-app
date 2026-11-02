@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI, artStylePrompts } from "@/lib/openai";
+import { checkTokens, deductTokens } from "@/lib/tokens";
+import { TOKEN_COSTS } from "@/lib/types";
 
 // Story scene templates for each story
 const storyScenes: Record<string, { title: string; scene: string }[]> = {
@@ -91,6 +93,22 @@ export async function POST(
       return NextResponse.json(
         { error: "Generation already in progress" },
         { status: 400 }
+      );
+    }
+
+    // Check if user has enough tokens (3 pages for preview)
+    const tokenCost = TOKEN_COSTS.BOOK_PREVIEW_FULL;
+    const { hasEnough, balance } = await checkTokens(supabase, user.id, tokenCost);
+
+    if (!hasEnough) {
+      return NextResponse.json(
+        {
+          error: "Insufficient tokens",
+          required: tokenCost,
+          balance,
+          message: `You need ${tokenCost} tokens for a book preview but only have ${balance}. Purchase more tokens to continue.`
+        },
+        { status: 402 } // Payment Required
       );
     }
 
@@ -235,7 +253,27 @@ Wide landscape format, vibrant colors, detailed background.`;
       throw updateError;
     }
 
-    return NextResponse.json({ book: updatedBook, pages: generatedPages });
+    // Deduct tokens only if pages were generated successfully
+    let tokensRemaining = balance;
+    if (generatedPages.length > 0) {
+      const actualCost = generatedPages.length; // 1 token per page actually generated
+      const deductResult = await deductTokens(
+        supabase,
+        user.id,
+        actualCost,
+        "book_preview",
+        id,
+        `Generated ${generatedPages.length} preview pages`
+      );
+      tokensRemaining = deductResult.newBalance;
+    }
+
+    return NextResponse.json({
+      book: updatedBook,
+      pages: generatedPages,
+      tokensUsed: generatedPages.length,
+      tokensRemaining,
+    });
   } catch (error) {
     console.error("Generation error:", error);
 

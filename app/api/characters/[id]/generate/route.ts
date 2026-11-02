@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI, artStylePrompts, analyzePhotoForCharacter } from "@/lib/openai";
+import { checkTokens, deductTokens } from "@/lib/tokens";
+import { TOKEN_COSTS } from "@/lib/types";
 
 // POST /api/characters/[id]/generate - Generate AI character image from photo
 export async function POST(
@@ -35,6 +37,22 @@ export async function POST(
     return NextResponse.json(
       { error: "Generation already in progress" },
       { status: 400 }
+    );
+  }
+
+  // Check if user has enough tokens
+  const tokenCost = TOKEN_COSTS.CHARACTER_ILLUSTRATION;
+  const { hasEnough, balance } = await checkTokens(supabase, user.id, tokenCost);
+
+  if (!hasEnough) {
+    return NextResponse.json(
+      {
+        error: "Insufficient tokens",
+        required: tokenCost,
+        balance,
+        message: `You need ${tokenCost} token${tokenCost > 1 ? 's' : ''} but only have ${balance}. Purchase more tokens to continue.`
+      },
+      { status: 402 } // Payment Required
     );
   }
 
@@ -174,14 +192,41 @@ Requirements:
           .single();
 
         if (retryError) throw retryError;
+
+        // Deduct tokens after successful generation
+        const deductResult = await deductTokens(
+          supabase,
+          user.id,
+          tokenCost,
+          "character_generation",
+          id,
+          `Generated illustration for ${character.name}`
+        );
+
         return NextResponse.json({
-          character: { ...retryCharacter, physical_description: physicalDescription }
+          character: { ...retryCharacter, physical_description: physicalDescription },
+          tokensUsed: tokenCost,
+          tokensRemaining: deductResult.newBalance,
         });
       }
       throw updateError;
     }
 
-    return NextResponse.json({ character: updatedCharacter });
+    // Deduct tokens after successful generation
+    const deductResult = await deductTokens(
+      supabase,
+      user.id,
+      tokenCost,
+      "character_generation",
+      id,
+      `Generated illustration for ${character.name}`
+    );
+
+    return NextResponse.json({
+      character: updatedCharacter,
+      tokensUsed: tokenCost,
+      tokensRemaining: deductResult.newBalance,
+    });
   } catch (error) {
     console.error("Generation error:", error);
 
