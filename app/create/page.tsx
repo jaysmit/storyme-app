@@ -83,6 +83,7 @@ export default function CreatePage() {
   const [selectedStyle, setSelectedStyle] = useState<string>("glow");
   const [dragOver, setDragOver] = useState(false);
   const [crewName, setCrewName] = useState("");
+  const [showSaveCrew, setShowSaveCrew] = useState(false);
   const [generating, setGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -137,10 +138,6 @@ export default function CreatePage() {
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
-      // Only process if user actually selected files
-      if (files.length === 0) {
-        return;
-      }
       files.forEach(addCharacterFromFile);
       // Reset input so same file can be selected again
       if (fileInputRef.current) {
@@ -149,14 +146,6 @@ export default function CreatePage() {
     },
     [addCharacterFromFile]
   );
-
-  const openFilePicker = useCallback(() => {
-    // Reset the input value first to ensure clean state
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
-    }
-  }, []);
 
   const removeCharacter = (id: string) => {
     setCharacters((prev) => prev.filter((c) => c.id !== id));
@@ -421,13 +410,23 @@ export default function CreatePage() {
           {/* Step 1: Gather Crew */}
           {currentStep === "crew" && (
             <div>
-              <div className="mb-8">
-                <h1 className="text-4xl font-black text-white mb-2">
-                  Gather your crew
-                </h1>
-                <p className="text-lg text-text-muted">
-                  Upload photos of the people who'll star in your story.
-                </p>
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <h1 className="text-4xl font-black text-white mb-2">
+                    Gather your crew
+                  </h1>
+                  <p className="text-lg text-text-muted">
+                    Upload photos of the people who'll star in your story.
+                  </p>
+                </div>
+                {characters.length > 0 && (
+                  <button
+                    onClick={() => setShowSaveCrew(true)}
+                    className="px-4 py-2 rounded-full border border-brand-purple-muted text-text-muted hover:border-accent-gold hover:text-white transition-colors text-sm font-bold"
+                  >
+                    Save as crew
+                  </button>
+                )}
               </div>
 
               {/* Upload area */}
@@ -438,7 +437,7 @@ export default function CreatePage() {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleFileDrop}
-                className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-3xl p-12 text-center transition-colors ${
                   dragOver
                     ? "border-accent-gold bg-accent-gold/10"
                     : "border-brand-purple-muted"
@@ -459,57 +458,28 @@ export default function CreatePage() {
                   <circle cx="12" cy="13" r="4" />
                 </svg>
                 <p className="text-white font-bold mb-2">
-                  Add photos of your crew
+                  Drag photos here or click to browse
                 </p>
                 <p className="text-text-muted text-sm mb-4">
-                  Clear, front-facing photos work best. One photo per person.
+                  Upload clear, front-facing photos. One photo per person.
                 </p>
-
-                {/* Standard HTML label wrapping input - most reliable approach */}
-                <label
-                  htmlFor="photo-upload"
-                  className="inline-flex items-center justify-center gap-2 bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <polyline points="21 15 16 10 5 21" />
-                  </svg>
+                <label className="inline-block bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
                   Choose photos
                 </label>
-                <input
-                  id="photo-upload"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="sr-only"
-                />
-
-                <p className="text-text-muted text-xs mt-4">
-                  Drag and drop also works
-                </p>
               </div>
 
               {/* Character list */}
               {characters.length > 0 && (
                 <>
-                  {/* Crew name input */}
-                  <div className="mt-8 bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-4">
-                    <label className="block text-sm font-bold text-text-muted mb-2">
-                      Crew name
-                    </label>
-                    <input
-                      type="text"
-                      value={crewName}
-                      onChange={(e) => setCrewName(e.target.value)}
-                      placeholder="e.g., The Smith Family, Adventure Squad..."
-                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold text-lg"
-                    />
-                  </div>
-
-                  <div className="mt-6 flex justify-between items-center">
+                  <div className="mt-8 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-white">
                       Your crew ({characters.length})
                     </h2>
@@ -550,36 +520,49 @@ export default function CreatePage() {
                         showGenerateButton
                       />
                     ))}
-
-                    {/* Add new member card - shows when at least one character is completed */}
-                    {characters.some((c) => c.generatedUrl) && characters.length < 5 && (
-                      <button
-                        onClick={openFilePicker}
-                        className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[280px] hover:border-accent-gold hover:bg-brand-purple-light/80 transition-colors group"
-                      >
-                        <div className="w-16 h-16 rounded-full bg-brand-dark flex items-center justify-center group-hover:bg-accent-gold transition-colors">
-                          <svg
-                            width="32"
-                            height="32"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-accent-gold group-hover:text-brand-dark transition-colors"
-                          >
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </div>
-                        <span className="text-lg font-bold text-white">Add crew member</span>
-                        <span className="text-sm text-text-muted">Up to {5 - characters.length} more</span>
-                      </button>
-                    )}
                   </div>
                 </>
               )}
 
+              {/* Save Crew Modal */}
+              {showSaveCrew && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
+                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-md w-full">
+                    <h2 className="text-2xl font-black text-white mb-4">
+                      Save this crew
+                    </h2>
+                    <p className="text-text-muted mb-6">
+                      Give your crew a name so you can use them again later.
+                    </p>
+                    <input
+                      type="text"
+                      value={crewName}
+                      onChange={(e) => setCrewName(e.target.value)}
+                      placeholder="e.g., The Smith Family"
+                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold mb-6"
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowSaveCrew(false)}
+                        className="flex-1 px-4 py-3 rounded-full border border-brand-purple-muted text-text-muted hover:text-white transition-colors font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          // TODO: Save crew to API
+                          setShowSaveCrew(false);
+                          setCrewName("");
+                        }}
+                        disabled={!crewName.trim()}
+                        className="flex-1 px-4 py-3 rounded-full bg-accent-gold text-brand-dark font-extrabold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
+                      >
+                        Save crew
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
