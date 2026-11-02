@@ -137,6 +137,10 @@ export default function CreatePage() {
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files || []);
+      // Only process if user actually selected files
+      if (files.length === 0) {
+        return;
+      }
       files.forEach(addCharacterFromFile);
       // Reset input so same file can be selected again
       if (fileInputRef.current) {
@@ -145,6 +149,14 @@ export default function CreatePage() {
     },
     [addCharacterFromFile]
   );
+
+  const openFilePicker = useCallback(() => {
+    // Reset the input value first to ensure clean state
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  }, []);
 
   const removeCharacter = (id: string) => {
     setCharacters((prev) => prev.filter((c) => c.id !== id));
@@ -436,7 +448,7 @@ export default function CreatePage() {
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleFileDrop}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openFilePicker}
                 className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-colors cursor-pointer ${
                   dragOver
                     ? "border-accent-gold bg-accent-gold/10"
@@ -538,7 +550,7 @@ export default function CreatePage() {
                     {/* Add new member card - shows when at least one character is completed */}
                     {characters.some((c) => c.generatedUrl) && characters.length < 5 && (
                       <button
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={openFilePicker}
                         className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[280px] hover:border-accent-gold hover:bg-brand-purple-light/80 transition-colors group"
                       >
                         <div className="w-16 h-16 rounded-full bg-brand-dark flex items-center justify-center group-hover:bg-accent-gold transition-colors">
