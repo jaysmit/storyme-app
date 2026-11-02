@@ -123,7 +123,7 @@ Requirements:
 - Looking at the viewer with a welcoming smile
 - Cartoon/illustrated style but keeping the likeness recognizable`;
 
-    // Step 3: Generate with DALL-E 3
+    // Step 3: Generate with OpenAI Image API
     console.log("Generating character illustration...");
     const openai = getOpenAI();
     const response = await openai.images.generate({
@@ -134,15 +134,21 @@ Requirements:
       quality: "auto",
     });
 
-    const generatedUrl = response.data?.[0]?.url;
+    // Handle both URL and base64 response formats
+    const imageData = response.data?.[0];
+    let imageBuffer: Buffer;
 
-    if (!generatedUrl) {
-      throw new Error("No image URL returned from DALL-E");
+    if (imageData?.b64_json) {
+      // New API returns base64
+      imageBuffer = Buffer.from(imageData.b64_json, "base64");
+    } else if (imageData?.url) {
+      // Old API returns URL
+      const imageResponse = await fetch(imageData.url);
+      const arrayBuffer = await imageResponse.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
+    } else {
+      throw new Error("No image data returned from OpenAI");
     }
-
-    // Step 4: Download and upload to Supabase Storage
-    const imageResponse = await fetch(generatedUrl);
-    const imageBlob = await imageResponse.blob();
 
     const fileName = `${user.id}/${id}_${artStyle}.png`;
 
@@ -151,7 +157,7 @@ Requirements:
 
     const { error: uploadError } = await serviceClient.storage
       .from("characters")
-      .upload(fileName, imageBlob, {
+      .upload(fileName, imageBuffer, {
         contentType: "image/png",
         upsert: true,
       });

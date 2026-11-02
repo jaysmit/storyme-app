@@ -200,18 +200,26 @@ Wide landscape format, vibrant colors, detailed background.`;
           quality: "auto",
         });
 
-        const generatedUrl = response.data?.[0]?.url;
+        // Handle both URL and base64 response formats
+        const imageData = response.data?.[0];
+        let imageBuffer: Buffer | null = null;
 
-        if (generatedUrl) {
-          // Download and upload to Supabase Storage
-          const imageResponse = await fetch(generatedUrl);
-          const imageBlob = await imageResponse.blob();
+        if (imageData?.b64_json) {
+          // New API returns base64
+          imageBuffer = Buffer.from(imageData.b64_json, "base64");
+        } else if (imageData?.url) {
+          // Old API returns URL
+          const imageResponse = await fetch(imageData.url);
+          const arrayBuffer = await imageResponse.arrayBuffer();
+          imageBuffer = Buffer.from(arrayBuffer);
+        }
 
+        if (imageBuffer) {
           const fileName = `${user.id}/${id}/page_${i + 1}.png`;
 
           const { error: uploadError } = await serviceClient.storage
             .from("previews")
-            .upload(fileName, imageBlob, {
+            .upload(fileName, imageBuffer, {
               contentType: "image/png",
               upsert: true,
             });
