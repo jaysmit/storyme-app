@@ -121,7 +121,7 @@ export default function CharacterCard({
               type="text"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Enter name..."
+              placeholder="Name of the crew member"
               className="w-full px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
             />
           </div>
