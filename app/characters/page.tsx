@@ -39,10 +39,18 @@ export default function CharactersPage() {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Flip state - tracks which cards show the original photo
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
   // Token state
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [showTokenConfirm, setShowTokenConfirm] = useState(false);
-  const [pendingCharacter, setPendingCharacter] = useState<Character | null>(null);
+  const [pendingCharacterForGen, setPendingCharacterForGen] = useState<Character | null>(null);
+
+  // Regeneration feedback state
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState("");
+  const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
 
   useEffect(() => {
     fetchCharacters();
@@ -73,6 +81,19 @@ export default function CharactersPage() {
       console.error("Failed to fetch characters:", error);
     }
     setLoading(false);
+  }
+
+  // Toggle flip state for a card
+  function toggleFlip(charId: string) {
+    setFlippedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(charId)) {
+        next.delete(charId);
+      } else {
+        next.add(charId);
+      }
+      return next;
+    });
   }
 
   // Add photos to pending state (not saved yet)
@@ -126,7 +147,7 @@ export default function CharactersPage() {
     return true;
   }
 
-  // Save pending character to API and trigger generation
+  // Save pending character and auto-trigger generation
   async function savePendingCharacter(pending: PendingCharacter) {
     if (!isPendingValid(pending)) return;
 
@@ -134,7 +155,6 @@ export default function CharactersPage() {
       prev.map((p) => (p.id === pending.id ? { ...p, saving: true } : p))
     );
 
-    // Determine the type label to save
     let typeToSave = pending.characterType;
     let petTypeToSave: string | undefined;
 
@@ -159,8 +179,13 @@ export default function CharactersPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setCharacters((prev) => [data.character, ...prev]);
+        const newChar = data.character;
+        setCharacters((prev) => [newChar, ...prev]);
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
+
+        // Auto-trigger generation (show token confirm)
+        setPendingCharacterForGen(newChar);
+        setShowTokenConfirm(true);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -210,18 +235,26 @@ export default function CharactersPage() {
     setEditName("");
   }
 
-  // Request to generate illustration (shows confirmation first)
-  function requestGenerateIllustration(char: Character) {
-    if (generatingId) return; // Already generating another
-    setPendingCharacter(char);
+  // Open regenerate modal with feedback input
+  function openRegenerateModal(char: Character) {
+    if (generatingId) return;
+    setCharacterToRegenerate(char);
+    setRegenerateFeedback("");
+    setShowRegenerateModal(true);
+  }
+
+  // Submit regeneration with feedback
+  function submitRegenerate() {
+    if (!characterToRegenerate) return;
+    setShowRegenerateModal(false);
+    setPendingCharacterForGen(characterToRegenerate);
     setShowTokenConfirm(true);
   }
 
   // Actually generate illustration after confirmation
-  async function generateIllustration(char: Character) {
+  async function generateIllustration(char: Character, feedback?: string) {
     setGeneratingId(char.id);
 
-    // Update local state to show generating status
     setCharacters((prev) =>
       prev.map((c) => (c.id === char.id ? { ...c, generation_status: "generating" } : c))
     );
@@ -230,7 +263,10 @@ export default function CharactersPage() {
       const res = await fetch(`/api/characters/${char.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artStyle: "glow" }), // Default art style
+        body: JSON.stringify({
+          artStyle: "glow",
+          feedback: feedback || undefined,
+        }),
       });
 
       if (res.ok) {
@@ -242,7 +278,6 @@ export default function CharactersPage() {
       } else {
         const error = await res.json();
         alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
-        // Revert status
         setCharacters((prev) =>
           prev.map((c) => (c.id === char.id ? { ...c, generation_status: "failed" } : c))
         );
@@ -256,14 +291,16 @@ export default function CharactersPage() {
     }
 
     setGeneratingId(null);
+    setCharacterToRegenerate(null);
+    setRegenerateFeedback("");
   }
 
-  // Handle confirmation
+  // Handle token confirmation
   async function handleConfirmGeneration() {
-    if (!pendingCharacter) return;
+    if (!pendingCharacterForGen) return;
     setShowTokenConfirm(false);
-    await generateIllustration(pendingCharacter);
-    setPendingCharacter(null);
+    await generateIllustration(pendingCharacterForGen, regenerateFeedback || undefined);
+    setPendingCharacterForGen(null);
   }
 
   return (
@@ -311,7 +348,7 @@ export default function CharactersPage() {
               </h2>
               <p className="text-text-muted mb-6 max-w-md mx-auto">
                 Upload clear, front-facing photos of family members, friends, or pets
-                who'll star in your personalized storybooks.
+                who&apos;ll star in your personalized storybooks.
               </p>
               <label className="inline-flex items-center gap-2 bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors">
                 <input
@@ -336,7 +373,7 @@ export default function CharactersPage() {
                   className="bg-brand-purple-light border-2 border-accent-gold rounded-2xl overflow-hidden"
                 >
                   {/* Photo */}
-                  <div className="aspect-[2/1] bg-brand-dark relative">
+                  <div className="aspect-square bg-brand-dark relative">
                     <img
                       src={pending.photoBase64}
                       alt="New character"
@@ -367,7 +404,6 @@ export default function CharactersPage() {
 
                   {/* Form */}
                   <div className="p-4 space-y-3">
-                    {/* Name input */}
                     <input
                       type="text"
                       value={pending.name}
@@ -378,44 +414,23 @@ export default function CharactersPage() {
                       autoFocus
                     />
 
-                    {/* Person / Pet / Other toggle */}
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => updatePending(pending.id, { characterType: "person", petType: "", customType: "" })}
-                        disabled={pending.saving}
-                        className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
-                          pending.characterType === "person"
-                            ? "bg-accent-gold text-brand-dark"
-                            : "bg-brand-dark text-text-muted hover:text-white"
-                        }`}
-                      >
-                        Person
-                      </button>
-                      <button
-                        onClick={() => updatePending(pending.id, { characterType: "pet", customType: "" })}
-                        disabled={pending.saving}
-                        className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
-                          pending.characterType === "pet"
-                            ? "bg-accent-gold text-brand-dark"
-                            : "bg-brand-dark text-text-muted hover:text-white"
-                        }`}
-                      >
-                        Pet
-                      </button>
-                      <button
-                        onClick={() => updatePending(pending.id, { characterType: "other", petType: "" })}
-                        disabled={pending.saving}
-                        className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
-                          pending.characterType === "other"
-                            ? "bg-accent-gold text-brand-dark"
-                            : "bg-brand-dark text-text-muted hover:text-white"
-                        }`}
-                      >
-                        Other
-                      </button>
+                      {(["person", "pet", "other"] as const).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => updatePending(pending.id, { characterType: type, petType: "", customType: "" })}
+                          disabled={pending.saving}
+                          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
+                            pending.characterType === type
+                              ? "bg-accent-gold text-brand-dark"
+                              : "bg-brand-dark text-text-muted hover:text-white"
+                          }`}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Pet type selector (shown when pet is selected) */}
                     {pending.characterType === "pet" && (
                       <select
                         value={pending.petType}
@@ -430,19 +445,17 @@ export default function CharactersPage() {
                       </select>
                     )}
 
-                    {/* Custom type input (shown when other is selected) */}
                     {pending.characterType === "other" && (
                       <input
                         type="text"
                         value={pending.customType}
                         onChange={(e) => updatePending(pending.id, { customType: e.target.value })}
-                        placeholder="Enter type (e.g., Dinosaur, Robot, Unicorn)..."
+                        placeholder="Enter type (e.g., Dinosaur, Robot)..."
                         disabled={pending.saving}
                         className="w-full px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
                       />
                     )}
 
-                    {/* Complete button */}
                     <button
                       onClick={() => savePendingCharacter(pending)}
                       disabled={!isPendingValid(pending) || pending.saving}
@@ -454,158 +467,161 @@ export default function CharactersPage() {
                 </div>
               ))}
 
-              {/* Saved characters */}
-              {characters.map((char) => (
-                <div
-                  key={char.id}
-                  className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl overflow-hidden"
-                >
-                  {/* Side-by-side photos: Original + Caricature */}
-                  <div className="aspect-[2/1] bg-brand-dark relative flex">
-                    {/* Original photo */}
-                    <div className="w-1/2 relative">
-                      <img
-                        src={char.original_photo_url}
-                        alt={`${char.name} - Original`}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-1 left-1 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
-                        Original
-                      </div>
-                    </div>
+              {/* Saved characters - Flip card layout */}
+              {characters.map((char) => {
+                const isFlipped = flippedCards.has(char.id);
+                const isGenerating = generatingId === char.id || char.generation_status === "generating";
+                const hasGenerated = !!char.generated_image_url;
 
-                    {/* Caricature */}
-                    <div className="w-1/2 relative border-l border-brand-purple-muted">
-                      {char.generated_image_url ? (
+                return (
+                  <div
+                    key={char.id}
+                    className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl overflow-hidden"
+                  >
+                    {/* Image area - shows caricature by default, original when flipped */}
+                    <div className="aspect-square bg-brand-dark relative">
+                      {isGenerating ? (
+                        // Generating state
+                        <div className="w-full h-full flex flex-col items-center justify-center">
+                          <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mb-3" />
+                          <p className="text-white font-bold">Creating illustration...</p>
+                          <p className="text-text-muted text-sm mt-1">This may take a moment</p>
+                        </div>
+                      ) : hasGenerated ? (
+                        // Has generated image - show caricature or original based on flip state
                         <>
                           <img
-                            src={char.generated_image_url}
-                            alt={`${char.name} - Illustrated`}
+                            src={isFlipped ? char.original_photo_url : char.generated_image_url!}
+                            alt={`${char.name} - ${isFlipped ? "Original" : "Illustrated"}`}
                             className="w-full h-full object-cover"
                           />
-                          {/* Regenerate button */}
-                          {generatingId !== char.id && (
-                            <button
-                              onClick={() => requestGenerateIllustration(char)}
-                              disabled={!!generatingId}
-                              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
-                              title="Regenerate illustration"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M1 4v6h6M23 20v-6h-6" />
-                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                              </svg>
-                            </button>
-                          )}
-                          {/* Regenerating overlay */}
-                          {generatingId === char.id && (
-                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
-                              <div className="w-8 h-8 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                              <p className="text-white text-xs font-bold">Regenerating...</p>
-                            </div>
-                          )}
-                        </>
-                      ) : char.generation_status === "generating" || generatingId === char.id ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-brand-dark">
-                          <div className="w-8 h-8 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                          <p className="text-text-muted text-xs">Creating...</p>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => requestGenerateIllustration(char)}
-                          disabled={!!generatingId}
-                          className="w-full h-full flex flex-col items-center justify-center bg-brand-dark hover:bg-brand-purple-muted transition-colors group disabled:opacity-50"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-brand-purple-muted group-hover:bg-accent-gold flex items-center justify-center mb-2 transition-colors">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-accent-gold group-hover:text-brand-dark transition-colors">
-                              <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                            </svg>
-                          </div>
-                          <p className="text-accent-gold text-xs font-bold group-hover:text-white">Illustrate</p>
-                        </button>
-                      )}
-                      <div className="absolute bottom-1 right-1 px-2 py-0.5 bg-black/60 rounded text-[10px] text-white font-medium">
-                        Illustrated
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Name and controls */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        {editingId === char.id ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") updateCharacterName(char.id);
-                                if (e.key === "Escape") {
-                                  setEditingId(null);
-                                  setEditName("");
-                                }
-                              }}
-                              className="flex-1 px-2 py-1 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
-                              autoFocus
-                            />
+                          {/* Flip button */}
+                          <button
+                            onClick={() => toggleFlip(char.id)}
+                            className="absolute top-2 left-2 w-8 h-8 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center transition-colors"
+                            title={isFlipped ? "Show illustration" : "Show original photo"}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M17 1l4 4-4 4" />
+                              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                              <path d="M7 23l-4-4 4-4" />
+                              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                            </svg>
+                          </button>
+
+                          {/* Label */}
+                          <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-xs text-white font-medium">
+                            {isFlipped ? "Original" : "Illustrated"}
+                          </div>
+
+                          {/* Regenerate button */}
+                          <button
+                            onClick={() => openRegenerateModal(char)}
+                            disabled={!!generatingId}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
+                            title="Regenerate with changes"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 4v6h6M23 20v-6h-6" />
+                              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                            </svg>
+                          </button>
+                        </>
+                      ) : (
+                        // No generated image yet - show original with generate prompt
+                        <>
+                          <img
+                            src={char.original_photo_url}
+                            alt={char.name}
+                            className="w-full h-full object-cover opacity-60"
+                          />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
+                            <p className="text-white font-bold text-center px-4">
+                              Illustration pending
+                            </p>
+                            <p className="text-text-muted text-sm mt-1">
+                              Generation will start automatically
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Name and controls */}
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          {editingId === char.id ? (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") updateCharacterName(char.id);
+                                  if (e.key === "Escape") {
+                                    setEditingId(null);
+                                    setEditName("");
+                                  }
+                                }}
+                                className="flex-1 px-2 py-1 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => updateCharacterName(char.id)}
+                                className="text-accent-gold hover:text-accent-gold-light"
+                                title="Save"
+                              >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M20 6L9 17l-5-5" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="text-white font-bold truncate">{char.name}</h3>
+                              <p className="text-xs text-text-muted capitalize">
+                                {char.pet_type || char.character_type}
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        {editingId !== char.id && (
+                          <div className="flex gap-1">
                             <button
-                              onClick={() => updateCharacterName(char.id)}
-                              className="text-accent-gold hover:text-accent-gold-light"
-                              title="Save"
+                              onClick={() => {
+                                setEditingId(char.id);
+                                setEditName(char.name);
+                              }}
+                              className="w-8 h-8 rounded-full bg-brand-dark text-text-muted hover:text-white hover:bg-brand-purple-muted transition-colors flex items-center justify-center"
+                              title="Edit name"
                             >
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M20 6L9 17l-5-5" />
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => deleteCharacter(char.id)}
+                              className="w-8 h-8 rounded-full bg-brand-dark text-text-muted hover:text-white hover:bg-red-500 transition-colors flex items-center justify-center"
+                              title="Delete character"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
                               </svg>
                             </button>
                           </div>
-                        ) : (
-                          <>
-                            <h3 className="text-white font-bold truncate">{char.name}</h3>
-                            <p className="text-xs text-text-muted capitalize">
-                              {char.pet_type
-                                ? char.pet_type
-                                : char.character_type}
-                            </p>
-                          </>
                         )}
                       </div>
-
-                      {/* Edit and Delete buttons */}
-                      {editingId !== char.id && (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => {
-                              setEditingId(char.id);
-                              setEditName(char.name);
-                            }}
-                            className="w-8 h-8 rounded-full bg-brand-dark text-text-muted hover:text-white hover:bg-brand-purple-muted transition-colors flex items-center justify-center"
-                            title="Edit name"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => deleteCharacter(char.id)}
-                            className="w-8 h-8 rounded-full bg-brand-dark text-text-muted hover:text-white hover:bg-red-500 transition-colors flex items-center justify-center"
-                            title="Delete character"
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Add more card */}
-              <label className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl aspect-[2/1] flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-accent-gold transition-colors group">
+              <label className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl aspect-square flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-accent-gold transition-colors group">
                 <input
                   type="file"
                   accept="image/*"
@@ -654,15 +670,61 @@ export default function CharactersPage() {
         </div>
       </main>
 
+      {/* Regenerate Feedback Modal */}
+      {showRegenerateModal && characterToRegenerate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowRegenerateModal(false)}
+          />
+          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-brand-purple-muted">
+            <h3 className="text-lg font-bold text-white mb-2">
+              Regenerate {characterToRegenerate.name}&apos;s illustration
+            </h3>
+            <p className="text-text-muted text-sm mb-4">
+              Describe any changes you&apos;d like to see in the new illustration:
+            </p>
+
+            <textarea
+              value={regenerateFeedback}
+              onChange={(e) => setRegenerateFeedback(e.target.value)}
+              placeholder="e.g., Make the eyes bigger, add a bigger smile, make the hair curlier..."
+              className="w-full h-24 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none"
+              autoFocus
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowRegenerateModal(false)}
+                className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRegenerate}
+                className="flex-1 py-3 rounded-full bg-accent-gold text-brand-dark font-bold hover:bg-accent-gold/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 4v6h6M23 20v-6h-6" />
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                </svg>
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Token Confirm Modal */}
       <TokenConfirmModal
         isOpen={showTokenConfirm}
         onClose={() => {
           setShowTokenConfirm(false);
-          setPendingCharacter(null);
+          setPendingCharacterForGen(null);
+          setRegenerateFeedback("");
         }}
         onConfirm={handleConfirmGeneration}
-        actionName={`generate illustration for ${pendingCharacter?.name || "character"}`}
+        actionName={`generate illustration for ${pendingCharacterForGen?.name || "character"}`}
         tokenCost={TOKEN_COSTS.CHARACTER_ILLUSTRATION}
         currentBalance={tokenBalance}
         loading={!!generatingId}

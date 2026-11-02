@@ -57,10 +57,11 @@ export async function POST(
   }
 
   try {
-    // Get art style from request body (default to 'glow')
+    // Get art style and optional feedback from request body
     const body = await request.json().catch(() => ({}));
     const artStyle = (body.artStyle as keyof typeof artStylePrompts) || "glow";
     const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
+    const userFeedback = body.feedback as string | undefined;
 
     // Update status to generating
     await supabase
@@ -104,6 +105,11 @@ export async function POST(
         ? "This is an elderly person."
         : "This is a person.";
 
+    // Build feedback section if provided
+    const feedbackSection = userFeedback
+      ? `\n\nUSER REQUESTED CHANGES (IMPORTANT - apply these modifications):\n${userFeedback}`
+      : "";
+
     const prompt = `Transform this photo into a children's storybook character illustration.
 
 ${characterTypeContext} Their name is ${character.name}.
@@ -124,7 +130,7 @@ STYLE REQUIREMENTS:
 - KEEP THE EXACT SAME facial features, face shape, eye color, hair color, skin tone, and likeness
 - Suitable for a children's picture book (ages 4-10)
 - Warm, welcoming expression with a gentle smile
-- The illustrated character must be clearly recognizable as the same person/pet in the photo`;
+- The illustrated character must be clearly recognizable as the same person/pet in the photo${feedbackSection}`;
 
     // Step 3: Use images.edit to transform the photo
     console.log("Transforming photo into illustration...");

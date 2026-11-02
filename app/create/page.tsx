@@ -146,6 +146,14 @@ export default function CreatePage() {
     characterObj?: Character;
   } | null>(null);
 
+  // Flip state - tracks which cards show the original photo
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  // Regeneration feedback state
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState("");
+  const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
+
   // Fetch tokens
   const fetchTokens = async () => {
     try {
@@ -274,9 +282,39 @@ export default function CreatePage() {
     }
   };
 
-  // Request to generate caricature (shows confirmation first)
-  const requestGenerateCaricature = (char: Character, e: React.MouseEvent) => {
+  // Toggle flip state for a card
+  const toggleFlip = (charId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setFlippedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(charId)) {
+        next.delete(charId);
+      } else {
+        next.add(charId);
+      }
+      return next;
+    });
+  };
+
+  // Open regenerate modal with feedback input
+  const openRegenerateModal = (char: Character, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingCharacterId) return;
+    setCharacterToRegenerate(char);
+    setRegenerateFeedback("");
+    setShowRegenerateModal(true);
+  };
+
+  // Submit regeneration with feedback
+  const submitRegenerate = () => {
+    if (!characterToRegenerate) return;
+    setShowRegenerateModal(false);
+    setPendingAction({ type: "character", characterId: characterToRegenerate.id, characterObj: characterToRegenerate });
+    setShowTokenConfirm(true);
+  };
+
+  // Request to generate caricature (shows confirmation first)
+  const requestGenerateCaricature = (char: Character) => {
     if (generatingCharacterId) return; // Already generating
 
     // Show confirmation modal
@@ -285,14 +323,22 @@ export default function CreatePage() {
   };
 
   // Actually generate caricature after confirmation
-  const generateCaricature = async (charId: string) => {
+  const generateCaricature = async (charId: string, feedback?: string) => {
     setGeneratingCharacterId(charId);
+
+    // Update local state to show generating
+    setExistingCharacters((prev) =>
+      prev.map((c) => (c.id === charId ? { ...c, generation_status: "generating" } : c))
+    );
 
     try {
       const res = await fetch(`/api/characters/${charId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artStyle: selectedStyle }),
+        body: JSON.stringify({
+          artStyle: selectedStyle,
+          feedback: feedback || undefined,
+        }),
       });
 
       if (res.ok) {
@@ -304,13 +350,21 @@ export default function CreatePage() {
       } else {
         const error = await res.json();
         alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
+        setExistingCharacters((prev) =>
+          prev.map((c) => (c.id === charId ? { ...c, generation_status: "failed" } : c))
+        );
       }
     } catch (error) {
       console.error("Failed to generate caricature:", error);
       alert("Failed to generate caricature. Please try again.");
+      setExistingCharacters((prev) =>
+        prev.map((c) => (c.id === charId ? { ...c, generation_status: "failed" } : c))
+      );
     }
 
     setGeneratingCharacterId(null);
+    setCharacterToRegenerate(null);
+    setRegenerateFeedback("");
   };
 
   // Handle confirmation
@@ -320,7 +374,7 @@ export default function CreatePage() {
     setShowTokenConfirm(false);
 
     if (pendingAction.type === "character" && pendingAction.characterId) {
-      await generateCaricature(pendingAction.characterId);
+      await generateCaricature(pendingAction.characterId, regenerateFeedback || undefined);
     } else if (pendingAction.type === "book") {
       await actuallyGenerateBookPreview();
     }
@@ -445,10 +499,14 @@ export default function CreatePage() {
 
       if (res.ok) {
         const data = await res.json();
+        const newChar = data.character;
         // Add to existing characters and auto-select
-        setExistingCharacters((prev) => [data.character, ...prev]);
-        setSelectedCharacterIds((prev) => new Set([...prev, data.character.id]));
+        setExistingCharacters((prev) => [newChar, ...prev]);
+        setSelectedCharacterIds((prev) => new Set([...prev, newChar.id]));
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
+
+        // Auto-trigger generation (show token confirm)
+        requestGenerateCaricature(newChar);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -691,8 +749,10 @@ export default function CreatePage() {
                     {existingCharacters.map((char) => {
                       const isSelected = selectedCharacterIds.has(char.id);
                       const isEditing = editingCharacterId === char.id;
-                      const isGenerating = generatingCharacterId === char.id;
+                      const isGenerating = generatingCharacterId === char.id || char.generation_status === "generating";
                       const hasGeneratedImage = !!char.generated_image_url;
+                      const isFlipped = flippedCards.has(char.id);
+
                       return (
                         <div
                           key={char.id}
@@ -705,69 +765,79 @@ export default function CreatePage() {
                           {/* Clickable image area for selection */}
                           <button
                             onClick={() => toggleCharacterSelection(char.id)}
-                            className="w-full bg-brand-dark"
+                            className="w-full bg-brand-dark aspect-square relative"
                           >
-                            {hasGeneratedImage ? (
-                              // Side-by-side comparison
-                              <div className="flex relative">
-                                <div className="w-1/2 aspect-square relative">
-                                  <img
-                                    src={char.original_photo_url}
-                                    alt={`${char.name} - Original`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <span className="absolute bottom-1 left-1 text-[9px] bg-black/60 text-white px-1 rounded">
-                                    Photo
-                                  </span>
-                                </div>
-                                <div className="w-1/2 aspect-square relative">
-                                  <img
-                                    src={char.generated_image_url!}
-                                    alt={`${char.name} - Illustrated`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <span className="absolute bottom-1 right-1 text-[9px] bg-accent-gold/80 text-brand-dark px-1 rounded font-bold">
-                                    Illustrated
-                                  </span>
-                                </div>
-                                {/* Regenerating overlay */}
-                                {isGenerating && (
-                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
-                                    <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                                    <span className="text-white text-xs font-bold">Regenerating...</span>
-                                  </div>
-                                )}
+                            {isGenerating ? (
+                              // Generating state
+                              <div className="w-full h-full flex flex-col items-center justify-center">
+                                <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
+                                <p className="text-white font-bold text-sm">Creating...</p>
                               </div>
+                            ) : hasGeneratedImage ? (
+                              // Show caricature by default, original when flipped
+                              <>
+                                <img
+                                  src={isFlipped ? char.original_photo_url : char.generated_image_url!}
+                                  alt={`${char.name} - ${isFlipped ? "Original" : "Illustrated"}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                {/* Label */}
+                                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-[10px] text-white font-medium">
+                                  {isFlipped ? "Original" : "Illustrated"}
+                                </div>
+                              </>
                             ) : (
-                              // Just original photo
-                              <div className="aspect-square relative">
+                              // No generated image - show original with pending message
+                              <>
                                 <img
                                   src={char.original_photo_url}
                                   alt={char.name}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover opacity-60"
                                 />
-                                {isGenerating && (
-                                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
-                                    <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                                    <span className="text-white text-xs font-bold">Creating...</span>
-                                  </div>
-                                )}
-                              </div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40">
+                                  <p className="text-white font-bold text-sm">Illustration pending</p>
+                                </div>
+                              </>
                             )}
                           </button>
 
-                          {/* Generate button (only show if no generated image and not generating) */}
-                          {!hasGeneratedImage && !isGenerating && (
+                          {/* Flip button (only when has generated image) */}
+                          {hasGeneratedImage && !isGenerating && (
                             <button
-                              onClick={(e) => requestGenerateCaricature(char, e)}
-                              className="absolute top-2 left-2 bg-accent-gold text-brand-dark text-xs font-bold px-2 py-1 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-1"
-                              title="Generate illustrated version"
+                              onClick={(e) => toggleFlip(char.id, e)}
+                              className="absolute top-2 left-2 w-7 h-7 rounded-full bg-black/60 text-white hover:bg-black/80 flex items-center justify-center transition-colors z-10"
+                              title={isFlipped ? "Show illustration" : "Show original"}
                             >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M17 1l4 4-4 4" />
+                                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                                <path d="M7 23l-4-4 4-4" />
+                                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
                               </svg>
-                              Illustrate
                             </button>
+                          )}
+
+                          {/* Regenerate button (only when has generated image) */}
+                          {hasGeneratedImage && !isGenerating && (
+                            <button
+                              onClick={(e) => openRegenerateModal(char, e)}
+                              className="absolute top-2 right-10 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors z-10"
+                              title="Regenerate with changes"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 4v6h6M23 20v-6h-6" />
+                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                              </svg>
+                            </button>
+                          )}
+
+                          {/* Selected checkmark */}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center pointer-events-none z-10">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14163A" strokeWidth="3">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                            </div>
                           )}
 
                           {/* Name and controls */}
@@ -810,19 +880,6 @@ export default function CreatePage() {
                                   </p>
                                 </div>
                                 <div className="flex gap-1 shrink-0">
-                                  {hasGeneratedImage && (
-                                    <button
-                                      onClick={(e) => requestGenerateCaricature(char, e)}
-                                      className="w-6 h-6 rounded-full bg-brand-dark text-accent-gold hover:text-accent-gold-light flex items-center justify-center"
-                                      title="Regenerate illustration"
-                                      disabled={isGenerating}
-                                    >
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M1 4v6h6M23 20v-6h-6" />
-                                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                                      </svg>
-                                    </button>
-                                  )}
                                   <button
                                     onClick={(e) => startEditingCharacter(char, e)}
                                     className="w-6 h-6 rounded-full bg-brand-dark text-text-muted hover:text-white flex items-center justify-center"
@@ -846,15 +903,6 @@ export default function CreatePage() {
                               </div>
                             )}
                           </div>
-
-                          {/* Selected checkmark */}
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center pointer-events-none">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14163A" strokeWidth="3">
-                                <path d="M20 6L9 17l-5-5" />
-                              </svg>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -1452,12 +1500,58 @@ export default function CreatePage() {
         </div>
       )}
 
+      {/* Regenerate Feedback Modal */}
+      {showRegenerateModal && characterToRegenerate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowRegenerateModal(false)}
+          />
+          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-brand-purple-muted">
+            <h3 className="text-lg font-bold text-white mb-2">
+              Regenerate {characterToRegenerate.name}&apos;s illustration
+            </h3>
+            <p className="text-text-muted text-sm mb-4">
+              Describe any changes you&apos;d like to see in the new illustration:
+            </p>
+
+            <textarea
+              value={regenerateFeedback}
+              onChange={(e) => setRegenerateFeedback(e.target.value)}
+              placeholder="e.g., Make the eyes bigger, add a bigger smile, make the hair curlier..."
+              className="w-full h-24 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none"
+              autoFocus
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowRegenerateModal(false)}
+                className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRegenerate}
+                className="flex-1 py-3 rounded-full bg-accent-gold text-brand-dark font-bold hover:bg-accent-gold/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M1 4v6h6M23 20v-6h-6" />
+                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                </svg>
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Token Confirm Modal */}
       <TokenConfirmModal
         isOpen={showTokenConfirm}
         onClose={() => {
           setShowTokenConfirm(false);
           setPendingAction(null);
+          setRegenerateFeedback("");
         }}
         onConfirm={handleConfirmGeneration}
         actionName={
