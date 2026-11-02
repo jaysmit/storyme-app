@@ -153,31 +153,55 @@ export default function Header({ theme = "dark" }: HeaderProps) {
         {loading ? (
           <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-brand-purple-muted animate-pulse" />
         ) : user ? (
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 font-bold py-2"
-              style={{ color: textColor }}
-            >
-              <div
-                className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-xs md:text-sm font-bold"
-                style={{ background: "#6E67B8", color: "#FFFFFF" }}
+          <>
+            {/* Token Badge - Always visible */}
+            {tokens !== null && (
+              <Link
+                href="/pricing"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full no-underline transition-all hover:scale-105"
+                style={{
+                  background: tokens > 0 ? "rgba(244, 201, 93, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                  border: `1px solid ${tokens > 0 ? "#F4C95D" : "#EF4444"}`
+                }}
+                title={tokens > 0 ? `${tokens} tokens remaining` : "Out of tokens - click to buy more"}
               >
-                {initials}
-              </div>
-              <span className="hidden md:inline">{displayName}</span>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className={`hidden md:block transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={tokens > 0 ? "#F4C95D" : "#EF4444"}>
+                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                </svg>
+                <span
+                  className="text-sm font-bold"
+                  style={{ color: tokens > 0 ? "#F4C95D" : "#EF4444" }}
+                >
+                  {tokens}
+                </span>
+              </Link>
+            )}
+
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 font-bold py-2"
+                style={{ color: textColor }}
               >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
+                <div
+                  className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-xs md:text-sm font-bold"
+                  style={{ background: "#6E67B8", color: "#FFFFFF" }}
+                >
+                  {initials}
+                </div>
+                <span className="hidden md:inline">{displayName}</span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`hidden md:block transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
 
             {/* User dropdown menu */}
             {showUserMenu && (
@@ -239,7 +263,8 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                 </div>
               </>
             )}
-          </div>
+            </div>
+          </>
         ) : (
           <Link
             href="/login"

@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
+import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import type { Character } from "@/lib/types";
+import { TOKEN_COSTS } from "@/lib/types";
 
 const PET_TYPES = [
   "Dog",
@@ -37,9 +39,27 @@ export default function CharactersPage() {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Token state
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [showTokenConfirm, setShowTokenConfirm] = useState(false);
+  const [pendingCharacter, setPendingCharacter] = useState<Character | null>(null);
+
   useEffect(() => {
     fetchCharacters();
+    fetchTokens();
   }, []);
+
+  async function fetchTokens() {
+    try {
+      const res = await fetch("/api/tokens");
+      if (res.ok) {
+        const data = await res.json();
+        setTokenBalance(data.tokens || 0);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
 
   async function fetchCharacters() {
     setLoading(true);
@@ -190,9 +210,15 @@ export default function CharactersPage() {
     setEditName("");
   }
 
-  async function generateIllustration(char: Character) {
+  // Request to generate illustration (shows confirmation first)
+  function requestGenerateIllustration(char: Character) {
     if (generatingId) return; // Already generating another
+    setPendingCharacter(char);
+    setShowTokenConfirm(true);
+  }
 
+  // Actually generate illustration after confirmation
+  async function generateIllustration(char: Character) {
     setGeneratingId(char.id);
 
     // Update local state to show generating status
@@ -208,13 +234,14 @@ export default function CharactersPage() {
       });
 
       if (res.ok) {
-        const { character: updatedChar } = await res.json();
+        const { character: updatedChar, tokensRemaining } = await res.json();
         setCharacters((prev) =>
           prev.map((c) => (c.id === char.id ? updatedChar : c))
         );
+        setTokenBalance(tokensRemaining);
       } else {
         const error = await res.json();
-        alert(`Failed to generate: ${error.error || "Unknown error"}`);
+        alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
         // Revert status
         setCharacters((prev) =>
           prev.map((c) => (c.id === char.id ? { ...c, generation_status: "failed" } : c))
@@ -229,6 +256,14 @@ export default function CharactersPage() {
     }
 
     setGeneratingId(null);
+  }
+
+  // Handle confirmation
+  async function handleConfirmGeneration() {
+    if (!pendingCharacter) return;
+    setShowTokenConfirm(false);
+    await generateIllustration(pendingCharacter);
+    setPendingCharacter(null);
   }
 
   return (
@@ -451,7 +486,7 @@ export default function CharactersPage() {
                           {/* Regenerate button */}
                           {generatingId !== char.id && (
                             <button
-                              onClick={() => generateIllustration(char)}
+                              onClick={() => requestGenerateIllustration(char)}
                               disabled={!!generatingId}
                               className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
                               title="Regenerate illustration"
@@ -477,7 +512,7 @@ export default function CharactersPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => generateIllustration(char)}
+                          onClick={() => requestGenerateIllustration(char)}
                           disabled={!!generatingId}
                           className="w-full h-full flex flex-col items-center justify-center bg-brand-dark hover:bg-brand-purple-muted transition-colors group disabled:opacity-50"
                         >
@@ -618,6 +653,20 @@ export default function CharactersPage() {
           )}
         </div>
       </main>
+
+      {/* Token Confirm Modal */}
+      <TokenConfirmModal
+        isOpen={showTokenConfirm}
+        onClose={() => {
+          setShowTokenConfirm(false);
+          setPendingCharacter(null);
+        }}
+        onConfirm={handleConfirmGeneration}
+        actionName={`generate illustration for ${pendingCharacter?.name || "character"}`}
+        tokenCost={TOKEN_COSTS.CHARACTER_ILLUSTRATION}
+        currentBalance={tokenBalance}
+        loading={!!generatingId}
+      />
 
       <Footer />
     </div>

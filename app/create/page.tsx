@@ -5,6 +5,8 @@ import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import BookViewer from "@/components/BookViewer";
+import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
+import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import type { Character } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -135,6 +137,28 @@ export default function CreatePage() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const supabase = createClient();
 
+  // Token state
+  const [tokenBalance, setTokenBalance] = useState<number>(0);
+  const [showTokenConfirm, setShowTokenConfirm] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    type: "character" | "book";
+    characterId?: string;
+    characterObj?: Character;
+  } | null>(null);
+
+  // Fetch tokens
+  const fetchTokens = async () => {
+    try {
+      const res = await fetch("/api/tokens");
+      if (res.ok) {
+        const data = await res.json();
+        setTokenBalance(data.tokens || 0);
+      }
+    } catch {
+      // Ignore errors
+    }
+  };
+
   // Fetch user and characters on mount
   useEffect(() => {
     async function init() {
@@ -148,6 +172,8 @@ export default function CreatePage() {
           const data = await res.json();
           setExistingCharacters(data.characters || []);
         }
+        // Fetch tokens
+        fetchTokens();
       }
       setLoadingCharacters(false);
     }
@@ -163,9 +189,12 @@ export default function CreatePage() {
           const data = await res.json();
           setExistingCharacters(data.characters || []);
         }
+        // Fetch tokens
+        fetchTokens();
       } else {
         setExistingCharacters([]);
         setSelectedCharacterIds(new Set());
+        setTokenBalance(0);
       }
     });
 
@@ -245,28 +274,36 @@ export default function CreatePage() {
     }
   };
 
-  // Generate caricature for a character
-  const generateCaricature = async (char: Character, e: React.MouseEvent) => {
+  // Request to generate caricature (shows confirmation first)
+  const requestGenerateCaricature = (char: Character, e: React.MouseEvent) => {
     e.stopPropagation();
     if (generatingCharacterId) return; // Already generating
 
-    setGeneratingCharacterId(char.id);
+    // Show confirmation modal
+    setPendingAction({ type: "character", characterId: char.id, characterObj: char });
+    setShowTokenConfirm(true);
+  };
+
+  // Actually generate caricature after confirmation
+  const generateCaricature = async (charId: string) => {
+    setGeneratingCharacterId(charId);
 
     try {
-      const res = await fetch(`/api/characters/${char.id}/generate`, {
+      const res = await fetch(`/api/characters/${charId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ artStyle: selectedStyle }),
       });
 
       if (res.ok) {
-        const { character: updatedChar } = await res.json();
+        const { character: updatedChar, tokensRemaining } = await res.json();
         setExistingCharacters((prev) =>
-          prev.map((c) => (c.id === char.id ? updatedChar : c))
+          prev.map((c) => (c.id === charId ? updatedChar : c))
         );
+        setTokenBalance(tokensRemaining);
       } else {
         const error = await res.json();
-        alert(`Failed to generate: ${error.error || "Unknown error"}`);
+        alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
       }
     } catch (error) {
       console.error("Failed to generate caricature:", error);
@@ -274,6 +311,21 @@ export default function CreatePage() {
     }
 
     setGeneratingCharacterId(null);
+  };
+
+  // Handle confirmation
+  const handleConfirmGeneration = async () => {
+    if (!pendingAction) return;
+
+    setShowTokenConfirm(false);
+
+    if (pendingAction.type === "character" && pendingAction.characterId) {
+      await generateCaricature(pendingAction.characterId);
+    } else if (pendingAction.type === "book") {
+      await actuallyGenerateBookPreview();
+    }
+
+    setPendingAction(null);
   };
 
   // Add photo to pending characters
@@ -454,7 +506,8 @@ export default function CreatePage() {
     ],
   };
 
-  const generateBookPreview = async () => {
+  // Request book preview (shows confirmation first)
+  const generateBookPreview = () => {
     if (!selectedStory) return;
 
     if (!user) {
@@ -462,6 +515,13 @@ export default function CreatePage() {
       return;
     }
 
+    // Show confirmation modal
+    setPendingAction({ type: "book" });
+    setShowTokenConfirm(true);
+  };
+
+  // Actually generate book preview after confirmation
+  const actuallyGenerateBookPreview = async () => {
     setGeneratingBook(true);
     setBookError(null);
     setGenerationProgress(0);
@@ -492,10 +552,11 @@ export default function CreatePage() {
         });
 
         if (genResponse.ok) {
-          const { pages } = await genResponse.json();
+          const { pages, tokensRemaining } = await genResponse.json();
           setPreviewPages(pages);
           setShowBookViewer(true);
           setGenerationProgress(100);
+          setTokenBalance(tokensRemaining);
         } else {
           throw new Error("Generation failed");
         }
@@ -698,7 +759,7 @@ export default function CreatePage() {
                           {/* Generate button (only show if no generated image and not generating) */}
                           {!hasGeneratedImage && !isGenerating && (
                             <button
-                              onClick={(e) => generateCaricature(char, e)}
+                              onClick={(e) => requestGenerateCaricature(char, e)}
                               className="absolute top-2 left-2 bg-accent-gold text-brand-dark text-xs font-bold px-2 py-1 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-1"
                               title="Generate illustrated version"
                             >
@@ -751,7 +812,7 @@ export default function CreatePage() {
                                 <div className="flex gap-1 shrink-0">
                                   {hasGeneratedImage && (
                                     <button
-                                      onClick={(e) => generateCaricature(char, e)}
+                                      onClick={(e) => requestGenerateCaricature(char, e)}
                                       className="w-6 h-6 rounded-full bg-brand-dark text-accent-gold hover:text-accent-gold-light flex items-center justify-center"
                                       title="Regenerate illustration"
                                       disabled={isGenerating}
@@ -1390,6 +1451,28 @@ export default function CreatePage() {
           </div>
         </div>
       )}
+
+      {/* Token Confirm Modal */}
+      <TokenConfirmModal
+        isOpen={showTokenConfirm}
+        onClose={() => {
+          setShowTokenConfirm(false);
+          setPendingAction(null);
+        }}
+        onConfirm={handleConfirmGeneration}
+        actionName={
+          pendingAction?.type === "character"
+            ? `generate illustration for ${pendingAction.characterObj?.name || "character"}`
+            : "generate 3 book preview pages"
+        }
+        tokenCost={
+          pendingAction?.type === "character"
+            ? TOKEN_COSTS.CHARACTER_ILLUSTRATION
+            : TOKEN_COSTS.BOOK_PREVIEW_FULL
+        }
+        currentBalance={tokenBalance}
+        loading={pendingAction?.type === "character" ? !!generatingCharacterId : generatingBook}
+      />
 
       <Footer />
     </div>
