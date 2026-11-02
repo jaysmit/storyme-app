@@ -107,100 +107,34 @@ export async function POST(
 
     // Build feedback section if provided
     const feedbackSection = userFeedback
-      ? `
-
-**USER REQUESTED CHANGES**
-
-${userFeedback}
-
-Apply the requested changes while preserving all unrelated facial features, character identity and established illustration style.`
+      ? `\n\n**USER REQUESTED CHANGES:**\n${userFeedback}`
       : "";
 
-    const prompt = `Transform the person or pet in the uploaded reference photograph into a charming, professionally illustrated children's storybook caricature.
+    const prompt = `Transform this ${character.character_type === "pet" ? character.pet_type || "pet" : "person"} into a charming children's storybook character.
 
-**SUBJECT**
-- Subject type: ${characterTypeContext}
-- Character name: ${character.name}
-- Art style: ${styleModifier}
+Keep the same recognisable facial features, hairstyle${character.character_type === "person" ? ", stubble" : ""} and expression.
 
-**PRIMARY OBJECTIVE — IDENTITY PRESERVATION**
+**STYLE:**
+Bright, friendly animated storybook illustration with:
+- Warm, clean shading
+- Large, expressive cartoon eyes
+- Slightly exaggerated facial features
+- Rounded, simplified facial shapes
+- Smooth, illustrated skin without realistic textures
+- Playful, appealing character proportions
+- Clean outlines and vibrant colours
 
-The finished illustration must be immediately recognisable as the same individual shown in the uploaded photograph.
+**FACIAL IDENTITY:**
+Preserve the subject's distinctive nose, mouth, smile, eye shape, eye spacing, face shape, hairstyle${character.character_type === "person" ? " and facial hair" : ""}.
 
-Treat the reference photograph as the definitive source of the character's identity, not merely inspiration.
+Exaggerate the existing features rather than replacing them with generic cartoon features.
 
-Study the subject's unique facial characteristics and preserve the relationships between them.
+**IMPORTANT:**
+The result should look like a professionally illustrated animated children's book character, NOT a realistic or semi-realistic portrait.
 
-Prioritise recognisability over conventional cartoon attractiveness, symmetry or stylisation.
+Avoid photorealism, realistic skin textures, detailed pores and photographic lighting.
 
-**FACIAL IDENTITY — HIGHEST PRIORITY**
-
-Preserve the following characteristics:
-
-- Overall face shape, proportions and natural facial asymmetry
-- Eye shape, size relative to the face, spacing, angle and colour
-- Nose bridge, width, tip shape and proportions
-- Mouth shape, lip proportions, smile and natural expression
-- Chin, jawline, cheek shape and forehead proportions
-- Eyebrow shape, thickness and positioning
-- Hairline, hairstyle, hair colour, texture and volume
-- Skin tone and visible distinctive features
-- Freckles, dimples, moles, glasses, facial hair and other recognisable details where present
-
-Do not replace these features with generic animated character features.
-
-Do not artificially beautify, slim, age, de-age or symmetrise the subject.
-
-**CARICATURE STYLISATION**
-
-Create a gentle, appealing caricature suitable for a premium children's picture book.
-
-- Apply subtle, intentional exaggeration to the subject's existing distinctive features.
-- Slightly enlarge the eyes where appropriate, while retaining their original shape, spacing and angle.
-- Use softly rounded, expressive illustrated proportions.
-- Simplify fine photographic details without removing identifying characteristics.
-- Retain the person's unique smile, facial structure and personality.
-- Avoid oversized generic cartoon eyes, tiny button noses, identical rounded faces or exaggerated head shapes unless specifically requested.
-
-The result should feel like an illustrated version of this exact person, not a newly invented character who looks vaguely similar.
-
-**ILLUSTRATION STYLE**
-
-${styleModifier}
-
-Maintain a cohesive, professional children's storybook aesthetic with clean forms, appealing colours and controlled shading.
-
-The selected art style should affect rendering, textures, lighting and colour treatment without overriding the subject's facial identity.
-
-**COMPOSITION**
-
-- Pure white background (#FFFFFF)
-- Head and upper torso visible
-- Character centred in the frame
-- Facing forward or at a slight three-quarter angle
-- Entire hairstyle and head visible, with comfortable margins
-- Natural, welcoming expression
-- Soft, even lighting
-- No props, text, scenery, borders or decorative effects
-
-**IMPORTANT RESTRICTIONS**
-
-- Do not invent facial features that are not visible in the reference.
-- Do not change the subject's apparent age.
-- Do not change their ethnicity, skin tone or distinctive physical characteristics.
-- Do not make the face more conventionally attractive at the expense of recognisability.
-- Do not introduce additional people or animals.
-- Do not sacrifice identity preservation to achieve a more dramatic cartoon style.
-
-**SUCCESS CRITERION**
-
-Someone who personally knows the subject should immediately recognise them from the illustration, even without seeing the original photograph.
-
-The final result should balance three priorities, in this order:
-
-1. Recognisable facial identity
-2. Appealing children's storybook caricature
-3. Consistent illustration style${feedbackSection}`;
+Use a clean white background with the character centred, showing their head and upper body.${feedbackSection}`;
 
     // Step 3: Use images.edit to transform the photo
     // Premium settings from ChatGPT recommendation
