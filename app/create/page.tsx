@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
-import CharacterCard from "@/components/CharacterCard";
 import BookViewer from "@/components/BookViewer";
-import type { LocalCharacter } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
+import type { Character } from "@/lib/types";
+import type { User } from "@supabase/supabase-js";
 
 interface PreviewPage {
   page_number: number;
@@ -13,7 +15,29 @@ interface PreviewPage {
   title: string;
 }
 
-type Step = "crew" | "story" | "style" | "preview";
+interface PendingCharacter {
+  id: string;
+  name: string;
+  photoBase64: string;
+  characterType: "person" | "pet" | "other";
+  petType: string;
+  customType: string;
+  saving: boolean;
+}
+
+type Step = "characters" | "story" | "style" | "preview";
+
+const PET_TYPES = [
+  "Dog",
+  "Cat",
+  "Rabbit",
+  "Hamster",
+  "Guinea Pig",
+  "Bird",
+  "Fish",
+  "Turtle",
+  "Horse",
+];
 
 const stories = [
   {
@@ -77,14 +101,23 @@ const artStyles = [
 ];
 
 export default function CreatePage() {
-  const [currentStep, setCurrentStep] = useState<Step>("crew");
-  const [characters, setCharacters] = useState<LocalCharacter[]>([]);
+  const [currentStep, setCurrentStep] = useState<Step>("characters");
+
+  // Existing characters from database
+  const [existingCharacters, setExistingCharacters] = useState<Character[]>([]);
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
+  const [loadingCharacters, setLoadingCharacters] = useState(true);
+
+  // Editing existing characters
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  // New characters being added
+  const [pendingCharacters, setPendingCharacters] = useState<PendingCharacter[]>([]);
+
   const [selectedStory, setSelectedStory] = useState<string | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<string>("glow");
   const [dragOver, setDragOver] = useState(false);
-  const [crewName, setCrewName] = useState("");
-  const [showSaveCrew, setShowSaveCrew] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Book preview state
@@ -94,8 +127,50 @@ export default function CreatePage() {
   const [showBookViewer, setShowBookViewer] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
 
+  // Auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const supabase = createClient();
+
+  // Fetch user and characters on mount
+  useEffect(() => {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+
+      if (user) {
+        // Fetch existing characters
+        const res = await fetch("/api/characters");
+        if (res.ok) {
+          const data = await res.json();
+          setExistingCharacters(data.characters || []);
+        }
+      }
+      setLoadingCharacters(false);
+    }
+    init();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        setShowLoginPrompt(false);
+        // Refetch characters when user logs in
+        const res = await fetch("/api/characters");
+        if (res.ok) {
+          const data = await res.json();
+          setExistingCharacters(data.characters || []);
+        }
+      } else {
+        setExistingCharacters([]);
+        setSelectedCharacterIds(new Set());
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
+
   const steps: { key: Step; label: string; number: number }[] = [
-    { key: "crew", label: "Gather crew", number: 1 },
+    { key: "characters", label: "Add characters", number: 1 },
     { key: "story", label: "Choose adventure", number: 2 },
     { key: "style", label: "Pick enchantment", number: 3 },
     { key: "preview", label: "Preview book", number: 4 },
@@ -103,23 +178,99 @@ export default function CreatePage() {
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-  const addCharacterFromFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const newChar: LocalCharacter = {
-        id: crypto.randomUUID(),
-        name: file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "),
-        photoUrl: reader.result as string,
-        photoFile: file,
-        generatedUrl: null,
-        status: "pending",
-        type: "person",
-        ageGroup: null,
-        role: null,
+  // Toggle character selection
+  const toggleCharacterSelection = (id: string) => {
+    setSelectedCharacterIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Start editing a character
+  const startEditingCharacter = (char: Character, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCharacterId(char.id);
+    setEditingName(char.name);
+  };
+
+  // Save character name edit
+  const saveCharacterEdit = async () => {
+    if (!editingCharacterId || !editingName.trim()) return;
+
+    try {
+      const res = await fetch(`/api/characters/${editingCharacterId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editingName.trim() }),
+      });
+
+      if (res.ok) {
+        setExistingCharacters((prev) =>
+          prev.map((c) => (c.id === editingCharacterId ? { ...c, name: editingName.trim() } : c))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update character:", error);
+    }
+
+    setEditingCharacterId(null);
+    setEditingName("");
+  };
+
+  // Delete a character
+  const deleteCharacter = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this character?")) return;
+
+    try {
+      const res = await fetch(`/api/characters/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setExistingCharacters((prev) => prev.filter((c) => c.id !== id));
+        setSelectedCharacterIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to delete character:", error);
+    }
+  };
+
+  // Add photo to pending characters
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        setPendingCharacters((prev) => [
+          ...prev,
+          {
+            id: pendingId,
+            name: "",
+            photoBase64: base64,
+            characterType: "person",
+            petType: "",
+            customType: "",
+            saving: false,
+          },
+        ]);
       };
-      setCharacters((prev) => [...prev, newChar]);
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }, []);
 
   const handleFileDrop = useCallback(
@@ -130,86 +281,112 @@ export default function CreatePage() {
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.type.startsWith("image/")
       );
-      files.forEach(addCharacterFromFile);
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result as string;
+          const pendingId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          setPendingCharacters((prev) => [
+            ...prev,
+            {
+              id: pendingId,
+              name: "",
+              photoBase64: base64,
+              characterType: "person",
+              petType: "",
+              customType: "",
+              saving: false,
+            },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
     },
-    [addCharacterFromFile]
+    []
   );
 
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || []);
-      files.forEach(addCharacterFromFile);
-      // Reset input so same file can be selected again
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    },
-    [addCharacterFromFile]
-  );
-
-  const removeCharacter = (id: string) => {
-    setCharacters((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const updateCharacterName = (id: string, name: string) => {
-    setCharacters((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, name } : c))
+  // Update pending character fields
+  function updatePending(id: string, updates: Partial<PendingCharacter>) {
+    setPendingCharacters((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
     );
-  };
+  }
 
-  const updateCharacterRole = (id: string, role: string) => {
-    setCharacters((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, role } : c))
-    );
-  };
+  // Remove pending character
+  function removePending(id: string) {
+    setPendingCharacters((prev) => prev.filter((p) => p.id !== id));
+  }
 
-  const generateCharacter = async (id: string) => {
-    // Update status to generating
-    setCharacters((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: "generating" } : c))
-    );
+  // Check if pending character is valid
+  function isPendingValid(pending: PendingCharacter): boolean {
+    if (!pending.name.trim()) return false;
+    if (pending.characterType === "pet" && !pending.petType) return false;
+    if (pending.characterType === "other" && !pending.customType.trim()) return false;
+    return true;
+  }
 
-    // In a real implementation, this would:
-    // 1. Upload the photo to Supabase Storage
-    // 2. Call the generate API
-    // 3. Update with the generated image URL
-
-    // For now, simulate with a timeout
-    setTimeout(() => {
-      setCharacters((prev) =>
-        prev.map((c) =>
-          c.id === id
-            ? {
-                ...c,
-                status: "completed",
-                // Use a placeholder for now
-                generatedUrl: c.photoUrl,
-              }
-            : c
-        )
-      );
-    }, 2000);
-  };
-
-  const generateAllCharacters = async () => {
-    setGenerating(true);
-    // Generate all pending characters sequentially
-    for (const char of characters) {
-      if (char.status === "pending" && !char.generatedUrl) {
-        await generateCharacter(char.id);
-        // Wait a bit between generations
-        await new Promise((r) => setTimeout(r, 500));
-      }
+  // Save pending character to database
+  async function savePendingCharacter(pending: PendingCharacter) {
+    if (!isPendingValid(pending)) return;
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
     }
-    setGenerating(false);
-  };
+
+    setPendingCharacters((prev) =>
+      prev.map((p) => (p.id === pending.id ? { ...p, saving: true } : p))
+    );
+
+    let petTypeToSave: string | undefined;
+    if (pending.characterType === "pet") {
+      petTypeToSave = pending.petType;
+    } else if (pending.characterType === "other") {
+      petTypeToSave = pending.customType.trim();
+    }
+
+    try {
+      const res = await fetch("/api/characters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pending.name.trim(),
+          photoBase64: pending.photoBase64,
+          characterType: pending.characterType,
+          petType: petTypeToSave,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Add to existing characters and auto-select
+        setExistingCharacters((prev) => [data.character, ...prev]);
+        setSelectedCharacterIds((prev) => new Set([...prev, data.character.id]));
+        setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
+      } else {
+        setPendingCharacters((prev) =>
+          prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
+        );
+      }
+    } catch (error) {
+      console.error("Failed to save character:", error);
+      setPendingCharacters((prev) =>
+        prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
+      );
+    }
+  }
+
+  // Get selected characters for the story
+  const selectedCharacters = existingCharacters.filter((c) =>
+    selectedCharacterIds.has(c.id)
+  );
 
   // Helper to generate placeholder image URL
   const getPlaceholderUrl = (text: string) => {
     return `/api/placeholder/900/506?text=${encodeURIComponent(text)}`;
   };
 
-  // Demo story scenes for preview (used when API is not available)
+  // Demo story scenes for preview
   const demoScenes: Record<string, PreviewPage[]> = {
     "dragon-castle-valley": [
       { page_number: 1, url: getPlaceholderUrl("The Journey Begins"), title: "The Journey Begins" },
@@ -246,30 +423,32 @@ export default function CreatePage() {
   const generateBookPreview = async () => {
     if (!selectedStory) return;
 
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
     setGeneratingBook(true);
     setBookError(null);
     setGenerationProgress(0);
 
     try {
-      // Try to call the real API first
       const response = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           storySlug: selectedStory,
           artStyle: selectedStyle,
-          characters: characters.map((c) => ({
+          characters: selectedCharacters.map((c) => ({
             id: c.id,
             name: c.name,
-            type: c.type,
+            type: c.character_type,
           })),
         }),
       });
 
       if (response.ok) {
         const { book } = await response.json();
-
-        // Start generation
         setGenerationProgress(10);
 
         const genResponse = await fetch(`/api/books/${book.id}/generate`, {
@@ -278,10 +457,10 @@ export default function CreatePage() {
           body: JSON.stringify({
             storySlug: selectedStory,
             artStyle: selectedStyle,
-            characters: characters.map((c) => ({
+            characters: selectedCharacters.map((c) => ({
               id: c.id,
               name: c.name,
-              type: c.type,
+              type: c.character_type,
             })),
           }),
         });
@@ -295,13 +474,11 @@ export default function CreatePage() {
           throw new Error("Generation failed");
         }
       } else {
-        // Fall back to demo mode if API fails (Supabase not configured)
         console.log("API not available, using demo mode");
         await simulateDemoGeneration();
       }
     } catch (error) {
       console.log("Using demo mode due to:", error);
-      // Use demo mode
       await simulateDemoGeneration();
     }
 
@@ -309,13 +486,11 @@ export default function CreatePage() {
   };
 
   const simulateDemoGeneration = async () => {
-    // Simulate generation progress
     for (let i = 1; i <= 3; i++) {
       setGenerationProgress((i / 3) * 100);
       await new Promise((r) => setTimeout(r, 1000));
     }
 
-    // Use demo pages
     const pages = demoScenes[selectedStory || "dragon-castle-valley"] || demoScenes["dragon-castle-valley"];
     setPreviewPages(pages);
     setShowBookViewer(true);
@@ -323,8 +498,8 @@ export default function CreatePage() {
 
   const canProceed = () => {
     switch (currentStep) {
-      case "crew":
-        return characters.length > 0;
+      case "characters":
+        return selectedCharacterIds.size > 0;
       case "story":
         return selectedStory !== null;
       case "style":
@@ -407,63 +582,148 @@ export default function CreatePage() {
 
       <main className="flex-1 py-12 px-6">
         <div className="max-w-4xl mx-auto">
-          {/* Step 1: Gather Crew */}
-          {currentStep === "crew" && (
+          {/* Step 1: Add Characters */}
+          {currentStep === "characters" && (
             <div>
-              <div className="flex justify-between items-start mb-8">
-                <div>
-                  <h1 className="text-4xl font-black text-white mb-2">
-                    Gather your crew
-                  </h1>
-                  <p className="text-lg text-text-muted">
-                    Upload photos of the people who'll star in your story.
-                  </p>
-                </div>
-                {characters.length > 0 && (
-                  <button
-                    onClick={() => setShowSaveCrew(true)}
-                    className="px-4 py-2 rounded-full border border-brand-purple-muted text-text-muted hover:border-accent-gold hover:text-white transition-colors text-sm font-bold"
-                  >
-                    Save as crew
-                  </button>
-                )}
+              <div className="mb-8">
+                <h1 className="text-4xl font-black text-white mb-2">
+                  Choose your characters
+                </h1>
+                <p className="text-lg text-text-muted">
+                  Select existing characters or add new ones for your story.
+                </p>
               </div>
 
-              {/* Upload area */}
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleFileDrop}
-                className={`border-2 border-dashed rounded-3xl p-12 text-center transition-colors ${
-                  dragOver
-                    ? "border-accent-gold bg-accent-gold/10"
-                    : "border-brand-purple-muted"
-                }`}
-              >
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#F4C95D"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="mx-auto mb-4"
+              {/* Existing Characters Section */}
+              {user && existingCharacters.length > 0 && (
+                <div className="mb-8">
+                  <h2 className="text-xl font-bold text-white mb-4">
+                    Your characters ({selectedCharacterIds.size} selected)
+                  </h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {existingCharacters.map((char) => {
+                      const isSelected = selectedCharacterIds.has(char.id);
+                      const isEditing = editingCharacterId === char.id;
+                      return (
+                        <div
+                          key={char.id}
+                          className={`relative bg-brand-purple-light border-2 rounded-2xl overflow-hidden transition-all ${
+                            isSelected
+                              ? "border-accent-gold ring-2 ring-accent-gold"
+                              : "border-brand-purple-muted hover:border-accent-gold/50"
+                          }`}
+                        >
+                          {/* Clickable image area for selection */}
+                          <button
+                            onClick={() => toggleCharacterSelection(char.id)}
+                            className="w-full aspect-square bg-brand-dark"
+                          >
+                            <img
+                              src={char.generated_image_url || char.original_photo_url}
+                              alt={char.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </button>
+
+                          {/* Name and controls */}
+                          <div className="p-3">
+                            {isEditing ? (
+                              <div className="flex gap-1">
+                                <input
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveCharacterEdit();
+                                    if (e.key === "Escape") {
+                                      setEditingCharacterId(null);
+                                      setEditingName("");
+                                    }
+                                  }}
+                                  className="flex-1 px-2 py-1 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold min-w-0"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    saveCharacterEdit();
+                                  }}
+                                  className="text-accent-gold hover:text-accent-gold-light shrink-0"
+                                >
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M20 6L9 17l-5-5" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-start justify-between gap-1">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white font-bold text-sm truncate">{char.name}</p>
+                                  <p className="text-xs text-text-muted capitalize">
+                                    {char.pet_type || char.character_type}
+                                  </p>
+                                </div>
+                                <div className="flex gap-1 shrink-0">
+                                  <button
+                                    onClick={(e) => startEditingCharacter(char, e)}
+                                    className="w-6 h-6 rounded-full bg-brand-dark text-text-muted hover:text-white flex items-center justify-center"
+                                    title="Edit"
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => deleteCharacter(char.id, e)}
+                                    className="w-6 h-6 rounded-full bg-brand-dark text-text-muted hover:text-red-400 flex items-center justify-center"
+                                    title="Delete"
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M3 6h18M8 6V4h8v2M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Selected checkmark */}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-accent-gold flex items-center justify-center pointer-events-none">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14163A" strokeWidth="3">
+                                <path d="M20 6L9 17l-5-5" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add New Characters Section */}
+              <div className="mb-8">
+                <h2 className="text-xl font-bold text-white mb-4">
+                  {existingCharacters.length > 0 ? "Add new characters" : "Add characters"}
+                </h2>
+
+                {/* Upload area */}
+                <label
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleFileDrop}
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors cursor-pointer block hover:border-accent-gold ${
+                    dragOver
+                      ? "border-accent-gold bg-accent-gold/10"
+                      : "border-brand-purple-muted"
+                  }`}
                 >
-                  <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <p className="text-white font-bold mb-2">
-                  Drag photos here or click to browse
-                </p>
-                <p className="text-text-muted text-sm mb-4">
-                  Upload clear, front-facing photos. One photo per person.
-                </p>
-                <label className="inline-block bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full cursor-pointer hover:bg-accent-gold-light transition-colors">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -472,104 +732,152 @@ export default function CreatePage() {
                     onChange={handleFileSelect}
                     className="hidden"
                   />
-                  Choose photos
+                  <div className="w-16 h-16 rounded-full bg-brand-purple-muted mx-auto mb-3 flex items-center justify-center">
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#F4C95D"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  </div>
+                  <p className="text-white font-bold mb-1">
+                    Add new character
+                  </p>
+                  <p className="text-text-muted text-sm">
+                    Upload a clear, front-facing photo
+                  </p>
                 </label>
+
+                {/* Pending characters (new uploads) */}
+                {pendingCharacters.length > 0 && (
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {pendingCharacters.map((pending) => (
+                      <div
+                        key={pending.id}
+                        className="bg-brand-purple-light border-2 border-accent-gold rounded-2xl overflow-hidden"
+                      >
+                        <div className="flex">
+                          {/* Photo */}
+                          <div className="w-32 h-32 bg-brand-dark relative shrink-0">
+                            <img
+                              src={pending.photoBase64}
+                              alt="New character"
+                              className="w-full h-full object-cover"
+                            />
+                            {!pending.saving && (
+                              <button
+                                onClick={() => removePending(pending.id)}
+                                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M18 6L6 18M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                            {pending.saving && (
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <div className="w-8 h-8 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Form */}
+                          <div className="flex-1 p-3 space-y-2">
+                            <input
+                              type="text"
+                              value={pending.name}
+                              onChange={(e) => updatePending(pending.id, { name: e.target.value })}
+                              placeholder="Name..."
+                              disabled={pending.saving}
+                              className="w-full px-3 py-1.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-gold disabled:opacity-50"
+                            />
+
+                            {/* Type toggle */}
+                            <div className="flex gap-1">
+                              {(["person", "pet", "other"] as const).map((type) => (
+                                <button
+                                  key={type}
+                                  onClick={() => updatePending(pending.id, { characterType: type, petType: "", customType: "" })}
+                                  disabled={pending.saving}
+                                  className={`flex-1 py-1 rounded text-xs font-bold transition-colors ${
+                                    pending.characterType === type
+                                      ? "bg-accent-gold text-brand-dark"
+                                      : "bg-brand-dark text-text-muted hover:text-white"
+                                  }`}
+                                >
+                                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                                </button>
+                              ))}
+                            </div>
+
+                            {/* Pet type dropdown */}
+                            {pending.characterType === "pet" && (
+                              <select
+                                value={pending.petType}
+                                onChange={(e) => updatePending(pending.id, { petType: e.target.value })}
+                                disabled={pending.saving}
+                                className="w-full px-2 py-1.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold disabled:opacity-50"
+                              >
+                                <option value="">Select pet...</option>
+                                {PET_TYPES.map((type) => (
+                                  <option key={type} value={type}>{type}</option>
+                                ))}
+                              </select>
+                            )}
+
+                            {/* Custom type input */}
+                            {pending.characterType === "other" && (
+                              <input
+                                type="text"
+                                value={pending.customType}
+                                onChange={(e) => updatePending(pending.id, { customType: e.target.value })}
+                                placeholder="Type (e.g., Dragon)..."
+                                disabled={pending.saving}
+                                className="w-full px-3 py-1.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-gold disabled:opacity-50"
+                              />
+                            )}
+
+                            <button
+                              onClick={() => savePendingCharacter(pending)}
+                              disabled={!isPendingValid(pending) || pending.saving}
+                              className="w-full py-1.5 bg-accent-gold text-brand-dark font-bold rounded-full text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
+                            >
+                              {pending.saving ? "Saving..." : "Save & Select"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Character list */}
-              {characters.length > 0 && (
-                <>
-                  <div className="mt-8">
-                    <h2 className="text-xl font-bold text-white">
-                      Your crew ({characters.length})
-                    </h2>
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {characters.map((char) => (
-                      <CharacterCard
-                        key={char.id}
-                        character={char}
-                        onRemove={removeCharacter}
-                        onUpdateName={updateCharacterName}
-                        onUpdateRole={updateCharacterRole}
-                        onGenerate={generateCharacter}
-                        showGenerateButton
-                      />
-                    ))}
-
-                    {/* Add crew member button - shows when at least one is completed */}
-                    {characters.some((c) => c.generatedUrl) && characters.length < 5 && (
-                      <label className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[280px] hover:border-accent-gold hover:bg-brand-purple-light/80 transition-colors cursor-pointer group">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const files = Array.from(e.target.files || []);
-                            files.forEach(addCharacterFromFile);
-                            e.target.value = "";
-                          }}
-                          className="hidden"
-                        />
-                        <div className="w-16 h-16 rounded-full bg-brand-dark flex items-center justify-center group-hover:bg-accent-gold transition-colors">
-                          <svg
-                            width="32"
-                            height="32"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-accent-gold group-hover:text-brand-dark transition-colors"
-                          >
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </div>
-                        <span className="text-lg font-bold text-white">Add crew member</span>
-                        <span className="text-sm text-text-muted">Up to {5 - characters.length} more</span>
-                      </label>
-                    )}
-                  </div>
-                </>
+              {/* Login prompt for non-logged in users */}
+              {!user && !loadingCharacters && (
+                <div className="bg-brand-purple border border-brand-purple-muted rounded-2xl p-6 text-center">
+                  <p className="text-text-muted mb-4">
+                    Sign in to access your saved characters or create new ones.
+                  </p>
+                  <Link
+                    href="/login?redirect=/create"
+                    className="inline-block bg-accent-gold text-brand-dark font-bold px-6 py-3 rounded-full hover:bg-accent-gold-light transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                </div>
               )}
 
-              {/* Save Crew Modal */}
-              {showSaveCrew && (
-                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
-                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-md w-full">
-                    <h2 className="text-2xl font-black text-white mb-4">
-                      Save this crew
-                    </h2>
-                    <p className="text-text-muted mb-6">
-                      Give your crew a name so you can use them again later.
-                    </p>
-                    <input
-                      type="text"
-                      value={crewName}
-                      onChange={(e) => setCrewName(e.target.value)}
-                      placeholder="e.g., The Smith Family"
-                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold mb-6"
-                    />
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => setShowSaveCrew(false)}
-                        className="flex-1 px-4 py-3 rounded-full border border-brand-purple-muted text-text-muted hover:text-white transition-colors font-bold"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => {
-                          // TODO: Save crew to API
-                          setShowSaveCrew(false);
-                          setCrewName("");
-                        }}
-                        disabled={!crewName.trim()}
-                        className="flex-1 px-4 py-3 rounded-full bg-accent-gold text-brand-dark font-extrabold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
-                      >
-                        Save crew
-                      </button>
-                    </div>
-                  </div>
+              {/* Loading state */}
+              {loadingCharacters && (
+                <div className="text-center py-8">
+                  <div className="w-10 h-10 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-text-muted">Loading characters...</p>
                 </div>
               )}
             </div>
@@ -582,7 +890,7 @@ export default function CreatePage() {
                 Choose your adventure
               </h1>
               <p className="text-lg text-text-muted mb-8">
-                Pick a world for your crew to explore.
+                Pick a world for your characters to explore.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -693,7 +1001,6 @@ export default function CreatePage() {
           {currentStep === "preview" && (
             <div>
               {showBookViewer && previewPages.length > 0 ? (
-                // Book Viewer
                 <div>
                   <div className="flex justify-between items-center mb-6">
                     <div>
@@ -720,24 +1027,129 @@ export default function CreatePage() {
                     title={stories.find((s) => s.slug === selectedStory)?.title || "Your Story"}
                   />
 
-                  {/* Call to action */}
-                  <div className="mt-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 text-center">
-                    <h3 className="text-2xl font-black text-white mb-2">
-                      Love your preview?
+                  {/* Purchase options */}
+                  <div className="mt-8">
+                    <h3 className="text-2xl font-black text-white mb-2 text-center">
+                      Love your preview? Choose your book
                     </h3>
-                    <p className="text-text-muted mb-6">
-                      Order the full 24-page printed storybook with all your characters.
+                    <p className="text-text-muted mb-8 text-center">
+                      Every option includes 3 free amendments.
                     </p>
-                    <button className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors">
-                      Order Printed Book — $49.95
-                    </button>
-                    <p className="text-xs text-text-muted mt-4">
-                      Includes hardcover book + digital PDF download
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Digital */}
+                      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-5 flex flex-col">
+                        <span className="text-accent-gold font-handwritten text-lg mb-1">Instant</span>
+                        <h4 className="text-xl font-black text-white mb-1">Digital book</h4>
+                        <div className="flex items-baseline gap-1 mb-3">
+                          <span className="text-3xl font-black text-white">$14.20</span>
+                        </div>
+                        <ul className="text-sm text-text-muted space-y-1.5 mb-4 flex-1">
+                          <li className="flex gap-2">
+                            <span className="text-accent-teal">✦</span>
+                            PDF and e-reader version
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-teal">✦</span>
+                            Read on any screen
+                          </li>
+                        </ul>
+                        <button className="w-full bg-brand-purple text-white font-bold py-3 rounded-full hover:bg-accent-gold hover:text-brand-dark transition-colors">
+                          Buy digital
+                        </button>
+                      </div>
+
+                      {/* Softcover */}
+                      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-5 flex flex-col">
+                        <span className="text-accent-gold font-handwritten text-lg mb-1">Great value</span>
+                        <h4 className="text-xl font-black text-white mb-1">Softcover</h4>
+                        <div className="flex items-baseline gap-1 mb-3">
+                          <span className="text-3xl font-black text-white">$23</span>
+                          <span className="text-xs text-text-muted">+ shipping</span>
+                        </div>
+                        <ul className="text-sm text-text-muted space-y-1.5 mb-4 flex-1">
+                          <li className="flex gap-2">
+                            <span className="text-accent-teal">✦</span>
+                            Matte paperback
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-teal">✦</span>
+                            Includes digital copy
+                          </li>
+                        </ul>
+                        <button className="w-full bg-brand-purple text-white font-bold py-3 rounded-full hover:bg-accent-gold hover:text-brand-dark transition-colors">
+                          Buy softcover
+                        </button>
+                      </div>
+
+                      {/* Hardcover - Featured */}
+                      <div className="bg-brand-purple border-2 border-accent-gold rounded-2xl p-5 flex flex-col relative">
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">
+                          Most loved
+                        </div>
+                        <span className="text-accent-gold font-handwritten text-lg mb-1">Premium</span>
+                        <h4 className="text-xl font-black text-white mb-1">Deluxe hardcover</h4>
+                        <div className="flex items-baseline gap-1 mb-3">
+                          <span className="text-3xl font-black text-white">$34</span>
+                          <span className="text-xs text-text-muted">+ shipping</span>
+                        </div>
+                        <ul className="text-sm text-text-muted space-y-1.5 mb-4 flex-1">
+                          <li className="flex gap-2">
+                            <span className="text-accent-gold">✦</span>
+                            Gold-foil hardcover
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-gold">✦</span>
+                            Premium paper
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-gold">✦</span>
+                            Dedication page
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-gold">✦</span>
+                            Includes digital copy
+                          </li>
+                        </ul>
+                        <button className="w-full bg-accent-gold text-brand-dark font-extrabold py-3 rounded-full hover:bg-accent-gold-light transition-colors">
+                          Buy hardcover
+                        </button>
+                      </div>
+
+                      {/* Treasure Chest Bundle */}
+                      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-5 flex flex-col">
+                        <span className="text-accent-pink font-handwritten text-lg mb-1">For gifting</span>
+                        <h4 className="text-xl font-black text-white mb-1">Treasure chest</h4>
+                        <div className="flex items-baseline gap-1 mb-3">
+                          <span className="text-3xl font-black text-white">$119</span>
+                          <span className="text-xs text-text-muted">+ shipping</span>
+                        </div>
+                        <ul className="text-sm text-text-muted space-y-1.5 mb-4 flex-1">
+                          <li className="flex gap-2">
+                            <span className="text-accent-pink">✦</span>
+                            Hardcover in keepsake box
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-pink">✦</span>
+                            Character poster print
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-accent-pink">✦</span>
+                            Gift message + date
+                          </li>
+                        </ul>
+                        <button className="w-full bg-brand-purple text-white font-bold py-3 rounded-full hover:bg-accent-gold hover:text-brand-dark transition-colors">
+                          Buy bundle
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-center text-text-muted text-sm mt-6">
+                      Secure checkout · Satisfaction guaranteed · Ships worldwide
                     </p>
                   </div>
                 </div>
               ) : generatingBook ? (
-                // Generating state
                 <div className="text-center">
                   <h1 className="text-4xl font-black text-white mb-2">
                     Creating your storybook
@@ -753,13 +1165,12 @@ export default function CreatePage() {
                   />
                 </div>
               ) : (
-                // Generate button
                 <div className="text-center">
                   <h1 className="text-4xl font-black text-white mb-2">
                     Your book is ready to preview
                   </h1>
                   <p className="text-lg text-text-muted mb-8">
-                    We'll generate your storybook pages with your crew.
+                    We'll generate your storybook pages with your characters.
                   </p>
 
                   <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-lg mx-auto">
@@ -768,29 +1179,27 @@ export default function CreatePage() {
                       {stories.find((s) => s.slug === selectedStory)?.title}
                     </h2>
                     <p className="text-text-muted mb-6">
-                      {characters.length} character{characters.length !== 1 && "s"} ·{" "}
+                      {selectedCharacters.length} character{selectedCharacters.length !== 1 && "s"} ·{" "}
                       {artStyles.find((s) => s.slug === selectedStyle)?.name} style
                     </p>
 
                     {/* Character preview row */}
                     <div className="flex justify-center gap-2 mb-6">
-                      {characters.slice(0, 5).map((char) => (
+                      {selectedCharacters.slice(0, 5).map((char) => (
                         <div
                           key={char.id}
                           className="w-12 h-12 rounded-full overflow-hidden bg-brand-dark border-2 border-accent-gold"
                         >
-                          {(char.generatedUrl || char.photoUrl) && (
-                            <img
-                              src={char.generatedUrl || char.photoUrl || ""}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
+                          <img
+                            src={char.generated_image_url || char.original_photo_url}
+                            alt={char.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ))}
-                      {characters.length > 5 && (
+                      {selectedCharacters.length > 5 && (
                         <div className="w-12 h-12 rounded-full bg-brand-purple-muted flex items-center justify-center text-text-muted text-sm font-bold">
-                          +{characters.length - 5}
+                          +{selectedCharacters.length - 5}
                         </div>
                       )}
                     </div>
@@ -849,6 +1258,41 @@ export default function CreatePage() {
           </div>
         </div>
       </main>
+
+      {/* Login Prompt Modal */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
+          <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-md w-full text-center">
+            <div className="text-6xl mb-4">✨</div>
+            <h2 className="text-2xl font-black text-white mb-2">
+              Ready to create your book?
+            </h2>
+            <p className="text-text-muted mb-6">
+              Sign in or create a free account to save characters and generate your personalized storybook.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/register"
+                className="w-full px-4 py-4 rounded-full bg-accent-gold text-brand-dark font-extrabold hover:bg-accent-gold-light transition-colors text-center"
+              >
+                Create free account
+              </Link>
+              <Link
+                href="/login?redirect=/create"
+                className="w-full px-4 py-3 rounded-full border border-brand-purple-muted text-white hover:border-accent-gold transition-colors font-bold text-center"
+              >
+                Sign in
+              </Link>
+              <button
+                onClick={() => setShowLoginPrompt(false)}
+                className="text-text-muted hover:text-white transition-colors text-sm mt-2"
+              >
+                Continue browsing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

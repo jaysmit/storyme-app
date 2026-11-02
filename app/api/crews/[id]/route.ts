@@ -64,7 +64,7 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { name } = body;
+  const { name, characterIds } = body;
 
   if (!name) {
     return NextResponse.json(
@@ -73,17 +73,72 @@ export async function PATCH(
     );
   }
 
-  const { data: crew, error } = await supabase
+  // Verify crew ownership
+  const { data: existingCrew } = await supabase
     .from("crews")
-    .update({ name })
+    .select("id")
     .eq("id", id)
     .eq("user_id", user.id)
-    .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!existingCrew) {
+    return NextResponse.json({ error: "Crew not found" }, { status: 404 });
   }
+
+  // Update crew name
+  const { error: updateError } = await supabase
+    .from("crews")
+    .update({ name })
+    .eq("id", id);
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  // Update members if characterIds provided
+  if (characterIds !== undefined) {
+    // Delete existing members
+    await supabase.from("crew_members").delete().eq("crew_id", id);
+
+    // Add new members
+    if (characterIds.length > 0) {
+      const members = characterIds.map((characterId: string) => ({
+        crew_id: id,
+        character_id: characterId,
+      }));
+
+      const { error: membersError } = await supabase
+        .from("crew_members")
+        .insert(members);
+
+      if (membersError) {
+        console.error("Error adding members:", membersError);
+      }
+    }
+  }
+
+  // Fetch the complete updated crew
+  const { data: crew } = await supabase
+    .from("crews")
+    .select(
+      `
+      *,
+      crew_members (
+        id,
+        role,
+        character:characters (
+          id,
+          name,
+          original_photo_url,
+          generated_image_url,
+          generation_status,
+          character_type
+        )
+      )
+    `
+    )
+    .eq("id", id)
+    .single();
 
   return NextResponse.json({ crew });
 }

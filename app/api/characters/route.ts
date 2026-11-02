@@ -27,6 +27,7 @@ export async function GET() {
 }
 
 // POST /api/characters - Upload photo and create character
+// Supports both FormData (file upload) and JSON (base64)
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
@@ -39,27 +40,71 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("photo") as File;
-    const name = formData.get("name") as string;
-    const characterType = (formData.get("type") as string) || "person";
-    const ageGroup = formData.get("ageGroup") as string | null;
+    const contentType = request.headers.get("content-type") || "";
 
-    if (!file || !name) {
-      return NextResponse.json(
-        { error: "Photo and name are required" },
-        { status: 400 }
-      );
+    let name: string;
+    let characterType: string;
+    let petType: string | null;
+    let ageGroup: string | null;
+    let fileBuffer: Buffer;
+    let fileExt: string;
+    let mimeType: string;
+
+    if (contentType.includes("application/json")) {
+      // Handle JSON with base64
+      const body = await request.json();
+      name = body.name;
+      characterType = body.characterType || "person";
+      petType = body.petType || null;
+      ageGroup = body.ageGroup || null;
+
+      if (!body.photoBase64 || !name) {
+        return NextResponse.json(
+          { error: "Photo and name are required" },
+          { status: 400 }
+        );
+      }
+
+      // Parse base64 data URL
+      const matches = body.photoBase64.match(/^data:([^;]+);base64,(.+)$/);
+      if (!matches) {
+        return NextResponse.json(
+          { error: "Invalid base64 image format" },
+          { status: 400 }
+        );
+      }
+
+      mimeType = matches[1];
+      fileBuffer = Buffer.from(matches[2], "base64");
+      fileExt = mimeType.split("/")[1] || "jpg";
+    } else {
+      // Handle FormData
+      const formData = await request.formData();
+      const file = formData.get("photo") as File;
+      name = formData.get("name") as string;
+      characterType = (formData.get("type") as string) || "person";
+      petType = formData.get("petType") as string | null;
+      ageGroup = formData.get("ageGroup") as string | null;
+
+      if (!file || !name) {
+        return NextResponse.json(
+          { error: "Photo and name are required" },
+          { status: 400 }
+        );
+      }
+
+      fileBuffer = Buffer.from(await file.arrayBuffer());
+      fileExt = file.name.split(".").pop() || "jpg";
+      mimeType = file.type;
     }
 
     // Upload photo to Supabase Storage
-    const fileExt = file.name.split(".").pop();
     const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("photos")
-      .upload(fileName, file, {
-        contentType: file.type,
+      .upload(fileName, fileBuffer, {
+        contentType: mimeType,
         upsert: false,
       });
 
@@ -76,19 +121,50 @@ export async function POST(request: NextRequest) {
       data: { publicUrl },
     } = supabase.storage.from("photos").getPublicUrl(fileName);
 
-    // Create character record
-    const { data: character, error: insertError } = await supabase
-      .from("characters")
-      .insert({
-        user_id: user.id,
-        name,
-        original_photo_url: publicUrl,
-        character_type: characterType,
-        age_group: ageGroup,
-        generation_status: "pending",
-      })
-      .select()
-      .single();
+    // Create character record - try with pet_type first, fallback without if column doesn't exist
+    const baseData = {
+      user_id: user.id,
+      name,
+      original_photo_url: publicUrl,
+      character_type: characterType,
+      age_group: ageGroup,
+      generation_status: "pending",
+    };
+
+    let character;
+    let insertError;
+
+    // Try with pet_type if we have one
+    if (petType) {
+      const result = await supabase
+        .from("characters")
+        .insert({ ...baseData, pet_type: petType })
+        .select()
+        .single();
+
+      // If pet_type column doesn't exist, retry without it
+      if (result.error?.code === "PGRST204" && result.error?.message?.includes("pet_type")) {
+        console.log("pet_type column not found, inserting without it");
+        const retryResult = await supabase
+          .from("characters")
+          .insert(baseData)
+          .select()
+          .single();
+        character = retryResult.data;
+        insertError = retryResult.error;
+      } else {
+        character = result.data;
+        insertError = result.error;
+      }
+    } else {
+      const result = await supabase
+        .from("characters")
+        .insert(baseData)
+        .select()
+        .single();
+      character = result.data;
+      insertError = result.error;
+    }
 
     if (insertError) {
       console.error("Insert error:", insertError);

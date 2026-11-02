@@ -16,7 +16,8 @@ export interface Character {
   original_photo_url: string;
   generated_image_url: string | null;
   generation_status: "pending" | "generating" | "completed" | "failed";
-  character_type: "person" | "pet";
+  character_type: "person" | "pet" | "other";
+  pet_type: string | null;
   age_group: "child" | "adult" | "senior" | null;
   created_at: string;
 }

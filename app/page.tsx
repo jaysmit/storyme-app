@@ -106,70 +106,115 @@ export default function HomePage() {
       <div className="relative bg-cream-light overflow-hidden">
         <Header theme="light" />
 
-        <section className="relative flex flex-col gap-6 px-6 md:px-20 py-14 max-w-[560px]">
-          <span className="self-start font-handwritten text-xl text-accent-rust -rotate-3">
-            Once upon a time, starring…
-          </span>
-          <h1 className="text-5xl md:text-[68px] leading-none font-black tracking-tight text-text-dark">
-            Your child,{" "}
-            <span className="italic text-accent-rust">the hero</span> of their
-            very own tale.
-          </h1>
-          <p className="text-lg leading-relaxed text-text-dark-muted max-w-[440px]">
-            Gather your crew, choose an adventure, pick the art style and
-            choose your book. Every step is free to explore until you're
-            spellbound.
-          </p>
-          <div className="flex gap-3 items-center flex-wrap">
-            <Link
-              href="/create"
-              className="bg-accent-gold text-brand-dark no-underline font-extrabold text-lg px-7 py-4 rounded-full flex items-center gap-2 shadow-lg hover:bg-accent-gold-light transition-colors"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+        <section className="relative flex flex-col lg:flex-row items-center gap-6 lg:gap-16 px-6 md:px-20 py-8 lg:py-20">
+          <div className="flex flex-col gap-4 lg:gap-6 lg:max-w-[560px] lg:flex-1 z-10">
+            <span className="self-start font-handwritten text-lg lg:text-xl text-accent-rust -rotate-3">
+              Once upon a time, starring…
+            </span>
+            <h1 className="text-3xl sm:text-4xl lg:text-[68px] leading-tight lg:leading-none font-black tracking-tight text-text-dark">
+              Your child,{" "}
+              <span className="italic text-accent-rust">the hero</span> of their
+              very own tale.
+            </h1>
+
+            {/* Mobile Hero Image - Below title */}
+            <div className="lg:hidden relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-xl my-2">
+              <img
+                src="/images/hero.jpg"
+                alt="Personalized storybook preview"
+                className="w-full h-full object-cover"
+              />
+              {/* Sparkle decoration */}
+              <div className="absolute -top-2 -right-2 w-10 h-10">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path d="M32 0l4 14 14 4-14 4-4 14-4-14-14-4 14-4z" fill="#F4C95D" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="text-base lg:text-lg leading-relaxed text-text-dark-muted max-w-[440px]">
+              Gather your crew, choose an adventure, pick the art style and
+              choose your book. Every step is free to explore until you're
+              spellbound.
+            </p>
+
+            <div className="flex gap-3 items-center flex-wrap">
+              <Link
+                href="/create"
+                className="bg-accent-gold text-brand-dark no-underline font-extrabold text-base lg:text-lg px-5 lg:px-7 py-3 lg:py-4 rounded-full flex items-center gap-2 shadow-lg hover:bg-accent-gold-light transition-colors"
               >
-                <path d="m15 4-11 11 5 5 11-11z" />
-                <path d="M18 2v2M22 6h-2M20 2l-1 1" />
-              </svg>
-              Get started
-            </Link>
-            <Link
-              href="/worlds"
-              className="text-text-dark no-underline font-extrabold text-lg px-5 py-4 rounded-full border-2 border-text-dark hover:bg-text-dark hover:text-white transition-colors"
-            >
-              Explore worlds
-            </Link>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="hidden sm:block"
+                >
+                  <path d="m15 4-11 11 5 5 11-11z" />
+                  <path d="M18 2v2M22 6h-2M20 2l-1 1" />
+                </svg>
+                Get started
+              </Link>
+              <Link
+                href="/worlds"
+                className="text-text-dark no-underline font-extrabold text-base lg:text-lg px-4 lg:px-5 py-3 lg:py-4 rounded-full border-2 border-text-dark hover:bg-text-dark hover:text-white transition-colors"
+              >
+                Explore worlds
+              </Link>
+            </div>
+
+            {/* Trust badges - smaller on mobile */}
+            <div className="flex flex-col gap-1.5 lg:gap-2 text-xs lg:text-sm font-bold text-text-dark-muted">
+              <span className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0F8C7A">
+                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                </svg>
+                Free preview · Up to 5 heroes per book
+              </span>
+              <span className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0F8C7A">
+                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                </svg>
+                Printed and at your door in 7 days
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 text-sm font-bold text-text-dark-muted">
-            <span className="flex items-center gap-2">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="#0F8C7A"
-              >
-                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-              </svg>
-              Free character preview · Up to 5 heroes per book
-            </span>
-            <span className="flex items-center gap-2">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="#0F8C7A"
-              >
-                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-              </svg>
-              Printed and at your door in 7 days
-            </span>
+
+          {/* Hero Image - Desktop only */}
+          <div className="hidden lg:flex flex-1 items-center justify-center">
+            <div className="relative w-full max-w-[580px]">
+              {/* Decorative sparkles */}
+              <div className="absolute -top-8 -left-8 w-20 h-20 z-10">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path
+                    d="M32 0l4 14 14 4-14 4-4 14-4-14-14-4 14-4z"
+                    fill="#F4C95D"
+                  />
+                </svg>
+              </div>
+              <div className="absolute -bottom-4 -right-4 w-12 h-12 z-10">
+                <svg viewBox="0 0 64 64" fill="none">
+                  <path
+                    d="M32 0l4 14 14 4-14 4-4 14-4-14-14-4 14-4z"
+                    fill="#B8431F"
+                  />
+                </svg>
+              </div>
+
+              {/* Main image */}
+              <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl border-4 border-white/50">
+                <img
+                  src="/images/hero.jpg"
+                  alt="Personalized storybook preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
           </div>
         </section>
       </div>
