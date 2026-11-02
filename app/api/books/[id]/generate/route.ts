@@ -197,7 +197,7 @@ Wide landscape format, vibrant colors, detailed background.`;
           prompt,
           n: 1,
           size: "1792x1024", // Landscape for book pages
-          quality: "standard",
+          quality: "auto",
         });
 
         const generatedUrl = response.data?.[0]?.url;

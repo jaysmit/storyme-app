@@ -86,7 +86,7 @@ High quality children's picture book illustration.`;
     prompt,
     n: 1,
     size: "1024x1024",
-    quality: "standard",
+    quality: "auto",
   });
 
   return response.data?.[0]?.url || "";
@@ -115,7 +115,7 @@ High quality, vibrant, engaging storytelling illustration.`;
     prompt,
     n: 1,
     size: "1792x1024", // Landscape for book pages
-    quality: "hd",
+    quality: "high",
   });
 
   return response.data?.[0]?.url || "";

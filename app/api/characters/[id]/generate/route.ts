@@ -131,7 +131,7 @@ Requirements:
       prompt,
       n: 1,
       size: "1024x1024",
-      quality: "standard",
+      quality: "auto",
     });
 
     const generatedUrl = response.data?.[0]?.url;
