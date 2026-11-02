@@ -82,7 +82,7 @@ The character should look warm, friendly, and suitable for ages 4-10.
 High quality children's picture book illustration.`;
 
   const response = await openai.images.generate({
-    model: "dall-e-3",
+    model: "gpt-image-1",
     prompt,
     n: 1,
     size: "1024x1024",
@@ -111,7 +111,7 @@ Children's picture book illustration, warm and friendly, suitable for ages 4-10.
 High quality, vibrant, engaging storytelling illustration.`;
 
   const response = await openai.images.generate({
-    model: "dall-e-3",
+    model: "gpt-image-1",
     prompt,
     n: 1,
     size: "1792x1024", // Landscape for book pages
