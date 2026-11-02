@@ -479,34 +479,10 @@ export default function CreatePage() {
               {/* Character list */}
               {characters.length > 0 && (
                 <>
-                  <div className="mt-8 flex justify-between items-center">
+                  <div className="mt-8">
                     <h2 className="text-xl font-bold text-white">
                       Your crew ({characters.length})
                     </h2>
-                    <button
-                      onClick={generateAllCharacters}
-                      disabled={generating || characters.every((c) => c.generatedUrl)}
-                      className="px-4 py-2 rounded-full bg-accent-gold text-brand-dark font-bold text-sm hover:bg-accent-gold-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                    >
-                      {generating ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                          >
-                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                          </svg>
-                          Generate all previews
-                        </>
-                      )}
-                    </button>
                   </div>
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {characters.map((char) => (
@@ -520,6 +496,39 @@ export default function CreatePage() {
                         showGenerateButton
                       />
                     ))}
+
+                    {/* Add crew member button - shows when at least one is completed */}
+                    {characters.some((c) => c.generatedUrl) && characters.length < 5 && (
+                      <label className="bg-brand-purple-light border-2 border-dashed border-brand-purple-muted rounded-2xl p-6 flex flex-col items-center justify-center gap-3 min-h-[280px] hover:border-accent-gold hover:bg-brand-purple-light/80 transition-colors cursor-pointer group">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            files.forEach(addCharacterFromFile);
+                            e.target.value = "";
+                          }}
+                          className="hidden"
+                        />
+                        <div className="w-16 h-16 rounded-full bg-brand-dark flex items-center justify-center group-hover:bg-accent-gold transition-colors">
+                          <svg
+                            width="32"
+                            height="32"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-accent-gold group-hover:text-brand-dark transition-colors"
+                          >
+                            <path d="M12 5v14M5 12h14" />
+                          </svg>
+                        </div>
+                        <span className="text-lg font-bold text-white">Add crew member</span>
+                        <span className="text-sm text-text-muted">Up to {5 - characters.length} more</span>
+                      </label>
+                    )}
                   </div>
                 </>
               )}

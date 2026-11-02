@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { LocalCharacter } from "@/lib/types";
 import { CHARACTER_ROLES } from "@/lib/types";
 
@@ -21,38 +21,30 @@ export default function CharacterCard({
   onGenerate,
   showGenerateButton = false,
 }: CharacterCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(character.name);
+  const [isEditingCompleted, setIsEditingCompleted] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
 
-  const handleNameBlur = () => {
-    setIsEditing(false);
-    if (name !== character.name) {
-      onUpdateName(character.id, name);
-    }
+  // Sync name with character prop
+  useEffect(() => {
+    setName(character.name);
+  }, [character.name]);
+
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    onUpdateName(character.id, newName);
   };
 
-  const statusColors = {
-    pending: "bg-[#FFD9C7]",
-    uploading: "bg-[#CFEFE8]",
-    generating: "bg-accent-gold animate-pulse",
-    completed: "bg-accent-teal",
-    failed: "bg-accent-pink",
-  };
-
-  const statusText = {
-    pending: "Ready",
-    uploading: "Uploading...",
-    generating: "Creating...",
-    completed: "Done",
-    failed: "Failed",
-  };
+  const isCompleted = character.status === "completed" && character.generatedUrl;
+  const isPending = character.status === "pending" && !character.generatedUrl;
+  const isGenerating = character.status === "generating";
 
   return (
     <div className="bg-cream rounded-2xl p-4 flex flex-col gap-4 shadow-lg">
+      {/* Images */}
       <div className="relative grid grid-cols-2 gap-2">
         {/* Original Photo */}
-        <div className="aspect-square rounded-xl overflow-hidden bg-[#EFE3C8]">
+        <div className="aspect-square rounded-xl overflow-hidden bg-[#EFE3C8] relative">
           {character.photoUrl ? (
             <img
               src={character.photoUrl}
@@ -61,16 +53,7 @@ export default function CharacterCard({
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#6B5A3A]">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#6B5A3A"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B5A3A" strokeWidth="1.8">
                 <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
@@ -100,28 +83,17 @@ export default function CharacterCard({
             </>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-[#C9C5EE] p-2">
-              {character.status === "generating" ? (
+              {isGenerating ? (
                 <div className="w-8 h-8 border-3 border-accent-gold border-t-transparent rounded-full animate-spin" />
               ) : (
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#C9C5EE"
-                  strokeWidth="1.5"
-                >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C9C5EE" strokeWidth="1.5">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
               )}
               <span className="text-xs font-bold text-center">
-                {character.status === "generating"
-                  ? "Creating..."
-                  : character.status === "failed"
-                  ? "Failed"
-                  : "Awaiting preview"}
+                {isGenerating ? "Creating..." : "Awaiting"}
               </span>
             </div>
           )}
@@ -132,145 +104,132 @@ export default function CharacterCard({
 
         {/* Arrow */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-accent-gold border-3 border-cream flex items-center justify-center z-10">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#14163A"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14163A" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
         </div>
       </div>
 
-      {/* Name and Actions */}
-      <div className="flex items-center gap-3">
-        {isEditing ? (
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={handleNameBlur}
-            onKeyDown={(e) => e.key === "Enter" && handleNameBlur()}
-            autoFocus
-            className="flex-1 px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
-          />
-        ) : (
-          <div className="flex-1 px-3 py-2">
-            <span className="font-display text-xl font-black text-text-dark block">
-              {character.name}
-            </span>
-            {/* Role selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                className="text-xs text-text-dark-muted hover:text-text-dark flex items-center gap-1 transition-colors"
-              >
-                {character.role || "Select role"}
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-              {showRoleDropdown && (
-                <div className="absolute left-0 top-full mt-1 bg-white border border-[#EADBBE] rounded-lg shadow-lg z-20 min-w-[120px]">
-                  {CHARACTER_ROLES.map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        onUpdateRole(character.id, role);
-                        setShowRoleDropdown(false);
-                      }}
-                      className={`block w-full text-left px-3 py-2 text-sm hover:bg-[#F5F0E6] transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                        character.role === role ? "font-bold text-accent-teal" : "text-text-dark"
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* PENDING STATE: Name input + Ready button */}
+      {isPending && (
+        <div className="flex flex-col gap-3">
+          <div>
+            <label className="block text-xs font-bold text-text-dark-muted mb-1">
+              Character name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Enter name..."
+              className="w-full px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
+            />
           </div>
-        )}
 
-        <div className="flex gap-2">
-          {/* Edit button */}
-          {!isEditing && (
+          <div className="flex gap-2">
             <button
-              onClick={() => setIsEditing(true)}
-              className="w-10 h-10 rounded-full bg-[#E8E4F0] text-[#6B5BB0] flex items-center justify-center hover:bg-[#D8D0F0] transition-colors"
-              title="Edit name"
+              onClick={() => onGenerate?.(character.id)}
+              disabled={!name.trim()}
+              className="flex-1 bg-accent-teal text-white font-extrabold py-3 rounded-full hover:bg-accent-teal/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              Ready
+            </button>
+            <button
+              onClick={() => onRemove(character.id)}
+              className="w-12 h-12 rounded-full bg-[#FFE3E3] text-accent-rust flex items-center justify-center hover:bg-accent-rust hover:text-white transition-colors"
+              title="Remove"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
-          )}
+          </div>
+        </div>
+      )}
 
-          {showGenerateButton &&
-            character.status !== "generating" &&
-            !character.generatedUrl && (
-              <button
-                onClick={() => onGenerate?.(character.id)}
-                className="w-10 h-10 rounded-full bg-accent-teal text-white flex items-center justify-center hover:bg-accent-teal/80 transition-colors"
-                title="Confirm & generate"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+      {/* GENERATING STATE */}
+      {isGenerating && (
+        <div className="text-center py-2">
+          <p className="font-bold text-text-dark">{character.name}</p>
+          <p className="text-sm text-text-dark-muted">Creating your character...</p>
+        </div>
+      )}
+
+      {/* COMPLETED STATE: Name, role, edit button */}
+      {isCompleted && (
+        <div className="flex flex-col gap-3">
+          {isEditingCompleted ? (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-text-dark-muted mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold focus:outline-none focus:ring-2 focus:ring-accent-gold"
+                />
+              </div>
+              <div className="relative">
+                <label className="block text-xs font-bold text-text-dark-muted mb-1">
+                  Role
+                </label>
+                <button
+                  onClick={() => setShowRoleDropdown(!showRoleDropdown)}
+                  className="w-full px-3 py-2 rounded-lg border border-[#EADBBE] bg-white text-text-dark font-bold text-left flex justify-between items-center"
                 >
-                  <path d="M20 6L9 17l-5-5" />
+                  {character.role || "Select role"}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                {showRoleDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#EADBBE] rounded-lg shadow-lg z-20">
+                    {CHARACTER_ROLES.map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          onUpdateRole(character.id, role);
+                          setShowRoleDropdown(false);
+                        }}
+                        className={`block w-full text-left px-3 py-2 text-sm hover:bg-[#F5F0E6] transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                          character.role === role ? "font-bold text-accent-teal" : "text-text-dark"
+                        }`}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => setIsEditingCompleted(false)}
+                className="bg-accent-gold text-brand-dark font-extrabold py-2 rounded-full hover:bg-accent-gold-light transition-colors"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-display text-xl font-black text-text-dark">{character.name}</p>
+                <p className="text-sm text-text-dark-muted">{character.role || "No role set"}</p>
+              </div>
+              <button
+                onClick={() => setIsEditingCompleted(true)}
+                className="w-10 h-10 rounded-full bg-[#E8E4F0] text-[#6B5BB0] flex items-center justify-center hover:bg-[#D8D0F0] transition-colors"
+                title="Edit"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-            )}
-
-          <button
-            onClick={() => onRemove(character.id)}
-            className="w-10 h-10 rounded-full bg-[#FFE3E3] text-accent-rust flex items-center justify-center hover:bg-accent-rust hover:text-white transition-colors"
-            title="Remove character"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* Status badge */}
-      <div className="flex justify-between items-center">
-        <span
-          className={`text-xs font-extrabold px-3 py-1.5 rounded-full text-text-dark ${statusColors[character.status]}`}
-        >
-          {statusText[character.status]}
-        </span>
-      </div>
+      )}
     </div>
   );
 }
