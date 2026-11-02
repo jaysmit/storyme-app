@@ -54,14 +54,14 @@ Be specific and detailed so an illustrator could recreate the likeness. Focus on
   return response.choices[0]?.message?.content || "";
 }
 
-// Art style prompt modifiers for DALL-E
+// Art style prompt modifiers for DALL-E (optimized - no sparkle effects)
 export const artStylePrompts: Record<string, string> = {
-  glow: "rich painted light with golden sparkles and starry skies, warm enchanted atmosphere, magical glow effects",
-  watercolour: "soft watercolor washes and pastel skies, gentle dreamy atmosphere, delicate brush strokes",
+  glow: "warm painted illustration with soft lighting, cozy children's book atmosphere, gentle color palette",
+  watercolour: "soft watercolor washes and pastel tones, gentle dreamy atmosphere, delicate brush strokes",
   sketch: "hand-drawn graphite pencil on cream paper, detailed sketch style, illustrator's sketchbook feel",
   papercut: "layered paper-cut collage with felt textures, 3D depth and shadows, handmade craft aesthetic",
-  anim: "3D animated Pixar-style, glossy cinematic rendering, vibrant colors and smooth surfaces",
-  silhouette: "bold black silhouettes against glowing sunset sky, shadow-puppet style, dramatic contrast",
+  anim: "3D animated Pixar-style, smooth cinematic rendering, vibrant colors and clean surfaces",
+  silhouette: "bold black silhouettes against soft gradient sky, shadow-puppet style, dramatic contrast",
   bricks: "LEGO toy brick world, everything built from colorful plastic bricks, playful and geometric",
 };
 

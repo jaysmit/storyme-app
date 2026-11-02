@@ -107,7 +107,7 @@ export async function POST(
 
     // Build feedback section if provided
     const feedbackSection = userFeedback
-      ? `\n\nUSER REQUESTED CHANGES (IMPORTANT - apply these modifications):\n${userFeedback}`
+      ? `\n\nUSER REQUESTED CHANGES (apply these modifications):\n${userFeedback}`
       : "";
 
     const prompt = `Transform this photo into a children's storybook character illustration.
@@ -116,23 +116,27 @@ ${characterTypeContext} Their name is ${character.name}.
 
 Art style: ${styleModifier}
 
-FRAMING (CRITICAL):
-- Pure white background (#FFFFFF), no patterns or gradients
-- Portrait framing: head and upper body/shoulders visible (like a passport photo but showing down to chest/upper torso)
-- Character centered in frame, facing forward or slightly angled
-- Consistent medium distance - not too close (just face) and not too far (full body)
-- Leave some white space around the character
+FRAMING:
+- Pure white background (#FFFFFF)
+- Portrait framing: head and upper body visible
+- Character centered, facing forward or slightly angled
 
-STYLE REQUIREMENTS:
-- ANIMATED CARTOON STYLE - like Pixar, Disney, or DreamWorks animated characters
-- Smooth, clean lines with bold colors and soft shading
-- Stylized but expressive features with large, bright eyes
-- KEEP THE EXACT SAME facial features, face shape, eye color, hair color, skin tone, and likeness
-- Suitable for a children's picture book (ages 4-10)
-- Warm, welcoming expression with a gentle smile
-- The illustrated character must be clearly recognizable as the same person/pet in the photo${feedbackSection}`;
+FACIAL FEATURES (CRITICAL - PRESERVE EXACTLY):
+- MUST keep the EXACT nose shape, mouth shape, and chin shape from the photo
+- MUST preserve the EXACT eye shape, eye spacing, and eye color
+- MUST match the EXACT face shape (round, oval, square, etc.)
+- MUST keep the EXACT hair color, hair texture, and hairstyle
+- MUST preserve any distinctive features: dimples, freckles, moles, glasses, facial hair
+- The illustrated character MUST be immediately recognizable as the same person in the photo
 
-    // Step 3: Use images.edit to transform the photo
+STYLE:
+- Clean animated cartoon style (like Pixar/Disney)
+- Smooth lines with solid colors, no sparkles or special effects
+- Simple soft shading only
+- Warm, friendly expression
+- Suitable for children's picture book (ages 4-10)${feedbackSection}`;
+
+    // Step 3: Use images.edit to transform the photo (512x512 for cost efficiency)
     console.log("Transforming photo into illustration...");
     const openai = getOpenAI();
     const response = await openai.images.edit({
@@ -140,7 +144,7 @@ STYLE REQUIREMENTS:
       image: photoFile,
       prompt,
       n: 1,
-      size: "1024x1024",
+      size: "512x512",
     });
 
     // Handle the response (base64 or URL)
