@@ -203,6 +203,7 @@ The final result should balance three priorities, in this order:
 3. Consistent illustration style${feedbackSection}`;
 
     // Step 3: Use images.edit to transform the photo
+    // gpt-image-1.5 model, smallest size (1024x1024), highest quality
     console.log("Transforming photo into illustration...");
     const openai = getOpenAI();
     const response = await openai.images.edit({
@@ -211,7 +212,7 @@ The final result should balance three priorities, in this order:
       prompt,
       n: 1,
       size: "1024x1024",
-      quality: "low", // Use low quality for cost efficiency
+      quality: "high",
     });
 
     // Handle the response (base64 or URL)
