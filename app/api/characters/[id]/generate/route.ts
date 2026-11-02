@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getOpenAI, artStylePrompts, analyzePhotoForCharacter } from "@/lib/openai";
+import { getOpenAI, artStylePrompts } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
 
@@ -68,87 +68,84 @@ export async function POST(
       .update({ generation_status: "generating" })
       .eq("id", id);
 
-    // Step 1: Analyze the original photo using GPT-4 Vision
-    console.log("Analyzing photo for character:", character.name);
-    let physicalDescription = "";
+    // Step 1: Download the original photo
+    console.log("Downloading original photo for character:", character.name);
 
-    if (character.original_photo_url) {
-      try {
-        physicalDescription = await analyzePhotoForCharacter(
-          character.original_photo_url,
-          character.character_type || "person",
-          character.pet_type
-        );
-        console.log("Photo analysis complete:", physicalDescription.substring(0, 100) + "...");
-      } catch (visionError) {
-        console.error("Vision analysis failed, using fallback:", visionError);
-        // Fallback to basic description if vision fails
-        physicalDescription = character.character_type === "pet"
-          ? `A friendly ${character.pet_type || "pet"}`
-          : character.age_group === "child"
-          ? "A cheerful young child with a bright smile"
-          : character.age_group === "senior"
-          ? "A kind elderly person with warm eyes"
-          : "A friendly person with a warm expression";
-      }
+    if (!character.original_photo_url) {
+      throw new Error("No original photo URL found");
     }
 
-    // Step 2: Build the DALL-E prompt using the physical description
+    const photoResponse = await fetch(character.original_photo_url);
+    if (!photoResponse.ok) {
+      throw new Error(`Failed to download original photo: ${photoResponse.status}`);
+    }
+
+    const photoArrayBuffer = await photoResponse.arrayBuffer();
+    const photoBuffer = Buffer.from(photoArrayBuffer);
+    console.log("Photo downloaded, size:", photoBuffer.length, "bytes");
+
+    // Determine the image type from URL or content
+    const contentType = photoResponse.headers.get("content-type") || "image/jpeg";
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpeg";
+
+    // Create a File object for the OpenAI API
+    const photoBlob = new Blob([photoBuffer], { type: contentType });
+    const photoFile = new File([photoBlob], `photo.${ext}`, { type: contentType });
+
+    // Step 2: Build the prompt for image transformation
     const characterTypeContext =
       character.character_type === "pet"
-        ? `This is a ${character.pet_type || "pet"} character.`
+        ? `This is a ${character.pet_type || "pet"}.`
         : character.character_type === "other"
         ? "This is a unique character."
         : character.age_group === "child"
-        ? "This is a child character."
+        ? "This is a child."
         : character.age_group === "senior"
-        ? "This is an elderly character."
-        : "This is an adult character.";
+        ? "This is an elderly person."
+        : "This is a person.";
 
-    const prompt = `Create a children's storybook character illustration.
+    const prompt = `Transform this photo into a children's storybook character illustration.
 
-Character name: ${character.name}
-${characterTypeContext}
-
-Physical appearance (MUST match exactly): ${physicalDescription}
+${characterTypeContext} Their name is ${character.name}.
 
 Art style: ${styleModifier}
 
 Requirements:
-- The character MUST match the physical description provided
-- Warm, friendly expression suitable for ages 4-10
-- High quality children's picture book illustration
-- Clean, simple background with soft colors
-- Full body or upper body portrait
-- Looking at the viewer with a welcoming smile
-- Cartoon/illustrated style but keeping the likeness recognizable`;
+- KEEP THE EXACT SAME facial features, face shape, eye color, hair color, skin tone, and likeness
+- Transform into a warm, friendly cartoon/illustrated style
+- Suitable for a children's picture book (ages 4-10)
+- Clean, simple background with soft pastel colors
+- Upper body or full body portrait
+- Warm, welcoming expression
+- The illustrated character must be clearly recognizable as the same person/pet in the photo`;
 
-    // Step 3: Generate with OpenAI Image API
-    console.log("Generating character illustration...");
+    // Step 3: Use images.edit to transform the photo
+    console.log("Transforming photo into illustration...");
     const openai = getOpenAI();
-    const response = await openai.images.generate({
+    const response = await openai.images.edit({
       model: "gpt-image-1.5",
+      image: photoFile,
       prompt,
       n: 1,
       size: "1024x1024",
-      quality: "auto",
     });
 
-    // Handle both URL and base64 response formats
+    // Handle the response (base64 or URL)
     const imageData = response.data?.[0];
     let imageBuffer: Buffer;
 
     if (imageData?.b64_json) {
-      // New API returns base64
       imageBuffer = Buffer.from(imageData.b64_json, "base64");
     } else if (imageData?.url) {
-      // Old API returns URL
       const imageResponse = await fetch(imageData.url);
       const arrayBuffer = await imageResponse.arrayBuffer();
       imageBuffer = Buffer.from(arrayBuffer);
     } else {
       throw new Error("No image data returned from OpenAI");
     }
+
+    // Store a simple description for use in story scenes
+    const physicalDescription = `${character.name}, ${characterTypeContext.toLowerCase()}`;
 
     const fileName = `${user.id}/${id}_${artStyle}.png`;
 
