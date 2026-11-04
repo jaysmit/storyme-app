@@ -76,12 +76,16 @@ export function buildPagePrompt(options: {
 
   const characterMapping = characters
     .sort((a, b) => a.slot - b.slot)
-    .map(c => {
+    .map((c, index) => {
       const ageDesc = getAgeDescription(c.age, c.characterType);
       const sizeNote = ageDesc ? ` [${ageDesc}]` : "";
-      return `- SLOT ${c.slot} → "${c.name}" (${c.role})${sizeNote}: ${c.action}`;
+      const refNote = `(Reference Image #${index + 1})`;
+      return `- CHARACTER ${index + 1}: "${c.name}" ${refNote}
+    Role: ${c.role}${sizeNote}
+    Action: ${c.action}
+    MUST MATCH: Use the EXACT appearance from Reference Image #${index + 1} - same face, hair, skin tone, features`;
     })
-    .join("\n");
+    .join("\n\n");
 
   // Build proportional sizing instructions
   const hasMultipleAges = characters.some(c => c.age && c.age <= 12) && characters.some(c => !c.age || c.age > 17);
@@ -99,45 +103,56 @@ Toddlers should be about 1/3 the height of adults.
 Children (6-12) should be about 2/3 the height of adults.
 ` : "";
 
-  return `# PAGE ${pageNumber} OF ${totalPages} - RECREATION WITH CHARACTER REPLACEMENT
+  return `# STORYBOOK PAGE GENERATION — CHARACTER REPLACEMENT ONLY
 
-## TASK
-Recreate this exact scene, replacing the original template characters with the specific characters shown in the reference portraits below the main image.
+## PRIMARY DIRECTIVE — READ CAREFULLY
+You are given reference images of characters. Create a storybook illustration featuring THESE EXACT CHARACTERS in the scene described below.
 
-## SCENE TO RECREATE
+**YOUR TASK:** Generate a scene with the provided character(s) while preserving their EXACT appearance from the reference images.
+
+## SCENE DESCRIPTION
 ${sceneDescription}
 
-## SETTING (maintain exactly)
+## SETTING
 ${setting}
 
-## CHARACTER MAPPING (reference portraits shown below main image, left to right)
+## CHARACTERS IN THIS SCENE
 ${characterMapping}
 ${proportionInstructions}
-## CRITICAL INSTRUCTIONS
-1. The MAIN IMAGE (top) shows the exact scene composition, poses, and layout to recreate
-2. The CHARACTER PORTRAITS (bottom row) show the exact appearance of each character
-3. Replace template characters with the referenced characters while maintaining:
-   - Same poses and positions
-   - Same actions and expressions
-   - Same scene composition
-   - Same lighting and atmosphere
+## CHARACTER APPEARANCE — CRITICAL
+For each character, you MUST preserve from their reference image:
+- **Face**: Exact facial features, face shape, expression style
+- **Hair**: Exact color, style, length, texture
+- **Skin tone**: Exact skin color and complexion
+- **Eyes**: Exact eye color, shape, and style
+- **Clothing style**: Similar outfit style/colors if visible
+- **Overall character design**: The same art style and proportions
 
-## STYLE REQUIREMENTS (must match exactly)
+The characters in your output MUST be immediately recognizable as the same characters from the reference images. A person should be able to look at your output and the reference images and say "yes, that's the same character."
+
+## ART STYLE — MATCH EXACTLY
 ${styleDetails}
 
-## QUALITY REQUIREMENTS
+## COMPOSITION REQUIREMENTS
+- Create a cohesive storybook illustration
+- Characters should be positioned naturally in the scene
+- Maintain consistent lighting across all elements
+- Background and setting should complement the characters
 - Professional children's book illustration quality
-- Consistent with other pages in this book
-- Age-appropriate for children 4-10
-- No text, logos, or watermarks
-- Landscape format matching the original scene
+
+## ABSOLUTE REQUIREMENTS
+1. Characters MUST look identical to their reference images
+2. Art style MUST be consistent throughout
+3. Scene MUST match the description above
+4. Output MUST be child-appropriate (ages 4-10)
+5. NO text, watermarks, or logos
 
 ## DO NOT
-- Change the scene composition
-- Alter character positions
-- Modify the setting or background elements
-- Add or remove scene elements
-- Change the art style`;
+- Change character appearances (hair color, face shape, skin tone, etc.)
+- Create generic/different looking characters
+- Ignore the reference images
+- Add characters not in the character list
+- Include any text or writing in the image`;
 }
 
 /**

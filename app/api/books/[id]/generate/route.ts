@@ -213,21 +213,24 @@ export async function POST(
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
 
-    // Use the FIRST character's image as the primary reference
-    // The prompt describes all characters so the AI knows who else to include
-    const primaryCharacter = characters[0];
-    const primaryImageBuffer = characterImageBuffers[0];
+    // Create File objects for ALL character images as references
+    const characterImageFiles: File[] = characterImageBuffers.map((buffer, index) => {
+      const blob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
+      const charName = characters[index].name.replace(/[^a-zA-Z0-9]/g, "-");
+      return new File([blob], `character-${index + 1}-${charName}.png`, { type: "image/png" });
+    });
 
-    console.log(`Using "${primaryCharacter.name}" as primary image reference`);
+    console.log(`Sending ${characterImageFiles.length} character reference images:`);
+    characters.forEach((c, i) => {
+      console.log(`  ${i + 1}. ${c.name} (${characterImageFiles[i].name})`);
+    });
 
-    const imageBlob = new Blob([new Uint8Array(primaryImageBuffer)], { type: "image/png" });
-    const imageFile = new File([imageBlob], "character-reference.png", { type: "image/png" });
-
-    // Call OpenAI images.edit
-    console.log("Calling OpenAI images.edit...");
+    // Call OpenAI images.edit with ALL character images as references
+    // The model will use these to understand exactly what each character looks like
+    console.log("Calling OpenAI images.edit with multiple character references...");
     const response = await openai.images.edit({
       model: "gpt-image-2",
-      image: imageFile,
+      image: characterImageFiles.length === 1 ? characterImageFiles[0] : characterImageFiles,
       prompt,
       n: 1,
       size: "1024x1024",
