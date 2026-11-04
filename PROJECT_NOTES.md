@@ -92,7 +92,31 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
-### Recent Changes (2026-11-02)
+### Recent Changes (2026-11-04)
+- [x] **Book generation overhaul** - Complete story templates with character slots
+  - Each page has metadata: sceneDescription, setting, mood, character slots (1-5)
+  - Character slots define role, action, position, and whether required
+  - Characters mapped to slots based on selection order
+  - Strict requirement for character images (no text fallbacks)
+- [x] **Precise art style definitions** - Detailed rendering specs for each style
+  - `lib/image-composite.ts` with PRECISE_STYLE_DEFINITIONS
+  - Includes rendering, lighting, colors, atmosphere, edges, texture, mood
+  - `buildPagePrompt()` function for consistent prompt generation
+- [x] **Story templates** - Full page definitions for all 6 stories
+  - `lib/story-templates.ts` with PageDefinition and CharacterSlot interfaces
+  - Cover page + 5 interior pages with character positions
+  - Max 5 characters per crew/book enforced at API and UI levels
+- [x] **Character Form Modal** - Popup when uploading photos
+  - Confirmation dialog when closing without saving
+  - "+X more" badge for queued photos
+- [x] **Create wizard improvements**
+  - Step 2 matches Worlds page design with category filters
+  - Step 4 shows selected story cover image
+  - Max 5 character selection enforced
+- [x] Added metadata JSONB column to books table (migration 002)
+- [x] Fixed book creation API to accept both `characterIds` and `characters` fields
+
+### Changes (2026-11-02)
 - [x] Integrated GPT-4 Vision for photo analysis before character illustration
 - [x] Characters now show side-by-side original photo vs illustrated caricature
 - [x] "Illustrate" button on character cards to trigger AI generation
