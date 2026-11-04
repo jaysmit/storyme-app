@@ -14,6 +14,8 @@ interface BookViewerProps {
   onClose?: () => void;
   isGenerating?: boolean;
   generatingProgress?: number;
+  onMinimize?: () => void;
+  generationStartTime?: number;
 }
 
 export default function BookViewer({
@@ -22,9 +24,26 @@ export default function BookViewer({
   onClose,
   isGenerating = false,
   generatingProgress = 0,
+  onMinimize,
+  generationStartTime,
 }: BookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Track elapsed time during generation
+  useEffect(() => {
+    if (!isGenerating || !generationStartTime) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - generationStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, generationStartTime]);
 
   const goToPage = useCallback((index: number) => {
     if (index >= 0 && index < pages.length) {
@@ -61,45 +80,115 @@ export default function BookViewer({
   }, [nextPage, prevPage, isFullscreen, onClose]);
 
   if (isGenerating) {
+    const expectedSeconds = 45; // Expected time ~45 seconds
+    const remainingSeconds = Math.max(0, expectedSeconds - elapsedSeconds);
+    const progressPercent = Math.min(95, (elapsedSeconds / expectedSeconds) * 100);
+
     return (
-      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 text-center">
+      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8">
         <div className="max-w-md mx-auto">
-          {/* Animated book icon */}
-          <div className="relative w-24 h-24 mx-auto mb-6">
+          {/* Animated cover page icon */}
+          <div className="relative w-32 h-32 mx-auto mb-6">
+            {/* Book cover illustration */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#F4C95D"
-                strokeWidth="1.5"
-                className="animate-pulse"
-              >
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                <path d="M8 7h8M8 11h8M8 15h4" />
-              </svg>
+              <div className="relative">
+                {/* Book shape */}
+                <div className="w-20 h-24 bg-gradient-to-br from-accent-gold to-amber-600 rounded-r-lg shadow-lg transform -rotate-3">
+                  <div className="absolute inset-1 bg-cream/20 rounded-r-lg" />
+                  <div className="absolute top-3 left-3 right-3 space-y-1.5">
+                    <div className="h-1.5 bg-white/40 rounded animate-pulse" />
+                    <div className="h-1.5 bg-white/30 rounded w-3/4 animate-pulse" style={{ animationDelay: "0.2s" }} />
+                  </div>
+                  {/* Sparkles */}
+                  <div className="absolute -top-2 -right-2 text-xl animate-bounce">✨</div>
+                  <div className="absolute -bottom-1 -left-1 text-lg animate-bounce" style={{ animationDelay: "0.5s" }}>✨</div>
+                </div>
+              </div>
             </div>
-            <div className="absolute inset-0 border-4 border-accent-gold border-t-transparent rounded-full animate-spin" />
+            {/* Rotating ring */}
+            <svg className="absolute inset-0 w-full h-full animate-spin" style={{ animationDuration: "3s" }}>
+              <circle
+                cx="64"
+                cy="64"
+                r="58"
+                fill="none"
+                stroke="url(#gradient)"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray="100 260"
+              />
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#F4C95D" />
+                  <stop offset="100%" stopColor="#2DD4BF" />
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
 
-          <h2 className="text-2xl font-black text-white mb-2">
-            Creating your storybook...
+          <h2 className="text-2xl font-black text-white mb-2 text-center">
+            Creating your cover page
           </h2>
-          <p className="text-text-muted mb-6">
-            Our AI artists are bringing your characters to life in beautiful illustrations.
+          <p className="text-text-muted mb-6 text-center">
+            Our AI artists are crafting your personalized illustration...
           </p>
 
-          {/* Progress bar */}
-          <div className="bg-brand-dark rounded-full h-3 overflow-hidden mb-2">
-            <div
-              className="h-full bg-gradient-to-r from-accent-gold to-accent-teal transition-all duration-500"
-              style={{ width: `${generatingProgress}%` }}
-            />
+          {/* Progress section */}
+          <div className="bg-brand-dark/50 rounded-2xl p-4 mb-4">
+            {/* Segmented progress bar */}
+            <div className="flex gap-1 mb-3">
+              {[...Array(10)].map((_, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 h-2 rounded-full transition-all duration-300 ${
+                    i < Math.floor(progressPercent / 10)
+                      ? "bg-gradient-to-r from-accent-gold to-accent-teal"
+                      : i === Math.floor(progressPercent / 10)
+                      ? "bg-accent-gold/50 animate-pulse"
+                      : "bg-brand-purple-muted"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Time info */}
+            <div className="flex justify-between text-sm">
+              <span className="text-text-muted">
+                {elapsedSeconds}s elapsed
+              </span>
+              <span className="text-accent-gold font-bold">
+                {remainingSeconds > 0 ? `~${remainingSeconds}s remaining` : "Almost done..."}
+              </span>
+            </div>
           </div>
-          <p className="text-sm text-text-muted">
-            Generating page {Math.ceil((generatingProgress / 100) * 3)} of 3...
+
+          {/* Minimize button */}
+          {onMinimize && (
+            <button
+              onClick={onMinimize}
+              className="w-full py-3 px-4 rounded-xl bg-brand-purple hover:bg-brand-purple-muted border border-brand-purple-muted transition-colors flex items-center justify-center gap-3 group"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-accent-gold"
+              >
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span className="text-white font-bold">Notify me when ready</span>
+              <span className="text-text-muted text-sm group-hover:text-white transition-colors">
+                Continue browsing
+              </span>
+            </button>
+          )}
+
+          <p className="text-center text-text-muted text-xs mt-4">
+            You&apos;ll receive a notification when your cover is ready
           </p>
         </div>
       </div>

@@ -104,6 +104,10 @@ export default function CreatePage() {
   const [generationProgress, setGenerationProgress] = useState(0);
   const [showBookViewer, setShowBookViewer] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
+  const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
   // Stories from API
   const [stories, setStories] = useState<Story[]>([]);
@@ -143,6 +147,48 @@ export default function CreatePage() {
     } catch {
       // Ignore errors
     }
+  };
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission === "granted";
+    }
+    return false;
+  };
+
+  // Send browser notification
+  const sendNotification = (title: string, body: string) => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      const notification = new Notification(title, {
+        body,
+        icon: "/favicon.ico",
+        badge: "/favicon.ico",
+      });
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  };
+
+  // Handle minimize - go back to step 1 but keep generating in background
+  const handleMinimizeGeneration = async () => {
+    // Request permission if not granted
+    if (notificationPermission !== "granted") {
+      await requestNotificationPermission();
+    }
+    setIsMinimized(true);
+    setCurrentStep("characters"); // Go back to characters step
   };
 
   // Fetch stories
@@ -557,6 +603,9 @@ export default function CreatePage() {
     setGeneratingBook(true);
     setBookError(null);
     setGenerationProgress(0);
+    setGenerationStartTime(Date.now());
+    setIsMinimized(false);
+    setShowNotification(false);
 
     try {
       // First, check if all selected characters have illustrations
@@ -605,16 +654,36 @@ export default function CreatePage() {
 
       const { pages, tokensRemaining } = await genResponse.json();
       setPreviewPages(pages);
-      setShowBookViewer(true);
       setGenerationProgress(100);
       setTokenBalance(tokensRemaining);
+
+      // If minimized, show notification and banner
+      if (isMinimized) {
+        sendNotification(
+          "Your cover is ready!",
+          "Your personalized storybook cover has been created. Tap to view it."
+        );
+        setShowNotification(true);
+        // Don't auto-show book viewer when minimized - let user click notification
+      } else {
+        setShowBookViewer(true);
+      }
     } catch (error) {
       console.error("Book generation error:", error);
       const errorMessage = error instanceof Error ? error.message : "Generation failed";
       setBookError(errorMessage);
+
+      // Send error notification if minimized
+      if (isMinimized) {
+        sendNotification(
+          "Generation failed",
+          errorMessage
+        );
+      }
     }
 
     setGeneratingBook(false);
+    setGenerationStartTime(null);
   };
 
   const simulateDemoGeneration = async () => {
@@ -664,6 +733,66 @@ export default function CreatePage() {
   return (
     <div className="min-h-screen bg-brand-dark flex flex-col">
       <Header theme="dark" />
+
+      {/* Notification banner - shows when cover is ready after minimizing */}
+      {showNotification && previewPages.length > 0 && (
+        <div className="bg-gradient-to-r from-accent-gold to-accent-teal">
+          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✨</span>
+              <div>
+                <p className="font-bold text-brand-dark">Your cover page is ready!</p>
+                <p className="text-brand-dark/70 text-sm">Click to view your personalized illustration</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setShowNotification(false);
+                  setCurrentStep("preview");
+                  setShowBookViewer(true);
+                  setIsMinimized(false);
+                }}
+                className="px-5 py-2 bg-brand-dark text-white font-bold rounded-full hover:bg-brand-purple transition-colors"
+              >
+                View Cover
+              </button>
+              <button
+                onClick={() => setShowNotification(false)}
+                className="p-2 text-brand-dark/60 hover:text-brand-dark transition-colors"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Background generation indicator - shows when minimized but still generating */}
+      {generatingBook && isMinimized && (
+        <div className="bg-brand-purple border-b border-accent-gold/30">
+          <div className="max-w-4xl mx-auto px-6 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" />
+              <p className="text-white text-sm">
+                <span className="font-bold">Creating your cover page...</span>
+                <span className="text-text-muted ml-2">You&apos;ll be notified when ready</span>
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setIsMinimized(false);
+                setCurrentStep("preview");
+              }}
+              className="text-accent-gold text-sm font-bold hover:underline"
+            >
+              View progress
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="bg-brand-purple border-b border-brand-purple-muted">
@@ -1408,19 +1537,21 @@ export default function CreatePage() {
                     </p>
                   </div>
                 </div>
-              ) : generatingBook ? (
+              ) : generatingBook && !isMinimized ? (
                 <div className="text-center">
                   <h1 className="text-4xl font-black text-white mb-2">
-                    Creating your cover
+                    Creating your cover page
                   </h1>
                   <p className="text-lg text-text-muted mb-8">
-                    Our AI artists are crafting your personalized book cover...
+                    Our AI artists are crafting your personalized illustration...
                   </p>
                   <BookViewer
                     pages={[]}
                     title=""
                     isGenerating={true}
                     generatingProgress={generationProgress}
+                    generationStartTime={generationStartTime || undefined}
+                    onMinimize={handleMinimizeGeneration}
                   />
                 </div>
               ) : (
