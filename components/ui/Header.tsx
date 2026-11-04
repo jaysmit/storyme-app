@@ -318,55 +318,70 @@ export default function Header({ theme = "dark" }: HeaderProps) {
 
       {/* Mobile menu */}
       {showMobileMenu && (
-        <div
-          className="absolute top-full left-0 right-0 border-t z-50 md:hidden"
-          style={{ background: bgColor, borderColor: "#3D3A6E" }}
-        >
-          <nav className="flex flex-col py-3">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="px-4 py-2.5 text-sm font-bold no-underline"
-                style={{ color: textColor }}
-                onClick={() => setShowMobileMenu(false)}
-              >
-                {link.label}
-              </Link>
-            ))}
-            {!user && (
-              <>
+        <>
+          {/* Backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-black/50 z-[998] md:hidden"
+            onClick={() => setShowMobileMenu(false)}
+          />
+          {/* Menu panel */}
+          <div
+            className="fixed top-[60px] left-0 right-0 border-t z-[999] md:hidden shadow-2xl"
+            style={{
+              backgroundColor: isLight ? "#FFFFFF" : "#14163A",
+              borderColor: "#3D3A6E"
+            }}
+          >
+            <nav className="flex flex-col py-3">
+              {navLinks.map((link) => (
                 <Link
-                  href="/login"
-                  className="px-4 py-2.5 text-sm font-bold no-underline"
+                  key={link.href}
+                  href={link.href}
+                  className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
                   style={{ color: textColor }}
                   onClick={() => setShowMobileMenu(false)}
                 >
-                  Log in
+                  {link.label}
                 </Link>
-                <Link
-                  href="/register"
-                  className="px-4 py-2.5 text-sm font-bold no-underline"
-                  style={{ color: textColor }}
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-            {user && (
-              <button
-                onClick={() => {
-                  handleSignOut();
-                  setShowMobileMenu(false);
-                }}
-                className="px-4 py-2.5 text-sm font-bold text-left text-red-400"
-              >
-                Sign out
-              </button>
-            )}
-          </nav>
-        </div>
+              ))}
+              {!user && (
+                <>
+                  <div className="border-t my-2" style={{ borderColor: "#3D3A6E" }} />
+                  <Link
+                    href="/login"
+                    className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
+                    style={{ color: textColor }}
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
+                    style={{ color: textColor }}
+                    onClick={() => setShowMobileMenu(false)}
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
+              {user && (
+                <>
+                  <div className="border-t my-2" style={{ borderColor: "#3D3A6E" }} />
+                  <button
+                    onClick={() => {
+                      handleSignOut();
+                      setShowMobileMenu(false);
+                    }}
+                    className="px-4 py-3 text-base font-bold text-left text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </>
+              )}
+            </nav>
+          </div>
+        </>
       )}
     </header>
   );
