@@ -198,12 +198,25 @@ export async function POST(
     console.log("=== BOOK COVER GENERATION ===");
     console.log(`Story: ${template.title} (${storySlug})`);
     console.log(`Style: ${artStyle}`);
+    console.log(`Protected characters: ${template.protectedCharacters?.join(", ") || "none"}`);
     console.log(`Characters (${characters.length}):`);
     characters.forEach((c, i) => {
       console.log(`  ${i + 1}. ${c.name} -> Slot ${characterMapping[i]?.slot} (${characterMapping[i]?.role})`);
     });
 
-    // Download ALL character images
+    // Download master page (cover template) if available
+    let masterPageBuffer: Buffer | null = null;
+    if (coverPage.originalImageUrl) {
+      masterPageBuffer = await downloadImage(
+        coverPage.originalImageUrl,
+        "Master page (cover template)"
+      );
+      console.log("Master page downloaded:", masterPageBuffer.length, "bytes");
+    } else {
+      console.log("No master page template - will generate scene from scratch");
+    }
+
+    // Download ALL character images (guest references)
     const characterImageBuffers: Buffer[] = [];
     for (const char of characters) {
       const buffer = await downloadImage(
@@ -213,7 +226,7 @@ export async function POST(
       characterImageBuffers.push(buffer);
     }
 
-    // Build the detailed prompt
+    // Build the precision character replacement prompt
     const prompt = buildPagePrompt({
       sceneDescription: coverPage.sceneDescription,
       setting: coverPage.setting,
@@ -221,6 +234,8 @@ export async function POST(
       styleDetails,
       pageNumber: 0,
       totalPages: template.totalPages,
+      protectedCharacters: template.protectedCharacters,
+      maxSlots: 5,
     });
 
     console.log("\n=== PROMPT ===");
@@ -230,26 +245,37 @@ export async function POST(
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
 
-    // Create File objects for ALL character images as references
-    const characterImageFiles: File[] = characterImageBuffers.map((buffer, index) => {
+    // Build image array: IMAGE 1 = master page, IMAGES 2+ = guest characters
+    const allImageFiles: File[] = [];
+
+    // IMAGE 1: Master page (cover template) - if available
+    if (masterPageBuffer) {
+      const masterBlob = new Blob([new Uint8Array(masterPageBuffer)], { type: "image/png" });
+      const masterFile = new File([masterBlob], "1-master-page.png", { type: "image/png" });
+      allImageFiles.push(masterFile);
+      console.log("IMAGE 1: Master page template");
+    }
+
+    // IMAGES 2+: Guest character references
+    characterImageBuffers.forEach((buffer, index) => {
+      const imageNum = masterPageBuffer ? index + 2 : index + 1;
       const blob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
       const charName = characters[index].name.replace(/[^a-zA-Z0-9]/g, "-");
-      return new File([blob], `character-${index + 1}-${charName}.png`, { type: "image/png" });
+      const file = new File([blob], `${imageNum}-guest-${charName}.png`, { type: "image/png" });
+      allImageFiles.push(file);
+      console.log(`IMAGE ${imageNum}: Guest "${characters[index].name}"`);
     });
 
-    console.log(`Sending ${characterImageFiles.length} character reference images:`);
-    characters.forEach((c, i) => {
-      console.log(`  ${i + 1}. ${c.name} (${characterImageFiles[i].name})`);
-    });
-
-    // Call OpenAI images.edit with ALL character images as references
+    // Call OpenAI images.edit
     // Using gpt-image-2.5-sunburst (best model) with high quality
     // Low resolution, JPEG output format
-    console.log("Calling OpenAI images.edit with multiple character references...");
+    console.log("\nCalling OpenAI images.edit...");
     console.log("Settings: model=gpt-image-2.5-sunburst, size=1024x1024, quality=high, output=jpeg");
+    console.log(`Total images: ${allImageFiles.length}`);
+
     const response = await openai.images.edit({
       model: "gpt-image-2.5-sunburst",
-      image: characterImageFiles.length === 1 ? characterImageFiles[0] : characterImageFiles,
+      image: allImageFiles.length === 1 ? allImageFiles[0] : allImageFiles,
       prompt,
       n: 1,
       size: "1024x1024", // Low res

@@ -31,6 +31,7 @@ export interface StoryTemplate {
   totalPages: number;
   coverPage: PageDefinition;
   pages: PageDefinition[];
+  protectedCharacters: string[]; // Story characters that should NOT be replaced (e.g., dragons, fairies)
 }
 
 /**
@@ -43,6 +44,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "The Dragon of Castle Valley",
     tagline: "A dragon guards the road to the glowing castle.",
     totalPages: 6,
+    protectedCharacters: ["Golden Dragon", "The friendly dragon flying overhead"],
     coverPage: {
       pageNumber: 0,
       title: "The Dragon of Castle Valley",
@@ -142,6 +144,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "The Fairy Glade",
     tagline: "Follow the fireflies to where the fairies are waiting.",
     totalPages: 6,
+    protectedCharacters: ["Fairies", "Glowing fireflies", "Fairy houses"],
     coverPage: {
       pageNumber: 0,
       title: "The Fairy Glade",
@@ -165,6 +168,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "Grand Final Day",
     tagline: "One game, one final siren, one family cheering.",
     totalPages: 6,
+    protectedCharacters: ["Trophy", "Stadium crowd in background", "Confetti"],
     coverPage: {
       pageNumber: 0,
       title: "Grand Final Day",
@@ -188,6 +192,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "Captain of the Cloud Ship",
     tagline: "Take the helm of a flying ship through the clouds.",
     totalPages: 6,
+    protectedCharacters: ["Flying ship", "Rainbow", "Birds flying alongside", "Clouds"],
     coverPage: {
       pageNumber: 0,
       title: "Captain of the Cloud Ship",
@@ -211,6 +216,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "The Super Squad",
     tagline: "Suit up to save the city from a cheeky sorceress.",
     totalPages: 6,
+    protectedCharacters: ["City skyline", "Dramatic sunset sky"],
     coverPage: {
       pageNumber: 0,
       title: "The Super Squad",
@@ -234,6 +240,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
     title: "The Great Galaxy Road Trip",
     tagline: "Blast off through the solar system and back before bedtime.",
     totalPages: 6,
+    protectedCharacters: ["Spacecraft interior", "Planets visible through windows", "Stars and nebulae", "Control panels"],
     coverPage: {
       pageNumber: 0,
       title: "The Great Galaxy Road Trip",

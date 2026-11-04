@@ -51,7 +51,9 @@ export async function createCompositeReference(
 }
 
 /**
- * Builds the detailed prompt for page generation with character mapping
+ * Builds the precision character replacement prompt for page generation
+ * IMAGE 1 = Master page (original cover template)
+ * IMAGES 2+ = Guest character references
  */
 export function buildPagePrompt(options: {
   sceneDescription: string;
@@ -60,99 +62,123 @@ export function buildPagePrompt(options: {
   styleDetails: string;
   pageNumber: number;
   totalPages: number;
+  protectedCharacters?: string[]; // Story characters to keep (e.g., "Golden Dragon", "Fairy Queen")
+  maxSlots?: number; // Total character slots in template (default 5)
 }): string {
-  const { sceneDescription, setting, characters, styleDetails, pageNumber, totalPages } = options;
+  const { characters, protectedCharacters = [], maxSlots = 5 } = options;
 
-  // Helper to describe character size based on age
-  const getAgeDescription = (age: number | null | undefined, charType?: string): string => {
-    if (charType === "pet") return "pet-sized";
-    if (!age || age <= 0) return "";
-    if (age <= 3) return "toddler-sized (very small, about 1/3 adult height)";
-    if (age <= 6) return "young child-sized (small, about 1/2 adult height)";
-    if (age <= 12) return "child-sized (medium, about 2/3 adult height)";
-    if (age <= 17) return "teen-sized (near adult height)";
-    return "adult-sized";
-  };
-
+  // Build character mapping section
+  // Maps guest characters to original template slots
   const characterMapping = characters
     .sort((a, b) => a.slot - b.slot)
     .map((c, index) => {
-      const ageDesc = getAgeDescription(c.age, c.characterType);
-      const sizeNote = ageDesc ? ` [${ageDesc}]` : "";
-      const refNote = `(Reference Image #${index + 1})`;
-      return `- CHARACTER ${index + 1}: "${c.name}" ${refNote}
-    Role: ${c.role}${sizeNote}
-    Action: ${c.action}
-    MUST MATCH: Use the EXACT appearance from Reference Image #${index + 1} - same face, hair, skin tone, features`;
+      const imageNum = index + 2; // IMAGE 2, 3, 4... (IMAGE 1 is master page)
+      const ageNote = c.age ? ` (age ${c.age})` : "";
+      return `- **Original Slot ${c.slot} "${c.role}"** → Replace with **IMAGE ${imageNum} "${c.name}"**${ageNote}
+  Preserve guest's face, hair, eyes, skin tone. Adopt original character's pose, position, costume.`;
     })
-    .join("\n\n");
+    .join("\n");
 
-  // Build proportional sizing instructions
-  const hasMultipleAges = characters.some(c => c.age && c.age <= 12) && characters.some(c => !c.age || c.age > 17);
-  const proportionInstructions = hasMultipleAges ? `
-## CHARACTER PROPORTIONS - CRITICAL
-Characters must be drawn at proportionate sizes based on their ages:
-${characters
-  .filter(c => c.age)
-  .sort((a, b) => (a.age || 0) - (b.age || 0))
-  .map(c => `- "${c.name}" (age ${c.age}): ${getAgeDescription(c.age, c.characterType)}`)
-  .join("\n")}
+  // Build protected characters section
+  const protectedSection = protectedCharacters.length > 0
+    ? protectedCharacters.map(name => `- ${name}`).join("\n")
+    : "- None specified. Preserve any magical creatures, dragons, fairies, or story-specific characters visible in the master page.";
 
-Ensure children appear noticeably SMALLER than adults in the same scene.
-Toddlers should be about 1/3 the height of adults.
-Children (6-12) should be about 2/3 the height of adults.
-` : "";
+  // Determine which slots should be removed (slots not assigned to guests)
+  const assignedSlots = new Set(characters.map(c => c.slot));
+  const unassignedSlots: number[] = [];
+  for (let i = 1; i <= maxSlots; i++) {
+    if (!assignedSlots.has(i)) {
+      unassignedSlots.push(i);
+    }
+  }
 
-  return `# STORYBOOK PAGE GENERATION — CHARACTER REPLACEMENT ONLY
+  const removeSection = unassignedSlots.length > 0
+    ? unassignedSlots.map(slot => `- Original character in Slot ${slot} (not assigned to any guest)`).join("\n")
+    : "- None. All template character slots have been assigned to guests.";
 
-## PRIMARY DIRECTIVE — READ CAREFULLY
-You are given reference images of characters. Create a storybook illustration featuring THESE EXACT CHARACTERS in the scene described below.
+  return `# STORYME — PRECISION CHARACTER REPLACEMENT
 
-**YOUR TASK:** Generate a scene with the provided character(s) while preserving their EXACT appearance from the reference images.
+You are editing an existing children's storybook illustration, NOT creating a new illustration.
 
-## SCENE DESCRIPTION
-${sceneDescription}
+## IMAGE INPUTS
 
-## SETTING
-${setting}
+- **IMAGE 1 — MASTER PAGE:** The original storybook illustration. This is the authoritative reference for the entire composition.
+- **IMAGES 2+ — GUEST REFERENCES:** The personalised characters that must replace designated characters in the master page.
 
-## CHARACTERS IN THIS SCENE
+## PRIMARY OBJECTIVE
+
+Produce a minimally modified version of IMAGE 1.
+
+Change ONLY the designated characters. Preserve everything else as closely as possible.
+
+The finished illustration must look like the original page was carefully edited, not regenerated.
+
+## CHARACTER REPLACEMENT MAP
+
 ${characterMapping}
-${proportionInstructions}
-## CHARACTER APPEARANCE — CRITICAL
-For each character, you MUST preserve from their reference image:
-- **Face**: Exact facial features, face shape, expression style
-- **Hair**: Exact color, style, length, texture
-- **Skin tone**: Exact skin color and complexion
-- **Eyes**: Exact eye color, shape, and style
-- **Clothing style**: Similar outfit style/colors if visible
-- **Overall character design**: The same art style and proportions
 
-The characters in your output MUST be immediately recognizable as the same characters from the reference images. A person should be able to look at your output and the reference images and say "yes, that's the same character."
+For every assigned guest:
 
-## ART STYLE — MATCH EXACTLY
-${styleDetails}
+- Replace the designated original character with the corresponding guest.
+- Preserve the guest's recognisable facial identity, hairstyle, eye colour, skin tone and distinctive features.
+- Preserve the original character's position, scale, pose, action, body orientation and interaction with objects.
+- Adapt the guest to the original page's illustration style, lighting and perspective.
+- Retain the original character's story-appropriate costume and equipment unless explicitly instructed otherwise.
+- Do not duplicate guests or create additional versions of them.
 
-## COMPOSITION REQUIREMENTS
-- Create a cohesive storybook illustration
-- Characters should be positioned naturally in the scene
-- Maintain consistent lighting across all elements
-- Background and setting should complement the characters
-- Professional children's book illustration quality
+## PROTECTED STORY CHARACTERS
 
-## ABSOLUTE REQUIREMENTS
-1. Characters MUST look identical to their reference images
-2. Art style MUST be consistent throughout
-3. Scene MUST match the description above
-4. Output MUST be child-appropriate (ages 4-10)
-5. NO text, watermarks, or logos
+${protectedSection}
 
-## DO NOT
-- Change character appearances (hair color, face shape, skin tone, etc.)
-- Create generic/different looking characters
-- Ignore the reference images
-- Add characters not in the character list
-- Include any text or writing in the image`;
+These characters are part of the original fictional story.
+
+Preserve their original appearance, size, position, expression and actions.
+
+Never replace, remove or redesign protected story characters.
+
+## REMOVE UNASSIGNED CHARACTERS
+
+${removeSection}
+
+Remove every original character that is not assigned to a guest or explicitly protected.
+
+This includes unwanted people, animals, pets and sidekicks.
+
+Reconstruct the original scenery naturally behind removed characters.
+
+Do not replace removed characters with new characters.
+
+## LOCKED MASTER COMPOSITION
+
+Treat IMAGE 1 as the authoritative visual reference.
+
+Preserve:
+
+- Original canvas dimensions and aspect ratio
+- Camera angle, framing and perspective
+- Background, scenery, architecture and landscape
+- Props, weapons, magical effects and environmental details
+- Lighting, shadows, colours and textures
+- Original illustration style and rendering technique
+- Text and typography, where present
+- All non-character objects and their positions
+
+Do not redesign, reimagine, enhance, crop, zoom or rearrange the page.
+
+## EDITING PRIORITY
+
+1. Correct guest identities and number of guests.
+2. Correct replacement of assigned original characters.
+3. Preservation of protected story characters.
+4. Complete removal of unassigned characters.
+5. Preservation of the original composition and background.
+
+## FINAL REQUIREMENT
+
+The result should appear nearly identical to IMAGE 1, except for the designated character replacements, removal of unwanted characters and necessary reconstruction of the areas they occupied.
+
+Make the smallest possible visual changes needed to complete the task.`;
 }
 
 /**
