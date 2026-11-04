@@ -141,11 +141,28 @@ export async function POST(
       );
     }
 
-    // Fetch characters
-    const { data: charData, error: charError } = await supabase
+    // Fetch characters - try with age column, fallback without if it doesn't exist
+    let charData: CharacterInput[] | null = null;
+    let charError: { message: string } | null = null;
+
+    const { data: data1, error: error1 } = await supabase
       .from("characters")
       .select("id, name, character_type, pet_type, age, generated_image_url")
       .in("id", characterIds);
+
+    if (error1?.message?.includes("age")) {
+      // age column doesn't exist, try without it
+      console.log("age column not found, fetching without it");
+      const { data: data2, error: error2 } = await supabase
+        .from("characters")
+        .select("id, name, character_type, pet_type, generated_image_url")
+        .in("id", characterIds);
+      charData = data2;
+      charError = error2;
+    } else {
+      charData = data1;
+      charError = error1;
+    }
 
     if (charError) {
       return NextResponse.json(
