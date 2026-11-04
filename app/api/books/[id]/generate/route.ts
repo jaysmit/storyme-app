@@ -1,145 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getOpenAI, artStylePrompts } from "@/lib/openai";
+import { getOpenAI } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
-
-// Character slot definition for each scene
-interface CharacterSlot {
-  slot: number; // 1-5, order of prominence (1 = main hero)
-  role: string; // "Hero", "Sidekick", "Companion", etc.
-  action: string; // What they're doing in this scene
-  required: boolean; // If false, can be omitted with fewer crew members
-}
-
-// Page/Scene definition
-interface SceneDefinition {
-  page_number: number;
-  title: string;
-  scene: string;
-  setting: string;
-  characters: CharacterSlot[];
-}
-
-// Story template with all pages
-interface StoryTemplate {
-  slug: string;
-  title: string;
-  cover: SceneDefinition;
-  pages: SceneDefinition[];
-}
-
-// All story templates with 5 character slots
-const storyTemplates: Record<string, StoryTemplate> = {
-  "dragon-castle-valley": {
-    slug: "dragon-castle-valley",
-    title: "The Dragon of Castle Valley",
-    cover: {
-      page_number: 0,
-      title: "The Dragon of Castle Valley",
-      scene: "The heroes stand at the edge of a mystical valley, gazing at a magnificent glowing castle on a distant hilltop. A friendly golden dragon soars overhead against a sunset sky.",
-      setting: "magical valley with rolling hills, ancient trees, luminous castle in the distance, dramatic sunset sky",
-      characters: [
-        { slot: 1, role: "Hero", action: "standing boldly in front, pointing toward the castle", required: true },
-        { slot: 2, role: "Brave Companion", action: "standing beside the hero, looking excited", required: false },
-        { slot: 3, role: "Wise Guide", action: "holding a magical map, standing slightly behind", required: false },
-        { slot: 4, role: "Loyal Friend", action: "carrying supplies, looking determined", required: false },
-        { slot: 5, role: "Young Adventurer", action: "gazing up at the dragon in wonder", required: false },
-      ],
-    },
-    pages: [], // To be filled when building full book
-  },
-  "fairy-glade": {
-    slug: "fairy-glade",
-    title: "The Fairy Glade",
-    cover: {
-      page_number: 0,
-      title: "The Fairy Glade",
-      scene: "The adventurers enter an enchanted forest glade filled with glowing fireflies and tiny fairy houses nestled in giant mushrooms. Sparkles of magic dust float in the moonlit air.",
-      setting: "moonlit forest clearing with bioluminescent plants, oversized mushrooms, floating fairy lights, magical atmosphere",
-      characters: [
-        { slot: 1, role: "Curious Explorer", action: "reaching out to touch a glowing firefly", required: true },
-        { slot: 2, role: "Wonder-Struck Friend", action: "looking up at floating fairies with amazement", required: false },
-        { slot: 3, role: "Gentle Companion", action: "kneeling to look at a tiny fairy house", required: false },
-        { slot: 4, role: "Excited Adventurer", action: "holding a jar to catch fairy dust", required: false },
-        { slot: 5, role: "Quiet Observer", action: "standing back, taking in the magical scene", required: false },
-      ],
-    },
-    pages: [],
-  },
-  "grand-final-day": {
-    slug: "grand-final-day",
-    title: "Grand Final Day",
-    cover: {
-      page_number: 0,
-      title: "Grand Final Day",
-      scene: "The team stands proudly on a sunlit sports field, championship trophy gleaming nearby, colorful confetti falling from a bright blue sky. The stadium crowd cheers in the background.",
-      setting: "bright sports stadium with green grass field, cheering crowds, confetti, celebratory golden hour lighting",
-      characters: [
-        { slot: 1, role: "Team Captain", action: "holding the trophy high above their head", required: true },
-        { slot: 2, role: "Star Player", action: "arms raised in victory, huge smile", required: false },
-        { slot: 3, role: "Team Mate", action: "cheering with fists pumped", required: false },
-        { slot: 4, role: "Supportive Player", action: "hugging a teammate in celebration", required: false },
-        { slot: 5, role: "Youngest Player", action: "jumping with joy, covered in confetti", required: false },
-      ],
-    },
-    pages: [],
-  },
-  "cloud-ship": {
-    slug: "cloud-ship",
-    title: "Captain of the Cloud Ship",
-    cover: {
-      page_number: 0,
-      title: "Captain of the Cloud Ship",
-      scene: "The crew stands on the deck of a magnificent flying galleon sailing through fluffy white clouds. Rainbows arc in the distance and golden sunlight bathes everything in warmth.",
-      setting: "sky above the clouds, fantastical flying ship with billowing sails, endless blue sky, rainbows, golden sunlight",
-      characters: [
-        { slot: 1, role: "Ship Captain", action: "at the helm, hands on the wheel, looking heroic", required: true },
-        { slot: 2, role: "First Mate", action: "standing beside the captain, telescope in hand", required: false },
-        { slot: 3, role: "Navigator", action: "reading a magical floating map", required: false },
-        { slot: 4, role: "Lookout", action: "pointing excitedly at a rainbow", required: false },
-        { slot: 5, role: "Deckhand", action: "adjusting the sails with a rope", required: false },
-      ],
-    },
-    pages: [],
-  },
-  "super-squad": {
-    slug: "super-squad",
-    title: "The Super Squad",
-    cover: {
-      page_number: 0,
-      title: "The Super Squad",
-      scene: "The superhero team stands heroically on a rooftop overlooking a colorful city skyline at golden hour. Capes flutter in the breeze as they prepare to save the day.",
-      setting: "vibrant city skyline at sunset, rooftop vantage point, dramatic superhero lighting, dynamic atmosphere",
-      characters: [
-        { slot: 1, role: "Team Leader", action: "standing front and center, hands on hips, cape flowing", required: true },
-        { slot: 2, role: "Flying Hero", action: "hovering slightly above, ready for action", required: false },
-        { slot: 3, role: "Strong Hero", action: "flexing muscles, looking powerful", required: false },
-        { slot: 4, role: "Speed Hero", action: "in a running pose, motion blur effect", required: false },
-        { slot: 5, role: "Tech Hero", action: "holding a glowing gadget, looking smart", required: false },
-      ],
-    },
-    pages: [],
-  },
-  "galaxy-road-trip": {
-    slug: "galaxy-road-trip",
-    title: "The Great Galaxy Road Trip",
-    cover: {
-      page_number: 0,
-      title: "The Great Galaxy Road Trip",
-      scene: "The crew looks out from inside a retro-futuristic rocket ship cockpit at a dazzling galaxy filled with colorful planets, sparkling stars, and swirling nebulae.",
-      setting: "outer space with colorful planets, stars, nebulae, cozy spacecraft interior with glowing controls",
-      characters: [
-        { slot: 1, role: "Pilot", action: "at the controls, piloting through space", required: true },
-        { slot: 2, role: "Co-Pilot", action: "pointing excitedly at a colorful planet", required: false },
-        { slot: 3, role: "Navigator", action: "reading a holographic star map", required: false },
-        { slot: 4, role: "Scientist", action: "looking through a telescope at stars", required: false },
-        { slot: 5, role: "Space Tourist", action: "pressing face against the window in wonder", required: false },
-      ],
-    },
-    pages: [],
-  },
-};
+import { getStoryTemplate, type PageDefinition } from "@/lib/story-templates";
+import { PRECISE_STYLE_DEFINITIONS, buildPagePrompt } from "@/lib/image-composite";
 
 // Character from database
 interface CharacterInput {
@@ -150,37 +15,41 @@ interface CharacterInput {
   generated_image_url?: string;
 }
 
-// Build character mapping for the prompt
-function buildCharacterPromptSection(
-  characters: CharacterInput[],
-  slots: CharacterSlot[]
-): string {
-  const activeSlots = slots.slice(0, Math.max(characters.length, 1));
+// Download image as buffer
+async function downloadImage(url: string, label: string): Promise<Buffer> {
+  console.log(`Downloading ${label}...`);
+  const response = await fetch(url);
 
-  const characterMappings = activeSlots.map((slot, index) => {
-    const char = characters[index];
-    if (!char) return null;
-
-    const charType = char.character_type === "pet"
-      ? `(a ${char.pet_type || "pet"})`
-      : "";
-
-    return `- SLOT ${slot.slot} (${slot.role}): "${char.name}" ${charType} - ${slot.action}`;
-  }).filter(Boolean);
-
-  if (characterMappings.length === 0) {
-    return "No characters assigned.";
+  if (!response.ok) {
+    throw new Error(`DEBUG: Failed to download ${label}. Status: ${response.status}, URL: ${url}`);
   }
 
-  return `**CHARACTERS IN THIS SCENE (in order of prominence):**
-${characterMappings.join("\n")}
+  const buffer = Buffer.from(await response.arrayBuffer());
 
-IMPORTANT: Each character MUST match their reference image exactly.
-The characters are listed in order of visual prominence (Slot 1 = most prominent/foreground).
-${characters.length < 5 ? `\nNote: Only ${characters.length} character(s) in this scene. Other character slots are not used.` : ""}`;
+  if (buffer.length < 1000) {
+    throw new Error(`DEBUG: ${label} is too small (${buffer.length} bytes). URL: ${url}`);
+  }
+
+  console.log(`${label}: ${buffer.length} bytes`);
+  return buffer;
 }
 
-// POST /api/books/[id]/generate - Generate cover page
+// Build character mapping for this page
+function mapCharactersToSlots(
+  characters: CharacterInput[],
+  pageDefinition: PageDefinition
+): { name: string; slot: number; role: string; action: string }[] {
+  return pageDefinition.characters
+    .slice(0, characters.length)
+    .map((slot, index) => ({
+      name: characters[index].name,
+      slot: slot.slot,
+      role: slot.role,
+      action: slot.action,
+    }));
+}
+
+// POST /api/books/[id]/generate - Generate cover page using image references
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -243,9 +112,15 @@ export async function POST(
     }
 
     // Get story template
-    const template = storyTemplates[storySlug];
+    const template = getStoryTemplate(storySlug);
     if (!template) {
-      return NextResponse.json({ error: `Unknown story: ${storySlug}` }, { status: 400 });
+      return NextResponse.json({ error: `DEBUG: Unknown story template: ${storySlug}` }, { status: 400 });
+    }
+
+    // Get style definition
+    const styleDetails = PRECISE_STYLE_DEFINITIONS[artStyle];
+    if (!styleDetails) {
+      return NextResponse.json({ error: `DEBUG: Unknown art style: ${artStyle}` }, { status: 400 });
     }
 
     // Enforce max 5 characters
@@ -256,42 +131,37 @@ export async function POST(
       );
     }
 
-    // Fetch characters with their generated images
-    let characters: CharacterInput[] = [];
-    if (characterIds.length > 0) {
-      const { data: charData, error: charError } = await supabase
-        .from("characters")
-        .select("id, name, character_type, pet_type, generated_image_url")
-        .in("id", characterIds);
-
-      if (charError) {
-        return NextResponse.json(
-          { error: `Failed to fetch characters: ${charError.message}` },
-          { status: 500 }
-        );
-      }
-
-      characters = charData || [];
-    }
-
-    // STRICT: All characters MUST have generated images
-    const charactersWithoutImages = characters.filter(c => !c.generated_image_url);
-    if (charactersWithoutImages.length > 0) {
-      const names = charactersWithoutImages.map(c => c.name).join(", ");
+    if (characterIds.length === 0) {
       return NextResponse.json(
-        {
-          error: "Character images required",
-          message: `The following characters need illustrations generated first: ${names}`,
-          missingCharacters: charactersWithoutImages.map(c => ({ id: c.id, name: c.name }))
-        },
+        { error: "At least one character is required" },
         { status: 400 }
       );
     }
 
-    // At least one character required
-    if (characters.length === 0) {
+    // Fetch characters
+    const { data: charData, error: charError } = await supabase
+      .from("characters")
+      .select("id, name, character_type, pet_type, generated_image_url")
+      .in("id", characterIds);
+
+    if (charError) {
       return NextResponse.json(
-        { error: "At least one character is required to generate a book" },
+        { error: `DEBUG: Failed to fetch characters: ${charError.message}` },
+        { status: 500 }
+      );
+    }
+
+    const characters: CharacterInput[] = charData || [];
+
+    // STRICT: All characters MUST have generated images
+    const missingImages = characters.filter(c => !c.generated_image_url);
+    if (missingImages.length > 0) {
+      const names = missingImages.map(c => c.name).join(", ");
+      return NextResponse.json(
+        {
+          error: `Character illustrations required: ${names}`,
+          missingCharacters: missingImages.map(c => ({ id: c.id, name: c.name }))
+        },
         { status: 400 }
       );
     }
@@ -302,127 +172,107 @@ export async function POST(
       .update({ status: "generating" })
       .eq("id", id);
 
-    const coverScene = template.cover;
-    const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
-    const characterSection = buildCharacterPromptSection(characters, coverScene.characters);
+    const coverPage = template.coverPage;
+    const characterMapping = mapCharactersToSlots(characters, coverPage);
 
-    // Build the cover prompt
-    const coverPrompt = `# STORYBOOK COVER ILLUSTRATION
+    console.log("=== BOOK COVER GENERATION ===");
+    console.log(`Story: ${template.title} (${storySlug})`);
+    console.log(`Style: ${artStyle}`);
+    console.log(`Characters (${characters.length}):`);
+    characters.forEach((c, i) => {
+      console.log(`  ${i + 1}. ${c.name} -> Slot ${characterMapping[i]?.slot} (${characterMapping[i]?.role})`);
+    });
 
-Create a children's book cover for "${coverScene.title}".
+    // Download ALL character images
+    const characterImageBuffers: Buffer[] = [];
+    for (const char of characters) {
+      const buffer = await downloadImage(
+        char.generated_image_url!,
+        `Character "${char.name}"`
+      );
+      characterImageBuffers.push(buffer);
+    }
 
-## SCENE DESCRIPTION
-${coverScene.scene}
+    // Build the detailed prompt
+    const prompt = buildPagePrompt({
+      sceneDescription: coverPage.sceneDescription,
+      setting: coverPage.setting,
+      characters: characterMapping,
+      styleDetails,
+      pageNumber: 0,
+      totalPages: template.totalPages,
+    });
 
-## SETTING
-${coverScene.setting}
-
-## ${characterSection}
-
-## ART STYLE
-${styleModifier}
-
-## REQUIREMENTS
-- Book cover composition (portrait-friendly)
-- Characters positioned according to their slot prominence
-- Slot 1 character is the focal point in the foreground
-- Rich, detailed background matching the setting
-- Warm, magical, cinematic lighting
-- Professional children's book quality
-- No text or titles in the image
-
-## CRITICAL
-- Each character MUST look exactly like their reference image
-- Maintain the same facial features, hair, and identifying characteristics
-- Only include the ${characters.length} character(s) specified above`;
+    console.log("\n=== PROMPT ===");
+    console.log(prompt);
+    console.log("=== END PROMPT ===\n");
 
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
 
-    console.log(`Generating cover for book ${id}`);
-    console.log(`Story: ${storySlug}, Style: ${artStyle}`);
-    console.log(`Characters (${characters.length}): ${characters.map(c => c.name).join(", ")}`);
+    // Use the FIRST character's image as the primary reference
+    // The prompt describes all characters so the AI knows who else to include
+    const primaryCharacter = characters[0];
+    const primaryImageBuffer = characterImageBuffers[0];
 
-    // Use the first (main) character's image as reference
-    const mainCharacter = characters[0];
+    console.log(`Using "${primaryCharacter.name}" as primary image reference`);
 
-    if (!mainCharacter.generated_image_url) {
-      // This shouldn't happen due to earlier check, but safety first
-      throw new Error(`DEBUG: Main character "${mainCharacter.name}" has no generated image URL`);
-    }
+    const imageBlob = new Blob([new Uint8Array(primaryImageBuffer)], { type: "image/png" });
+    const imageFile = new File([imageBlob], "character-reference.png", { type: "image/png" });
 
-    // Download the main character's image
-    console.log(`Downloading reference image for ${mainCharacter.name}...`);
-    const charImageResponse = await fetch(mainCharacter.generated_image_url);
-
-    if (!charImageResponse.ok) {
-      throw new Error(`DEBUG: Failed to download character image for "${mainCharacter.name}". Status: ${charImageResponse.status}, URL: ${mainCharacter.generated_image_url}`);
-    }
-
-    const charImageBuffer = Buffer.from(await charImageResponse.arrayBuffer());
-
-    if (charImageBuffer.length < 1000) {
-      throw new Error(`DEBUG: Character image for "${mainCharacter.name}" is too small (${charImageBuffer.length} bytes). URL: ${mainCharacter.generated_image_url}`);
-    }
-
-    console.log(`Reference image downloaded: ${charImageBuffer.length} bytes`);
-
-    const charImageBlob = new Blob([charImageBuffer], { type: "image/png" });
-    const charImageFile = new File([charImageBlob], "character.png", { type: "image/png" });
-
-    // Use images.edit with character reference
+    // Call OpenAI images.edit
     console.log("Calling OpenAI images.edit...");
     const response = await openai.images.edit({
       model: "gpt-image-2",
-      image: charImageFile,
-      prompt: coverPrompt,
+      image: imageFile,
+      prompt,
       n: 1,
       size: "1024x1024",
       quality: "high",
     });
 
     const imageData = response.data?.[0];
-    let imageBuffer: Buffer | null = null;
+    let outputBuffer: Buffer | null = null;
 
     if (imageData?.b64_json) {
-      imageBuffer = Buffer.from(imageData.b64_json, "base64");
+      outputBuffer = Buffer.from(imageData.b64_json, "base64");
     } else if (imageData?.url) {
       const imgResponse = await fetch(imageData.url);
       if (!imgResponse.ok) {
         throw new Error(`DEBUG: Failed to download generated image. Status: ${imgResponse.status}`);
       }
-      imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
+      outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
 
-    if (!imageBuffer) {
-      throw new Error("DEBUG: OpenAI returned no image data. Response: " + JSON.stringify(response));
+    if (!outputBuffer) {
+      throw new Error("DEBUG: OpenAI returned no image data");
     }
 
-    console.log(`Cover image generated: ${imageBuffer.length} bytes`);
+    console.log(`Cover generated: ${outputBuffer.length} bytes`);
 
     // Upload to storage
     const fileName = `${user.id}/${id}/cover.png`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
-      .upload(fileName, imageBuffer, {
+      .upload(fileName, outputBuffer, {
         contentType: "image/png",
         upsert: true,
       });
 
     if (uploadError) {
-      throw new Error(`DEBUG: Failed to upload cover to storage: ${uploadError.message}`);
+      throw new Error(`DEBUG: Storage upload failed: ${uploadError.message}`);
     }
 
     const { data: { publicUrl } } = serviceClient.storage
       .from("previews")
       .getPublicUrl(fileName);
 
-    console.log("Cover uploaded successfully:", publicUrl);
+    console.log("Cover uploaded:", publicUrl);
 
     const generatedPages = [{
       page_number: 0,
       url: publicUrl,
-      title: coverScene.title,
+      title: coverPage.title,
     }];
 
     // Update book
@@ -437,6 +287,7 @@ ${styleModifier}
           artStyle,
           characterIds,
           characterCount: characters.length,
+          characterMapping,
         },
         updated_at: new Date().toISOString(),
       })
@@ -445,7 +296,7 @@ ${styleModifier}
       .single();
 
     if (updateError) {
-      throw new Error(`DEBUG: Failed to update book: ${updateError.message}`);
+      throw new Error(`DEBUG: Book update failed: ${updateError.message}`);
     }
 
     // Deduct tokens
@@ -455,7 +306,7 @@ ${styleModifier}
       tokenCost,
       "book_cover",
       id,
-      `Generated cover for "${coverScene.title}" with ${characters.length} character(s)`
+      `Cover: "${template.title}" (${characters.length} characters)`
     );
 
     return NextResponse.json({
@@ -465,7 +316,8 @@ ${styleModifier}
       tokensRemaining: deductResult.newBalance,
     });
   } catch (error) {
-    console.error("Generation error:", error);
+    console.error("=== GENERATION ERROR ===");
+    console.error(error);
 
     // Update status to failed
     await supabase
@@ -473,11 +325,7 @@ ${styleModifier}
       .update({ status: "failed" })
       .eq("id", id);
 
-    // Return detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
