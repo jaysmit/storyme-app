@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const PET_TYPES = [
   "Dog",
@@ -43,6 +43,7 @@ export default function CharacterFormModal({
   const [localType, setLocalType] = useState<"person" | "pet" | "other">("person");
   const [localPetType, setLocalPetType] = useState("");
   const [localCustomType, setLocalCustomType] = useState("");
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
 
   // Sync local state when pendingCharacter changes
   useEffect(() => {
@@ -51,8 +52,28 @@ export default function CharacterFormModal({
       setLocalType(pendingCharacter.characterType);
       setLocalPetType(pendingCharacter.petType);
       setLocalCustomType(pendingCharacter.customType);
+      setShowConfirmClose(false);
     }
   }, [pendingCharacter?.id]);
+
+  // Attempt to close - show confirmation
+  const attemptClose = useCallback(() => {
+    if (pendingCharacter?.saving) return;
+    setShowConfirmClose(true);
+  }, [pendingCharacter?.saving]);
+
+  // Confirm discard
+  const confirmDiscard = useCallback(() => {
+    if (pendingCharacter) {
+      onCancel(pendingCharacter.id);
+    }
+    setShowConfirmClose(false);
+  }, [pendingCharacter, onCancel]);
+
+  // Continue editing
+  const continueEditing = useCallback(() => {
+    setShowConfirmClose(false);
+  }, []);
 
   if (!pendingCharacter) return null;
 
@@ -76,16 +97,49 @@ export default function CharacterFormModal({
     onSave(updated);
   };
 
-  const handleCancel = () => {
-    onCancel(pendingCharacter.id);
-  };
+  // Confirmation dialog when trying to close
+  if (showConfirmClose) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        <div className="relative bg-brand-purple rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-brand-purple-muted text-center">
+          <div className="w-16 h-16 rounded-full bg-accent-gold/20 mx-auto mb-4 flex items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#F4C95D" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            Leave without saving?
+          </h3>
+          <p className="text-text-muted text-sm mb-6">
+            This photo hasn&apos;t been added as a character yet. Are you sure you want to remove it?
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={confirmDiscard}
+              className="flex-1 py-3 rounded-full border border-red-500/50 text-red-400 font-bold hover:bg-red-500/20 transition-colors"
+            >
+              Remove photo
+            </button>
+            <button
+              onClick={continueEditing}
+              className="flex-1 py-3 rounded-full bg-accent-gold text-brand-dark font-extrabold hover:bg-accent-gold-light transition-colors"
+            >
+              Keep editing
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={handleCancel}
+        onClick={attemptClose}
       />
 
       {/* Modal */}
@@ -103,7 +157,7 @@ export default function CharacterFormModal({
           {/* Close button */}
           {!pendingCharacter.saving && (
             <button
-              onClick={handleCancel}
+              onClick={attemptClose}
               className="absolute top-3 right-3 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
               title="Cancel"
             >
@@ -211,7 +265,7 @@ export default function CharacterFormModal({
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
-              onClick={handleCancel}
+              onClick={attemptClose}
               disabled={pendingCharacter.saving}
               className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors disabled:opacity-50"
             >
