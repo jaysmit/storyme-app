@@ -214,13 +214,17 @@ export default function CreatePage() {
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-  // Toggle character selection
+  // Toggle character selection (max 5 characters)
   const toggleCharacterSelection = (id: string) => {
     setSelectedCharacterIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
       } else {
+        // Max 5 characters per book
+        if (next.size >= 5) {
+          return prev;
+        }
         next.add(id);
       }
       return next;
@@ -552,6 +556,17 @@ export default function CreatePage() {
     setGenerationProgress(0);
 
     try {
+      // First, check if all selected characters have illustrations
+      const charsWithoutIllustrations = selectedCharacters.filter(c => !c.generated_image_url);
+      if (charsWithoutIllustrations.length > 0) {
+        const names = charsWithoutIllustrations.map(c => c.name).join(", ");
+        throw new Error(`Characters need illustrations first: ${names}`);
+      }
+
+      if (selectedCharacters.length === 0) {
+        throw new Error("Please select at least one character");
+      }
+
       const response = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -562,36 +577,38 @@ export default function CreatePage() {
         }),
       });
 
-      if (response.ok) {
-        const { book } = await response.json();
-        setGenerationProgress(10);
-
-        const genResponse = await fetch(`/api/books/${book.id}/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            storySlug: selectedStory,
-            artStyle: selectedStyle,
-            characterIds: selectedCharacters.map((c) => c.id),
-          }),
-        });
-
-        if (genResponse.ok) {
-          const { pages, tokensRemaining } = await genResponse.json();
-          setPreviewPages(pages);
-          setShowBookViewer(true);
-          setGenerationProgress(100);
-          setTokenBalance(tokensRemaining);
-        } else {
-          throw new Error("Generation failed");
-        }
-      } else {
-        console.log("API not available, using demo mode");
-        await simulateDemoGeneration();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to create book");
       }
+
+      const { book } = await response.json();
+      setGenerationProgress(10);
+
+      const genResponse = await fetch(`/api/books/${book.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storySlug: selectedStory,
+          artStyle: selectedStyle,
+          characterIds: selectedCharacters.map((c) => c.id),
+        }),
+      });
+
+      if (!genResponse.ok) {
+        const errorData = await genResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to generate cover");
+      }
+
+      const { pages, tokensRemaining } = await genResponse.json();
+      setPreviewPages(pages);
+      setShowBookViewer(true);
+      setGenerationProgress(100);
+      setTokenBalance(tokensRemaining);
     } catch (error) {
-      console.log("Using demo mode due to:", error);
-      await simulateDemoGeneration();
+      console.error("Book generation error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Generation failed";
+      setBookError(errorMessage);
     }
 
     setGeneratingBook(false);
@@ -706,8 +723,13 @@ export default function CreatePage() {
                   Choose your characters
                 </h1>
                 <p className="text-lg text-text-muted">
-                  Select existing characters or add new ones for your story.
+                  Select up to 5 characters for your story. Each character needs an illustration.
                 </p>
+                {selectedCharacterIds.size > 0 && (
+                  <p className="text-sm text-accent-gold mt-2 font-bold">
+                    {selectedCharacterIds.size}/5 characters selected
+                  </p>
+                )}
               </div>
 
               {/* Existing Characters Section */}

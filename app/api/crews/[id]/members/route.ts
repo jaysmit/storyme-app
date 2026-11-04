@@ -17,7 +17,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Verify crew belongs to user
+  // Verify crew belongs to user and get current member count
   const { data: crew } = await supabase
     .from("crews")
     .select("id")
@@ -27,6 +27,19 @@ export async function POST(
 
   if (!crew) {
     return NextResponse.json({ error: "Crew not found" }, { status: 404 });
+  }
+
+  // Check current member count (max 5)
+  const { count: memberCount } = await supabase
+    .from("crew_members")
+    .select("*", { count: "exact", head: true })
+    .eq("crew_id", crewId);
+
+  if ((memberCount ?? 0) >= 5) {
+    return NextResponse.json(
+      { error: "Maximum 5 characters per crew" },
+      { status: 400 }
+    );
   }
 
   const body = await request.json();
