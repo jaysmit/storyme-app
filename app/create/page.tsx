@@ -1429,55 +1429,76 @@ export default function CreatePage() {
                     We'll generate your storybook pages with your characters.
                   </p>
 
-                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 max-w-lg mx-auto">
-                    <div className="text-6xl mb-4">📚</div>
-                    <h2 className="text-2xl font-black text-white mb-2">
-                      {stories.find((s) => s.slug === selectedStory)?.title}
-                    </h2>
-                    <p className="text-text-muted mb-6">
-                      {selectedCharacters.length} character{selectedCharacters.length !== 1 && "s"} ·{" "}
-                      {artStyles.find((s) => s.slug === selectedStyle)?.name} style
-                    </p>
-
-                    {/* Character preview row */}
-                    <div className="flex justify-center gap-2 mb-6">
-                      {selectedCharacters.slice(0, 5).map((char) => (
-                        <div
-                          key={char.id}
-                          className="w-12 h-12 rounded-full overflow-hidden bg-brand-dark border-2 border-accent-gold"
-                        >
+                  <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden max-w-lg mx-auto">
+                    {/* Story cover image */}
+                    {(() => {
+                      const story = stories.find((s) => s.slug === selectedStory);
+                      const coverImage = story?.cover_image_url || storyImages[selectedStory || ""];
+                      return coverImage ? (
+                        <div className="aspect-[4/3] bg-brand-dark">
                           <img
-                            src={char.generated_image_url || char.original_photo_url}
-                            alt={char.name}
+                            src={coverImage}
+                            alt={story?.title || "Story cover"}
                             className="w-full h-full object-cover"
                           />
                         </div>
-                      ))}
-                      {selectedCharacters.length > 5 && (
-                        <div className="w-12 h-12 rounded-full bg-brand-purple-muted flex items-center justify-center text-text-muted text-sm font-bold">
-                          +{selectedCharacters.length - 5}
+                      ) : (
+                        <div className="aspect-[4/3] bg-gradient-to-br from-purple-600 to-indigo-800 flex items-center justify-center">
+                          <span className="text-8xl opacity-50">📚</span>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="p-6">
+                      <h2 className="text-2xl font-black text-white mb-2">
+                        {stories.find((s) => s.slug === selectedStory)?.title}
+                      </h2>
+                      <p className="text-text-muted mb-4">
+                        {selectedCharacters.length} character{selectedCharacters.length !== 1 && "s"} ·{" "}
+                        {artStyles.find((s) => s.slug === selectedStyle)?.name} style
+                      </p>
+
+                      {/* Character preview row */}
+                      <div className="flex justify-center gap-2 mb-6">
+                        {selectedCharacters.slice(0, 5).map((char) => (
+                          <div
+                            key={char.id}
+                            className="w-12 h-12 rounded-full overflow-hidden bg-brand-dark border-2 border-accent-gold"
+                            title={char.name}
+                          >
+                            <img
+                              src={char.generated_image_url || char.original_photo_url}
+                              alt={char.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {selectedCharacters.length > 5 && (
+                          <div className="w-12 h-12 rounded-full bg-brand-purple-muted flex items-center justify-center text-text-muted text-sm font-bold">
+                            +{selectedCharacters.length - 5}
+                          </div>
+                        )}
+                      </div>
+
+                      {bookError && (
+                        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6 text-red-300 text-sm">
+                          {bookError}
                         </div>
                       )}
+
+                      <button
+                        onClick={generateBookPreview}
+                        className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-2"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                        </svg>
+                        Generate Cover
+                      </button>
+                      <p className="text-xs text-text-muted mt-4">
+                        This will use AI to generate your personalized book cover.
+                      </p>
                     </div>
-
-                    {bookError && (
-                      <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 mb-6 text-red-300 text-sm">
-                        {bookError}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={generateBookPreview}
-                      className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-2"
-                    >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                      </svg>
-                      Generate Cover
-                    </button>
-                    <p className="text-xs text-text-muted mt-4">
-                      This will use AI to generate your personalized book cover.
-                    </p>
                   </div>
                 </div>
               )}

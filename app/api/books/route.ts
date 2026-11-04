@@ -15,29 +15,36 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { storySlug, artStyle, characters, roleAssignments } = body;
+    const { storySlug, artStyle, characterIds, characters, roleAssignments } = body;
 
     if (!storySlug || !artStyle) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: storySlug and artStyle" },
         { status: 400 }
       );
     }
 
-    // Create the book record
+    // Accept either characterIds or characters
+    const charIds = characterIds || characters || [];
+
+    // Build the insert data - metadata column may not exist
+    const insertData: Record<string, unknown> = {
+      user_id: user.id,
+      story_id: null,
+      art_style_id: null,
+      status: "draft",
+      preview_pages: [],
+    };
+
+    // Try with metadata first
     const { data: book, error } = await supabase
       .from("books")
       .insert({
-        user_id: user.id,
-        story_id: null, // Will be set when we have real story IDs
-        art_style_id: null, // Will be set when we have real style IDs
-        status: "draft",
-        preview_pages: [],
-        // Store metadata for generation
+        ...insertData,
         metadata: {
           storySlug,
           artStyle,
-          characters,
+          characterIds: charIds,
           roleAssignments,
         },
       })
@@ -45,9 +52,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
+      // If metadata column doesn't exist, try without it
+      if (error.message?.includes("metadata")) {
+        console.log("Metadata column not found, inserting without it");
+        const { data: bookNoMeta, error: error2 } = await supabase
+          .from("books")
+          .insert(insertData)
+          .select()
+          .single();
+
+        if (error2) {
+          console.error("Book creation error:", error2);
+          return NextResponse.json(
+            { error: `Failed to create book: ${error2.message}` },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json({ book: bookNoMeta });
+      }
+
       console.error("Book creation error:", error);
       return NextResponse.json(
-        { error: "Failed to create book" },
+        { error: `Failed to create book: ${error.message}` },
         { status: 500 }
       );
     }
@@ -55,8 +82,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ book });
   } catch (error) {
     console.error("Book creation error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to create book" },
+      { error: `Failed to create book: ${message}` },
       { status: 500 }
     );
   }
