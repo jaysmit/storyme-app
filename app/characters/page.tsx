@@ -5,30 +5,9 @@ import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
+import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
 import type { Character } from "@/lib/types";
 import { TOKEN_COSTS } from "@/lib/types";
-
-const PET_TYPES = [
-  "Dog",
-  "Cat",
-  "Rabbit",
-  "Hamster",
-  "Guinea Pig",
-  "Bird",
-  "Fish",
-  "Turtle",
-  "Horse",
-];
-
-interface PendingCharacter {
-  id: string;
-  name: string;
-  photoBase64: string;
-  characterType: "person" | "pet" | "other";
-  petType: string;
-  customType: string;
-  saving: boolean;
-}
 
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -139,29 +118,22 @@ export default function CharactersPage() {
     setPendingCharacters((prev) => prev.filter((p) => p.id !== id));
   }
 
-  // Check if pending character is valid to save
-  function isPendingValid(pending: PendingCharacter): boolean {
-    if (!pending.name.trim()) return false;
-    if (pending.characterType === "pet" && !pending.petType) return false;
-    if (pending.characterType === "other" && !pending.customType.trim()) return false;
-    return true;
-  }
+  // Get the first pending character for the modal
+  const currentPendingCharacter = pendingCharacters.length > 0 ? pendingCharacters[0] : null;
+  const remainingPendingCount = pendingCharacters.length > 1 ? pendingCharacters.length - 1 : 0;
 
   // Save pending character and auto-trigger generation
   async function savePendingCharacter(pending: PendingCharacter) {
-    if (!isPendingValid(pending)) return;
-
+    // Mark as saving
     setPendingCharacters((prev) =>
       prev.map((p) => (p.id === pending.id ? { ...p, saving: true } : p))
     );
 
-    let typeToSave = pending.characterType;
     let petTypeToSave: string | undefined;
 
     if (pending.characterType === "pet") {
       petTypeToSave = pending.petType;
     } else if (pending.characterType === "other") {
-      typeToSave = "other";
       petTypeToSave = pending.customType.trim();
     }
 
@@ -172,7 +144,7 @@ export default function CharactersPage() {
         body: JSON.stringify({
           name: pending.name.trim(),
           photoBase64: pending.photoBase64,
-          characterType: typeToSave,
+          characterType: pending.characterType,
           petType: petTypeToSave,
         }),
       });
@@ -340,7 +312,7 @@ export default function CharactersPage() {
               <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-text-muted">Loading characters...</p>
             </div>
-          ) : characters.length === 0 && pendingCharacters.length === 0 ? (
+          ) : characters.length === 0 ? (
             <div className="text-center py-20 bg-brand-purple-light border border-brand-purple-muted rounded-3xl">
               <div className="text-6xl mb-4">📸</div>
               <h2 className="text-2xl font-black text-white mb-2">
@@ -366,107 +338,6 @@ export default function CharactersPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Pending characters (not yet saved) */}
-              {pendingCharacters.map((pending) => (
-                <div
-                  key={pending.id}
-                  className="bg-brand-purple-light border-2 border-accent-gold rounded-2xl overflow-hidden"
-                >
-                  {/* Photo */}
-                  <div className="aspect-square bg-brand-dark relative">
-                    <img
-                      src={pending.photoBase64}
-                      alt="New character"
-                      className="w-full h-full object-cover"
-                    />
-
-                    {/* Cancel button */}
-                    {!pending.saving && (
-                      <button
-                        onClick={() => removePending(pending.id)}
-                        className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
-                        title="Cancel"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {/* Saving overlay */}
-                    {pending.saving && (
-                      <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
-                        <div className="w-10 h-10 border-3 border-accent-gold border-t-transparent rounded-full animate-spin mb-2" />
-                        <p className="text-white text-sm font-bold">Creating...</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Form */}
-                  <div className="p-4 space-y-3">
-                    <input
-                      type="text"
-                      value={pending.name}
-                      onChange={(e) => updatePending(pending.id, { name: e.target.value })}
-                      placeholder="Enter name..."
-                      disabled={pending.saving}
-                      className="w-full px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
-                      autoFocus
-                    />
-
-                    <div className="flex gap-2">
-                      {(["person", "pet", "other"] as const).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => updatePending(pending.id, { characterType: type, petType: "", customType: "" })}
-                          disabled={pending.saving}
-                          className={`flex-1 py-2 rounded-lg font-bold text-sm transition-colors ${
-                            pending.characterType === type
-                              ? "bg-accent-gold text-brand-dark"
-                              : "bg-brand-dark text-text-muted hover:text-white"
-                          }`}
-                        >
-                          {type.charAt(0).toUpperCase() + type.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-
-                    {pending.characterType === "pet" && (
-                      <select
-                        value={pending.petType}
-                        onChange={(e) => updatePending(pending.id, { petType: e.target.value })}
-                        disabled={pending.saving}
-                        className="w-full px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
-                      >
-                        <option value="">Select pet type...</option>
-                        {PET_TYPES.map((type) => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                    )}
-
-                    {pending.characterType === "other" && (
-                      <input
-                        type="text"
-                        value={pending.customType}
-                        onChange={(e) => updatePending(pending.id, { customType: e.target.value })}
-                        placeholder="Enter type (e.g., Dinosaur, Robot)..."
-                        disabled={pending.saving}
-                        className="w-full px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
-                      />
-                    )}
-
-                    <button
-                      onClick={() => savePendingCharacter(pending)}
-                      disabled={!isPendingValid(pending) || pending.saving}
-                      className="w-full py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-gold-light transition-colors"
-                    >
-                      {pending.saving ? "Creating..." : "Complete"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-
               {/* Saved characters - Flip card layout */}
               {characters.map((char) => {
                 const isFlipped = flippedCards.has(char.id);
@@ -728,6 +599,15 @@ export default function CharactersPage() {
         tokenCost={TOKEN_COSTS.CHARACTER_ILLUSTRATION}
         currentBalance={tokenBalance}
         loading={!!generatingId}
+      />
+
+      {/* Character Form Modal - shows when photos are uploaded */}
+      <CharacterFormModal
+        pendingCharacter={currentPendingCharacter}
+        onUpdate={updatePending}
+        onSave={savePendingCharacter}
+        onCancel={removePending}
+        remainingCount={remainingPendingCount}
       />
 
       <Footer />
