@@ -518,41 +518,17 @@ export default function CreatePage() {
 
   // Helper to generate placeholder image URL
   const getPlaceholderUrl = (text: string) => {
-    return `/api/placeholder/900/506?text=${encodeURIComponent(text)}`;
+    return `/api/placeholder/900/900?text=${encodeURIComponent(text)}`;
   };
 
-  // Demo story scenes for preview
-  const demoScenes: Record<string, PreviewPage[]> = {
-    "dragon-castle-valley": [
-      { page_number: 1, url: getPlaceholderUrl("The Journey Begins"), title: "The Journey Begins" },
-      { page_number: 2, url: getPlaceholderUrl("Meeting the Dragon"), title: "Meeting the Dragon" },
-      { page_number: 3, url: getPlaceholderUrl("Happily Ever After"), title: "Happily Ever After" },
-    ],
-    "fairy-glade": [
-      { page_number: 1, url: getPlaceholderUrl("Following Fireflies"), title: "Following Fireflies" },
-      { page_number: 2, url: getPlaceholderUrl("Meeting the Fairies"), title: "Meeting the Fairies" },
-      { page_number: 3, url: getPlaceholderUrl("Magic Forever"), title: "Magic Forever" },
-    ],
-    "grand-final-day": [
-      { page_number: 1, url: getPlaceholderUrl("Game Day Morning"), title: "Game Day Morning" },
-      { page_number: 2, url: getPlaceholderUrl("The Winning Play"), title: "The Winning Play" },
-      { page_number: 3, url: getPlaceholderUrl("Champions"), title: "Champions" },
-    ],
-    "cloud-ship": [
-      { page_number: 1, url: getPlaceholderUrl("Taking the Helm"), title: "Taking the Helm" },
-      { page_number: 2, url: getPlaceholderUrl("Above the Clouds"), title: "Above the Clouds" },
-      { page_number: 3, url: getPlaceholderUrl("Safe Harbor"), title: "Safe Harbor" },
-    ],
-    "super-squad": [
-      { page_number: 1, url: getPlaceholderUrl("The Call to Action"), title: "The Call to Action" },
-      { page_number: 2, url: getPlaceholderUrl("Using Powers"), title: "Using Powers" },
-      { page_number: 3, url: getPlaceholderUrl("Heroes Celebrated"), title: "Heroes Celebrated" },
-    ],
-    "galaxy-road-trip": [
-      { page_number: 1, url: getPlaceholderUrl("Blast Off"), title: "Blast Off" },
-      { page_number: 2, url: getPlaceholderUrl("Planet Hopping"), title: "Planet Hopping" },
-      { page_number: 3, url: getPlaceholderUrl("Home Before Bedtime"), title: "Home Before Bedtime" },
-    ],
+  // Story cover titles for demo
+  const storyCoverTitles: Record<string, string> = {
+    "dragon-castle-valley": "The Dragon of Castle Valley",
+    "fairy-glade": "The Fairy Glade",
+    "grand-final-day": "Grand Final Day",
+    "cloud-ship": "Captain of the Cloud Ship",
+    "super-squad": "The Super Squad",
+    "galaxy-road-trip": "The Great Galaxy Road Trip",
   };
 
   // Request book preview (shows confirmation first)
@@ -622,13 +598,17 @@ export default function CreatePage() {
   };
 
   const simulateDemoGeneration = async () => {
-    for (let i = 1; i <= 3; i++) {
-      setGenerationProgress((i / 3) * 100);
-      await new Promise((r) => setTimeout(r, 1000));
-    }
+    setGenerationProgress(50);
+    await new Promise((r) => setTimeout(r, 1500));
+    setGenerationProgress(100);
 
-    const pages = demoScenes[selectedStory || "dragon-castle-valley"] || demoScenes["dragon-castle-valley"];
-    setPreviewPages(pages);
+    const title = storyCoverTitles[selectedStory || "dragon-castle-valley"] || "Your Story";
+    const coverPage: PreviewPage = {
+      page_number: 0,
+      url: getPlaceholderUrl(title),
+      title: title,
+    };
+    setPreviewPages([coverPage]);
     setShowBookViewer(true);
   };
 
@@ -1259,10 +1239,10 @@ export default function CreatePage() {
                   <div className="flex justify-between items-center mb-6">
                     <div>
                       <h1 className="text-4xl font-black text-white mb-2">
-                        Your book preview
+                        Your book cover
                       </h1>
                       <p className="text-lg text-text-muted">
-                        Here's a preview of your personalized storybook!
+                        Here&apos;s the cover of your personalized storybook!
                       </p>
                     </div>
                     <button
@@ -1284,10 +1264,10 @@ export default function CreatePage() {
                   {/* Purchase options */}
                   <div className="mt-8">
                     <h3 className="text-2xl font-black text-white mb-2 text-center">
-                      Love your preview? Choose your book
+                      Love your cover? Order the full book
                     </h3>
                     <p className="text-text-muted mb-8 text-center">
-                      Every option includes 3 free amendments.
+                      We&apos;ll generate all pages in your chosen style. Every option includes 3 free amendments.
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1406,10 +1386,10 @@ export default function CreatePage() {
               ) : generatingBook ? (
                 <div className="text-center">
                   <h1 className="text-4xl font-black text-white mb-2">
-                    Creating your storybook
+                    Creating your cover
                   </h1>
                   <p className="text-lg text-text-muted mb-8">
-                    Our AI artists are bringing your story to life...
+                    Our AI artists are crafting your personalized book cover...
                   </p>
                   <BookViewer
                     pages={[]}
@@ -1471,10 +1451,10 @@ export default function CreatePage() {
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
                       </svg>
-                      Generate Preview
+                      Generate Cover
                     </button>
                     <p className="text-xs text-text-muted mt-4">
-                      This will use AI to generate 3 preview pages for your book.
+                      This will use AI to generate your personalized book cover.
                     </p>
                   </div>
                 </div>
@@ -1605,12 +1585,12 @@ export default function CreatePage() {
         actionName={
           pendingAction?.type === "character"
             ? `generate illustration for ${pendingAction.characterObj?.name || "character"}`
-            : "generate 3 book preview pages"
+            : "generate book cover"
         }
         tokenCost={
           pendingAction?.type === "character"
             ? TOKEN_COSTS.CHARACTER_ILLUSTRATION
-            : TOKEN_COSTS.BOOK_PREVIEW_FULL
+            : TOKEN_COSTS.BOOK_COVER
         }
         currentBalance={tokenBalance}
         loading={pendingAction?.type === "character" ? !!generatingCharacterId : generatingBook}

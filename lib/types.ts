@@ -14,8 +14,9 @@ export interface Profile {
 // Token costs for different actions
 export const TOKEN_COSTS = {
   CHARACTER_ILLUSTRATION: 1,
+  BOOK_COVER: 1, // Single cover page
   BOOK_PREVIEW_PAGE: 1,
-  BOOK_PREVIEW_FULL: 3, // 3 preview pages
+  BOOK_PREVIEW_FULL: 3, // 3 preview pages (for later)
 } as const;
 
 export const NEW_USER_TOKENS = 5;

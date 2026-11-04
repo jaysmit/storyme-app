@@ -4,50 +4,45 @@ import { getOpenAI, artStylePrompts } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
 
-// Story scene templates for each story
-const storyScenes: Record<string, { title: string; scene: string }[]> = {
-  "dragon-castle-valley": [
-    { title: "The Journey Begins", scene: "The heroes gather at the edge of a misty valley, looking toward a glowing castle on a distant hill. A dragon's shadow passes overhead." },
-    { title: "Crossing the Bridge", scene: "The brave adventurers carefully cross an ancient stone bridge over a deep ravine, with magical fireflies lighting their way." },
-    { title: "Meeting the Dragon", scene: "Face to face with a magnificent but friendly dragon, scales shimmering with golden light, who guards the path to the castle." },
-    { title: "The Castle Gates", scene: "Standing before the towering castle gates that glow with enchanted light, ready to enter and discover the treasure within." },
-    { title: "Happily Ever After", scene: "Celebrating inside the grand castle hall, surrounded by magical treasures and new friends, the adventure complete." },
-  ],
-  "fairy-glade": [
-    { title: "Following Fireflies", scene: "Walking through a moonlit forest, following a trail of glowing fireflies that lead deeper into the magical woods." },
-    { title: "The Mushroom Village", scene: "Discovering tiny houses made from colorful mushrooms, with little doors and windows glowing warmly." },
-    { title: "Meeting the Fairies", scene: "Surrounded by dancing fairies with sparkling wings, who sprinkle magic dust and laugh with joy." },
-    { title: "The Fairy Queen", scene: "Bowing before the beautiful Fairy Queen on her flower throne, receiving a special magical gift." },
-    { title: "Magic Forever", scene: "Returning home through the forest, now with fairy friends and a heart full of magic." },
-  ],
-  "grand-final-day": [
-    { title: "Game Day Morning", scene: "Getting ready in the locker room, putting on team jerseys, feeling excited and a little nervous." },
-    { title: "The Big Match", scene: "Running onto the field as the crowd cheers, the championship trophy gleaming in the sunlight." },
-    { title: "Teamwork", scene: "Passing the ball between teammates, working together as one unit, determined to win." },
-    { title: "The Winning Play", scene: "Making the final decisive play as the crowd holds their breath, everything moving in slow motion." },
-    { title: "Champions", scene: "Celebrating with the trophy held high, confetti falling, family and friends cheering in the stands." },
-  ],
-  "cloud-ship": [
-    { title: "Taking the Helm", scene: "Climbing aboard a magnificent flying ship with billowing sails, ready to sail through the clouds." },
-    { title: "Above the Clouds", scene: "Soaring through fluffy white clouds with the wind in their hair, seeing rainbows and distant mountains below." },
-    { title: "Sky Pirates", scene: "A friendly encounter with colorful sky pirates who share stories and treasures from distant lands." },
-    { title: "The Storm", scene: "Navigating through a magical storm with lightning that looks like golden threads across purple clouds." },
-    { title: "Safe Harbor", scene: "Landing the cloud ship safely home as the sun sets, with memories of incredible adventures in the sky." },
-  ],
-  "super-squad": [
-    { title: "The Call to Action", scene: "Hearing the alarm and rushing to put on superhero costumes, ready to save the day." },
-    { title: "Flying to Help", scene: "Soaring over the city skyline, capes flapping in the wind, following a trail of magical mischief." },
-    { title: "The Sorceress", scene: "Meeting a playful sorceress with a pointy hat who is turning buildings into candy and cars into toy animals." },
-    { title: "Using Powers", scene: "Working together as a team, each using their special power to help undo the silly magic spells." },
-    { title: "Heroes Celebrated", scene: "Receiving medals from the mayor as the whole city cheers, the sorceress now a friend who promises to use magic for good." },
-  ],
-  "galaxy-road-trip": [
-    { title: "Blast Off", scene: "Climbing into a colorful rocket ship shaped like a vintage car, counting down and launching into the stars." },
-    { title: "Passing the Moon", scene: "Waving at friendly moon creatures while zooming past craters and lunar mountains." },
-    { title: "Planet Hopping", scene: "Visiting strange and wonderful planets with rings, moons, and alien creatures who love to wave hello." },
-    { title: "Space Diner", scene: "Stopping at a floating space diner run by friendly aliens, eating zero-gravity ice cream that floats around." },
-    { title: "Home Before Bedtime", scene: "Landing softly in the backyard just as the stars come out, tired but full of cosmic memories." },
-  ],
+// Cover scene templates for each story
+const storyCoverScenes: Record<string, { title: string; scene: string; setting: string }> = {
+  "dragon-castle-valley": {
+    title: "The Dragon of Castle Valley",
+    scene: "Standing at the edge of a mystical valley, gazing at a magnificent glowing castle on a distant hilltop. A friendly golden dragon soars overhead against a sunset sky.",
+    setting: "magical valley with rolling hills, ancient trees, and a luminous castle in the distance",
+  },
+  "fairy-glade": {
+    title: "The Fairy Glade",
+    scene: "Entering an enchanted forest glade filled with glowing fireflies and tiny fairy houses nestled in giant mushrooms. Sparkles of magic dust float in the moonlit air.",
+    setting: "moonlit forest clearing with bioluminescent plants, oversized mushrooms, and floating lights",
+  },
+  "grand-final-day": {
+    title: "Grand Final Day",
+    scene: "Standing proudly on a sunlit sports field, championship trophy gleaming nearby, colorful confetti falling from a bright blue sky. The stadium crowd cheers in the background.",
+    setting: "bright sports stadium with green grass field, cheering crowds, and celebratory atmosphere",
+  },
+  "cloud-ship": {
+    title: "Captain of the Cloud Ship",
+    scene: "At the helm of a magnificent flying galleon sailing through fluffy white clouds. Rainbows arc in the distance and golden sunlight bathes everything in warmth.",
+    setting: "sky above the clouds with a fantastical flying ship, billowing sails, and endless blue sky",
+  },
+  "super-squad": {
+    title: "The Super Squad",
+    scene: "Standing heroically on a rooftop overlooking a colorful city skyline at golden hour. Capes flutter in the breeze as they prepare to save the day.",
+    setting: "vibrant city skyline at sunset, rooftop vantage point with dramatic lighting",
+  },
+  "galaxy-road-trip": {
+    title: "The Great Galaxy Road Trip",
+    scene: "Inside a retro-futuristic rocket ship cockpit, looking out at a dazzling galaxy filled with colorful planets, sparkling stars, and swirling nebulae.",
+    setting: "outer space with colorful planets, stars, and a cozy spacecraft interior",
+  },
+};
+
+// Default cover for unknown stories
+const defaultCoverScene = {
+  title: "A Magical Adventure",
+  scene: "Standing at the beginning of an exciting adventure, surrounded by wonder and possibility.",
+  setting: "magical landscape with warm, inviting atmosphere",
 };
 
 // Character type for generation
@@ -57,9 +52,47 @@ interface CharacterInput {
   physical_description?: string;
   character_type?: string;
   pet_type?: string;
+  generated_image_url?: string;
+  original_photo_url?: string;
 }
 
-// POST /api/books/[id]/generate - Generate preview pages
+// Build character description for prompt based on count
+function buildCharacterSection(characters: CharacterInput[]): string {
+  if (characters.length === 0) {
+    return "Show friendly, diverse children as the main characters.";
+  }
+
+  const descriptions = characters.map((c, index) => {
+    const role = index === 0 ? "the main hero" : index === 1 ? "the loyal companion" : "a supporting friend";
+
+    if (c.physical_description) {
+      return `- ${c.name} (${role}): ${c.physical_description}`;
+    }
+
+    if (c.character_type === "pet") {
+      return `- ${c.name} (${role}): A friendly, adorable ${c.pet_type || "pet"} companion`;
+    }
+
+    return `- ${c.name} (${role}): A warm, friendly character`;
+  });
+
+  const names = characters.map(c => c.name);
+  const nameList = names.length === 1
+    ? names[0]
+    : names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+
+  return `**CHARACTERS (must appear in this exact order of prominence):**
+${descriptions.join("\n")}
+
+Feature ${nameList} prominently in the center of the image, posed heroically and ready for adventure.
+${characters.length === 1 ? "The single character should be the clear focal point." : ""}
+${characters.length === 2 ? "Both characters should be side by side, equally featured." : ""}
+${characters.length >= 3 ? "Arrange characters in a dynamic group composition with the main hero slightly forward." : ""}`;
+}
+
+// POST /api/books/[id]/generate - Generate cover page
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -96,8 +129,8 @@ export async function POST(
       );
     }
 
-    // Check if user has enough tokens (3 pages for preview)
-    const tokenCost = TOKEN_COSTS.BOOK_PREVIEW_FULL;
+    // Check if user has enough tokens (1 token for cover)
+    const tokenCost = TOKEN_COSTS.BOOK_COVER;
     const { hasEnough, balance } = await checkTokens(supabase, user.id, tokenCost);
 
     if (!hasEnough) {
@@ -106,9 +139,9 @@ export async function POST(
           error: "Insufficient tokens",
           required: tokenCost,
           balance,
-          message: `You need ${tokenCost} tokens for a book preview but only have ${balance}. Purchase more tokens to continue.`
+          message: `You need ${tokenCost} token for a book cover but only have ${balance}. Purchase more tokens to continue.`
         },
-        { status: 402 } // Payment Required
+        { status: 402 }
       );
     }
 
@@ -125,12 +158,12 @@ export async function POST(
       );
     }
 
-    // Fetch full character data including physical descriptions
+    // Fetch full character data including generated images
     let characters: CharacterInput[] = [];
     if (characterIds.length > 0) {
       const { data: charData } = await supabase
         .from("characters")
-        .select("id, name, physical_description, character_type, pet_type")
+        .select("id, name, physical_description, character_type, pet_type, generated_image_url, original_photo_url")
         .in("id", characterIds);
       characters = charData || [];
     }
@@ -141,116 +174,147 @@ export async function POST(
       .update({ status: "generating" })
       .eq("id", id);
 
-    // Get story scenes
-    const scenes = storyScenes[storySlug] || storyScenes["dragon-castle-valley"];
+    // Get cover scene for this story
+    const coverScene = storyCoverScenes[storySlug] || defaultCoverScene;
     const styleModifier = artStylePrompts[artStyle] || artStylePrompts.glow;
 
-    // Build detailed character descriptions for consistent appearance
-    const characterDescriptions = characters.map((c) => {
-      if (c.physical_description) {
-        return `${c.name}: ${c.physical_description}`;
-      }
-      // Fallback if no physical description
-      if (c.character_type === "pet") {
-        return `${c.name}: A friendly ${c.pet_type || "pet"} companion`;
-      }
-      return `${c.name}: A warm, friendly character`;
-    }).join("\n");
+    // Build the cover prompt
+    const characterSection = buildCharacterSection(characters);
 
-    const characterNames = characters.map((c) => c.name).join(", ");
-    const hasCharacters = characters.length > 0;
+    const coverPrompt = `# STORYBOOK COVER ILLUSTRATION
 
-    // Generate preview pages (3 pages for preview)
-    const previewScenes = [scenes[0], scenes[2], scenes[4]]; // First, middle, last
+Create a stunning children's book cover illustration for "${coverScene.title}".
+
+## SCENE
+${coverScene.scene}
+
+## SETTING
+${coverScene.setting}
+
+## CHARACTERS
+${characterSection}
+
+## ART STYLE
+${styleModifier}
+
+## COMPOSITION REQUIREMENTS
+- **Format**: Book cover composition (portrait-friendly framing)
+- **Focal point**: Characters should be the clear heroes of the image
+- **Background**: Rich, detailed ${coverScene.setting}
+- **Lighting**: Warm, magical, cinematic quality
+- **Mood**: Exciting, adventurous, and inviting for children ages 4-10
+- **Quality**: Premium children's book illustration, professional publishing quality
+
+## IMPORTANT
+- Characters must match their physical descriptions exactly
+- Maintain consistent art style throughout
+- Create a sense of wonder and adventure
+- Make it feel like the opening to an amazing story
+- No text or titles in the image`;
+
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
-    const generatedPages: { page_number: number; url: string; title: string }[] = [];
 
-    for (let i = 0; i < previewScenes.length; i++) {
-      const scene = previewScenes[i];
+    console.log(`Generating cover for book ${id}, story: ${storySlug}, style: ${artStyle}`);
+    console.log(`Characters: ${characters.map(c => c.name).join(", ") || "none"}`);
 
-      // Build comprehensive prompt with character physical descriptions
-      const prompt = hasCharacters
-        ? `Children's picture book illustration for page ${i + 1}:
+    // Check if we have a character with a generated image to use as reference
+    const characterWithImage = characters.find(c => c.generated_image_url);
 
-Scene: ${scene.scene}
+    let imageBuffer: Buffer | null = null;
 
-Characters in this scene (MUST match these exact physical descriptions):
-${characterDescriptions}
-
-The characters ${characterNames} should be prominently featured in the scene, interacting naturally with the environment.
-
-Art style: ${styleModifier}
-High quality children's book illustration, warm and friendly, suitable for ages 4-10.
-Wide landscape format, vibrant colors, detailed background.
-Keep character appearances consistent with their physical descriptions.`
-        : `Children's picture book illustration for page ${i + 1}:
-${scene.scene}
-Art style: ${styleModifier}
-High quality children's book illustration, warm and friendly, suitable for ages 4-10.
-Wide landscape format, vibrant colors, detailed background.`;
+    if (characterWithImage?.generated_image_url) {
+      // Use images.edit with character image as reference for consistency
+      console.log(`Using ${characterWithImage.name}'s image as reference`);
 
       try {
-        console.log(`Generating page ${i + 1} for book ${id}...`);
-        const response = await openai.images.generate({
-          model: "gpt-image-1.5",
-          prompt,
-          n: 1,
-          size: "1792x1024", // Landscape for book pages
-          quality: "auto",
-        });
+        // Download the character's generated image
+        const charImageResponse = await fetch(characterWithImage.generated_image_url);
+        if (charImageResponse.ok) {
+          const charImageBuffer = Buffer.from(await charImageResponse.arrayBuffer());
+          const charImageBlob = new Blob([charImageBuffer], { type: "image/png" });
+          const charImageFile = new File([charImageBlob], "character.png", { type: "image/png" });
 
-        // Handle both URL and base64 response formats
-        const imageData = response.data?.[0];
-        let imageBuffer: Buffer | null = null;
+          // Use images.edit to maintain character consistency
+          const response = await openai.images.edit({
+            model: "gpt-image-2",
+            image: charImageFile,
+            prompt: coverPrompt,
+            n: 1,
+            size: "1024x1024", // Square for cover
+            quality: "high",
+          });
 
-        if (imageData?.b64_json) {
-          // New API returns base64
-          imageBuffer = Buffer.from(imageData.b64_json, "base64");
-        } else if (imageData?.url) {
-          // Old API returns URL
-          const imageResponse = await fetch(imageData.url);
-          const arrayBuffer = await imageResponse.arrayBuffer();
-          imageBuffer = Buffer.from(arrayBuffer);
-        }
-
-        if (imageBuffer) {
-          const fileName = `${user.id}/${id}/page_${i + 1}.png`;
-
-          const { error: uploadError } = await serviceClient.storage
-            .from("previews")
-            .upload(fileName, imageBuffer, {
-              contentType: "image/png",
-              upsert: true,
-            });
-
-          if (!uploadError) {
-            const { data: { publicUrl } } = serviceClient.storage
-              .from("previews")
-              .getPublicUrl(fileName);
-
-            generatedPages.push({
-              page_number: i + 1,
-              url: publicUrl,
-              title: scene.title,
-            });
-            console.log(`Page ${i + 1} generated successfully`);
-          } else {
-            console.error(`Upload error for page ${i + 1}:`, uploadError);
+          const imageData = response.data?.[0];
+          if (imageData?.b64_json) {
+            imageBuffer = Buffer.from(imageData.b64_json, "base64");
+          } else if (imageData?.url) {
+            const imgResponse = await fetch(imageData.url);
+            imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
           }
         }
-      } catch (genError) {
-        console.error(`Error generating page ${i + 1}:`, genError);
-        // Continue with other pages even if one fails
+      } catch (editError) {
+        console.error("images.edit failed, falling back to generate:", editError);
       }
     }
 
-    // Update book with generated pages
+    // Fallback to images.generate if edit didn't work or no character image
+    if (!imageBuffer) {
+      console.log("Using images.generate (no character reference)");
+
+      const response = await openai.images.generate({
+        model: "gpt-image-1.5",
+        prompt: coverPrompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "high",
+      });
+
+      const imageData = response.data?.[0];
+      if (imageData?.b64_json) {
+        imageBuffer = Buffer.from(imageData.b64_json, "base64");
+      } else if (imageData?.url) {
+        const imgResponse = await fetch(imageData.url);
+        imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
+      }
+    }
+
+    if (!imageBuffer) {
+      throw new Error("Failed to generate cover image");
+    }
+
+    // Upload to storage
+    const fileName = `${user.id}/${id}/cover.png`;
+    const { error: uploadError } = await serviceClient.storage
+      .from("previews")
+      .upload(fileName, imageBuffer, {
+        contentType: "image/png",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      throw new Error("Failed to save cover image");
+    }
+
+    const { data: { publicUrl } } = serviceClient.storage
+      .from("previews")
+      .getPublicUrl(fileName);
+
+    console.log("Cover generated successfully:", publicUrl);
+
+    const generatedPages = [{
+      page_number: 0,
+      url: publicUrl,
+      title: coverScene.title,
+    }];
+
+    // Update book with generated cover
     const { data: updatedBook, error: updateError } = await supabase
       .from("books")
       .update({
         preview_pages: generatedPages,
-        status: generatedPages.length > 0 ? "preview_ready" : "failed",
+        status: "preview_ready",
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
@@ -261,26 +325,21 @@ Wide landscape format, vibrant colors, detailed background.`;
       throw updateError;
     }
 
-    // Deduct tokens only if pages were generated successfully
-    let tokensRemaining = balance;
-    if (generatedPages.length > 0) {
-      const actualCost = generatedPages.length; // 1 token per page actually generated
-      const deductResult = await deductTokens(
-        supabase,
-        user.id,
-        actualCost,
-        "book_preview",
-        id,
-        `Generated ${generatedPages.length} preview pages`
-      );
-      tokensRemaining = deductResult.newBalance;
-    }
+    // Deduct tokens
+    const deductResult = await deductTokens(
+      supabase,
+      user.id,
+      tokenCost,
+      "book_cover",
+      id,
+      `Generated cover for "${coverScene.title}"`
+    );
 
     return NextResponse.json({
       book: updatedBook,
       pages: generatedPages,
-      tokensUsed: generatedPages.length,
-      tokensRemaining,
+      tokensUsed: tokenCost,
+      tokensRemaining: deductResult.newBalance,
     });
   } catch (error) {
     console.error("Generation error:", error);
@@ -292,7 +351,7 @@ Wide landscape format, vibrant colors, detailed background.`;
       .eq("id", id);
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate preview" },
+      { error: error instanceof Error ? error.message : "Failed to generate cover" },
       { status: 500 }
     );
   }

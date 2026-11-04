@@ -1,7 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { TOKEN_COSTS } from "./types";
 
-export type TokenAction = "character_generation" | "book_preview" | "purchase" | "refund" | "signup_bonus";
+export type TokenAction = "character_generation" | "book_cover" | "book_preview" | "purchase" | "refund" | "signup_bonus";
 
 interface DeductResult {
   success: boolean;
