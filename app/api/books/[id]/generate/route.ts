@@ -243,17 +243,17 @@ export async function POST(
     });
 
     // Call OpenAI images.edit with ALL character images as references
-    // The model will use these to understand exactly what each character looks like
-    // Using best quality settings for cover page: landscape format, highest quality
+    // Using gpt-image-1 (best available for image editing with references)
+    // Low resolution for faster generation during testing
     console.log("Calling OpenAI images.edit with multiple character references...");
-    console.log("Settings: model=gpt-image-2, size=1536x1024 (landscape), quality=high");
+    console.log("Settings: model=gpt-image-1, size=1024x1024, quality=low");
     const response = await openai.images.edit({
-      model: "gpt-image-2",
+      model: "gpt-image-1",
       image: characterImageFiles.length === 1 ? characterImageFiles[0] : characterImageFiles,
       prompt,
       n: 1,
-      size: "1536x1024", // Landscape format for book cover - best quality
-      quality: "high", // Highest quality available
+      size: "1024x1024", // Low res for testing
+      quality: "low", // Fast generation for testing
     });
 
     const imageData = response.data?.[0];
