@@ -92,6 +92,21 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-04 PM)
+- [x] **OpenAI Image Editing Pipeline Fix** - Critical overhaul of image generation
+  - Master images now required - API returns clear error if missing instead of generating from scratch
+  - Connected all 6 story cover images to templates (`/images/the-dragon-of-castle-valley.jpg`, etc.)
+  - Added Sharp library for image processing and dimension detection
+  - Dynamic output size based on input orientation (landscape: 1536x1024, portrait: 1024x1536, square: 1024x1024)
+  - New `lib/image-processing.ts` with utilities:
+    - `loadLocalImage()` - Load master images from public folder
+    - `downloadImage()` - Download with metadata and dimension detection
+    - `selectOutputSize()` - Choose best OpenAI output size
+    - `classifyCharacters()` - Categorize guests, protected, unassigned
+    - `compositeEditedImage()` - Post-processing (ready for mask support)
+  - Better logging with image dimensions and classification
+  - Error codes: `MASTER_IMAGE_REQUIRED`, `MASTER_IMAGE_NOT_FOUND`
+
 ### Recent Changes (2026-11-04)
 - [x] **Book generation overhaul** - Complete story templates with character slots
   - Each page has metadata: sceneDescription, setting, mood, character slots (1-5)
@@ -130,9 +145,31 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 ### Needs Setup
 - [ ] Run SQL migration: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS pet_type TEXT;`
 - [ ] Run SQL migration: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS physical_description TEXT;`
+- [ ] Run SQL migration: `ALTER TABLE characters ADD COLUMN IF NOT EXISTS age INTEGER;`
 - [ ] Create "characters" storage bucket in Supabase (for generated illustrations)
 - [ ] Create "previews" storage bucket in Supabase (for book pages)
 - [ ] **Add OpenAI API key to Vercel**: `vercel env add OPENAI_API_KEY`
+
+### Master Image Assets Needed
+The following master illustrations exist in `/public/images/` and are now connected:
+- [x] `the-dragon-of-castle-valley.jpg` → dragon-castle-valley
+- [x] `the-fairy-glade.jpg` → fairy-glade
+- [x] `grand-final-day.jpg` → grand-final-day
+- [x] `captain-of-the-cloud-ship.jpg` → cloud-ship
+- [x] `the-super-squad-and-the-sorceress.jpg` → super-squad
+- [x] `the-great-galaxy-road-trip.jpg` → galaxy-road-trip
+
+Interior pages still need master illustrations:
+- [ ] Dragon of Castle Valley pages 1-5
+- [ ] Fairy Glade pages 1-5
+- [ ] Grand Final Day pages 1-5
+- [ ] Cloud Ship pages 1-5
+- [ ] Super Squad pages 1-5
+- [ ] Galaxy Road Trip pages 1-5
+
+Optional: Character editing masks (for precise region editing):
+- [ ] Per-page PNG masks with white=editable, transparent=protected regions
+- [ ] Store in `/public/masks/{story-slug}/page-{n}.png`
 
 ## API Routes
 

@@ -5,6 +5,14 @@ import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
 import { getStoryTemplate, type PageDefinition } from "@/lib/story-templates";
 import { PRECISE_STYLE_DEFINITIONS, buildPagePrompt } from "@/lib/image-composite";
+import {
+  downloadImage,
+  loadLocalImage,
+  selectOutputSize,
+  classifyCharacters,
+  compositeEditedImage,
+  type ProcessedImage,
+} from "@/lib/image-processing";
 
 // Character from database
 interface CharacterInput {
@@ -14,25 +22,6 @@ interface CharacterInput {
   pet_type?: string;
   age?: number | null;
   generated_image_url?: string;
-}
-
-// Download image as buffer
-async function downloadImage(url: string, label: string): Promise<Buffer> {
-  console.log(`Downloading ${label}...`);
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`DEBUG: Failed to download ${label}. Status: ${response.status}, URL: ${url}`);
-  }
-
-  const buffer = Buffer.from(await response.arrayBuffer());
-
-  if (buffer.length < 1000) {
-    throw new Error(`DEBUG: ${label} is too small (${buffer.length} bytes). URL: ${url}`);
-  }
-
-  console.log(`${label}: ${buffer.length} bytes`);
-  return buffer;
 }
 
 // Build character mapping for this page
@@ -117,13 +106,13 @@ export async function POST(
     // Get story template
     const template = getStoryTemplate(storySlug);
     if (!template) {
-      return NextResponse.json({ error: `DEBUG: Unknown story template: ${storySlug}` }, { status: 400 });
+      return NextResponse.json({ error: `Unknown story template: ${storySlug}` }, { status: 400 });
     }
 
     // Get style definition
     const styleDetails = PRECISE_STYLE_DEFINITIONS[artStyle];
     if (!styleDetails) {
-      return NextResponse.json({ error: `DEBUG: Unknown art style: ${artStyle}` }, { status: 400 });
+      return NextResponse.json({ error: `Unknown art style: ${artStyle}` }, { status: 400 });
     }
 
     // Enforce max 5 characters
@@ -166,7 +155,7 @@ export async function POST(
 
     if (charError) {
       return NextResponse.json(
-        { error: `DEBUG: Failed to fetch characters: ${charError.message}` },
+        { error: `Failed to fetch characters: ${charError.message}` },
         { status: 500 }
       );
     }
@@ -186,45 +175,85 @@ export async function POST(
       );
     }
 
+    const coverPage = template.coverPage;
+
+    // ============================================
+    // CRITICAL: Validate master image exists
+    // ============================================
+    if (!coverPage.originalImageUrl) {
+      return NextResponse.json(
+        {
+          error: "MASTER_IMAGE_REQUIRED",
+          message: `Story "${template.title}" cover page has no master illustration configured. Please contact support to add the original storybook image.`,
+          storySlug,
+          pageNumber: 0,
+        },
+        { status: 400 }
+      );
+    }
+
     // Update status to generating
     await supabase
       .from("books")
       .update({ status: "generating" })
       .eq("id", id);
 
-    const coverPage = template.coverPage;
     const characterMapping = mapCharactersToSlots(characters, coverPage);
 
     console.log("=== BOOK COVER GENERATION ===");
     console.log(`Story: ${template.title} (${storySlug})`);
     console.log(`Style: ${artStyle}`);
+    console.log(`Master image: ${coverPage.originalImageUrl}`);
     console.log(`Protected characters: ${template.protectedCharacters?.join(", ") || "none"}`);
     console.log(`Characters (${characters.length}):`);
     characters.forEach((c, i) => {
       console.log(`  ${i + 1}. ${c.name} -> Slot ${characterMapping[i]?.slot} (${characterMapping[i]?.role})`);
     });
 
-    // Download master page (cover template) if available
-    let masterPageBuffer: Buffer | null = null;
-    if (coverPage.originalImageUrl) {
-      masterPageBuffer = await downloadImage(
+    // ============================================
+    // Load master page from local public folder
+    // ============================================
+    let masterPage: ProcessedImage;
+    try {
+      masterPage = await loadLocalImage(
         coverPage.originalImageUrl,
         "Master page (cover template)"
       );
-      console.log("Master page downloaded:", masterPageBuffer.length, "bytes");
-    } else {
-      console.log("No master page template - will generate scene from scratch");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      // If master image is missing, return clear error instead of generating from scratch
+      if (msg.includes("MASTER_IMAGE_MISSING")) {
+        return NextResponse.json(
+          {
+            error: "MASTER_IMAGE_NOT_FOUND",
+            message: `The master illustration for "${template.title}" cover could not be loaded. File path: ${coverPage.originalImageUrl}`,
+            storySlug,
+            pageNumber: 0,
+          },
+          { status: 500 }
+        );
+      }
+      throw error;
     }
 
+    console.log(`Master page loaded: ${masterPage.dimensions.width}x${masterPage.dimensions.height} (${masterPage.dimensions.orientation})`);
+
     // Download ALL character images (guest references)
-    const characterImageBuffers: Buffer[] = [];
+    const characterImages: ProcessedImage[] = [];
     for (const char of characters) {
-      const buffer = await downloadImage(
+      const image = await downloadImage(
         char.generated_image_url!,
         `Character "${char.name}"`
       );
-      characterImageBuffers.push(buffer);
+      characterImages.push(image);
     }
+
+    // Classify characters for the prompt
+    const classification = classifyCharacters(
+      characterMapping,
+      template.protectedCharacters || [],
+      5
+    );
 
     // Build the precision character replacement prompt
     const prompt = buildPagePrompt({
@@ -242,45 +271,56 @@ export async function POST(
     console.log(prompt);
     console.log("=== END PROMPT ===\n");
 
+    console.log("\n=== CHARACTER CLASSIFICATION ===");
+    console.log(`Guest characters: ${classification.guestCharacters.map(c => `${c.name} (Slot ${c.slot})`).join(", ")}`);
+    console.log(`Protected: ${classification.protectedCharacters.join(", ") || "none"}`);
+    console.log(`Unassigned slots to remove: ${classification.unassignedSlots.join(", ") || "none"}`);
+    console.log("===\n");
+
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
 
+    // ============================================
     // Build image array: IMAGE 1 = master page, IMAGES 2+ = guest characters
+    // ============================================
     const allImageFiles: File[] = [];
 
-    // IMAGE 1: Master page (cover template) - if available
-    if (masterPageBuffer) {
-      const masterBlob = new Blob([new Uint8Array(masterPageBuffer)], { type: "image/png" });
-      const masterFile = new File([masterBlob], "1-master-page.png", { type: "image/png" });
-      allImageFiles.push(masterFile);
-      console.log("IMAGE 1: Master page template");
-    }
+    // IMAGE 1: Master page (REQUIRED)
+    const masterBlob = new Blob([new Uint8Array(masterPage.buffer)], { type: "image/png" });
+    const masterFile = new File([masterBlob], "1-master-page.png", { type: "image/png" });
+    allImageFiles.push(masterFile);
+    console.log(`IMAGE 1: Master page (${masterPage.dimensions.width}x${masterPage.dimensions.height})`);
 
     // IMAGES 2+: Guest character references
-    characterImageBuffers.forEach((buffer, index) => {
-      const imageNum = masterPageBuffer ? index + 2 : index + 1;
-      const blob = new Blob([new Uint8Array(buffer)], { type: "image/png" });
+    characterImages.forEach((image, index) => {
+      const imageNum = index + 2;
+      const blob = new Blob([new Uint8Array(image.buffer)], { type: "image/png" });
       const charName = characters[index].name.replace(/[^a-zA-Z0-9]/g, "-");
       const file = new File([blob], `${imageNum}-guest-${charName}.png`, { type: "image/png" });
       allImageFiles.push(file);
-      console.log(`IMAGE ${imageNum}: Guest "${characters[index].name}"`);
+      console.log(`IMAGE ${imageNum}: Guest "${characters[index].name}" (${image.dimensions.width}x${image.dimensions.height})`);
     });
+
+    // ============================================
+    // Determine output size based on master image orientation
+    // ============================================
+    const outputSize = selectOutputSize(masterPage.dimensions);
+    console.log(`\nOutput size: ${outputSize} (based on ${masterPage.dimensions.orientation} input)`);
 
     // Call OpenAI images.edit
     // Using gpt-image-2.5-sunburst (best model) with high quality
-    // Low resolution, JPEG output format
     console.log("\nCalling OpenAI images.edit...");
-    console.log("Settings: model=gpt-image-2.5-sunburst, size=1024x1024, quality=high, output=jpeg");
+    console.log(`Settings: model=gpt-image-2.5-sunburst, size=${outputSize}, quality=high, output=jpeg`);
     console.log(`Total images: ${allImageFiles.length}`);
 
     const response = await openai.images.edit({
       model: "gpt-image-2.5-sunburst",
-      image: allImageFiles.length === 1 ? allImageFiles[0] : allImageFiles,
+      image: allImageFiles,
       prompt,
       n: 1,
-      size: "1024x1024", // Low res
-      quality: "high", // Best quality
-      output_format: "jpeg", // JPEG format
+      size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+      quality: "high",
+      output_format: "jpeg",
     });
 
     const imageData = response.data?.[0];
@@ -291,28 +331,37 @@ export async function POST(
     } else if (imageData?.url) {
       const imgResponse = await fetch(imageData.url);
       if (!imgResponse.ok) {
-        throw new Error(`DEBUG: Failed to download generated image. Status: ${imgResponse.status}`);
+        throw new Error(`Failed to download generated image. Status: ${imgResponse.status}`);
       }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
 
     if (!outputBuffer) {
-      throw new Error("DEBUG: OpenAI returned no image data");
+      throw new Error("OpenAI returned no image data");
     }
 
     console.log(`Cover generated: ${outputBuffer.length} bytes`);
+
+    // ============================================
+    // Post-processing: Composite edited regions onto original
+    // This helps preserve original pixels outside edit regions
+    // ============================================
+    // For now, we skip compositing as we don't have per-page masks yet
+    // In production, this would composite only the character regions
+    const finalBuffer = await compositeEditedImage(masterPage, outputBuffer);
+    console.log(`Final image: ${finalBuffer.length} bytes`);
 
     // Upload to storage (JPEG format)
     const fileName = `${user.id}/${id}/cover.jpg`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
-      .upload(fileName, outputBuffer, {
+      .upload(fileName, finalBuffer, {
         contentType: "image/jpeg",
         upsert: true,
       });
 
     if (uploadError) {
-      throw new Error(`DEBUG: Storage upload failed: ${uploadError.message}`);
+      throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
 
     const { data: { publicUrl } } = serviceClient.storage
@@ -340,6 +389,8 @@ export async function POST(
           characterIds,
           characterCount: characters.length,
           characterMapping,
+          outputSize, // Track what size was used
+          masterImageUrl: coverPage.originalImageUrl,
         },
         updated_at: new Date().toISOString(),
       })
@@ -348,7 +399,7 @@ export async function POST(
       .single();
 
     if (updateError) {
-      throw new Error(`DEBUG: Book update failed: ${updateError.message}`);
+      throw new Error(`Book update failed: ${updateError.message}`);
     }
 
     // Deduct tokens

@@ -51,7 +51,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The heroes stand at the edge of a mystical valley, gazing at a magnificent glowing castle on a distant hilltop. A friendly golden dragon soars overhead against a dramatic sunset sky. This is the beginning of their grand adventure.",
       setting: "Mystical valley edge at sunset. Rolling green hills with ancient twisted trees. Glowing amber castle on distant hilltop. Purple and orange sunset sky with wispy clouds. Golden dragon silhouette flying overhead.",
       mood: "Exciting, hopeful, adventurous beginning",
-      originalImageUrl: null, // TODO: Add template image URL
+      originalImageUrl: "/images/the-dragon-of-castle-valley.jpg",
       characters: [
         { slot: 1, role: "Hero", action: "Standing boldly, pointing toward the distant castle", position: "foreground-center", required: true },
         { slot: 2, role: "Brave Companion", action: "Standing beside hero, one hand shielding eyes to look at dragon", position: "foreground-left", required: false },
@@ -151,7 +151,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The adventurers stand at the entrance to an enchanted forest glade. Glowing fireflies create a magical path leading deeper into the woods. Tiny fairy houses nestle in giant colorful mushrooms, and sparkles of magic dust float in the moonlit air.",
       setting: "Moonlit forest glade entrance. Giant bioluminescent mushrooms in purple, blue, and pink. Tiny glowing fairy houses with round doors. Fireflies creating a dotted light path. Silver moonbeams through canopy. Magic dust particles floating.",
       mood: "Magical, wonder-filled, enchanting",
-      originalImageUrl: null,
+      originalImageUrl: "/images/the-fairy-glade.jpg",
       characters: [
         { slot: 1, role: "Curious Explorer", action: "Reaching out to touch a hovering firefly", position: "foreground-center", required: true },
         { slot: 2, role: "Wonder-Struck Friend", action: "Looking up at floating fairies with jaw dropped", position: "foreground-right", required: false },
@@ -175,7 +175,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The championship team stands proudly on a sunlit sports field. The golden trophy gleams nearby as colorful confetti falls from the bright blue sky. The stadium crowd goes wild in the background.",
       setting: "Sports stadium at golden hour. Lush green grass field with white line markings. Golden championship trophy on pedestal. Confetti falling everywhere. Packed stadium stands with cheering crowd. Clear blue sky.",
       mood: "Triumphant, celebratory, proud",
-      originalImageUrl: null,
+      originalImageUrl: "/images/grand-final-day.jpg",
       characters: [
         { slot: 1, role: "Team Captain", action: "Lifting the trophy high above head with both hands", position: "foreground-center", required: true },
         { slot: 2, role: "Star Player", action: "Arms raised in V for victory, huge grin", position: "foreground-left", required: false },
@@ -199,7 +199,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The crew stands on the deck of a magnificent flying galleon, sailing through a sea of fluffy white clouds. The ship has billowing golden sails and the sun creates a warm glow. Rainbows arc in the distance.",
       setting: "High above the clouds at golden hour. Magnificent wooden flying ship with golden sails. Fluffy white clouds below and around. Rainbow arcing in distance. Warm sunlight bathing everything in gold. Birds flying alongside.",
       mood: "Adventurous, free, majestic",
-      originalImageUrl: null,
+      originalImageUrl: "/images/captain-of-the-cloud-ship.jpg",
       characters: [
         { slot: 1, role: "Ship Captain", action: "At the helm, hands on wheel, looking heroic", position: "ship-wheel-center", required: true },
         { slot: 2, role: "First Mate", action: "Standing beside captain with telescope", position: "helm-right", required: false },
@@ -223,7 +223,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The superhero team stands heroically on a rooftop, overlooking a colorful city skyline at golden hour. Their capes flutter in the breeze as they prepare to save the day. The sky behind them is dramatic with sunset colors.",
       setting: "City rooftop at sunset. Vibrant cityscape with colorful buildings below. Dramatic orange and purple sunset sky. Wind creating cape movement. Heroic backlit silhouette effect with sun behind.",
       mood: "Heroic, powerful, ready for action",
-      originalImageUrl: null,
+      originalImageUrl: "/images/the-super-squad-and-the-sorceress.jpg",
       characters: [
         { slot: 1, role: "Team Leader", action: "Power pose with hands on hips, cape flowing majestically", position: "foreground-center", required: true },
         { slot: 2, role: "Flying Hero", action: "Hovering slightly off the ground, ready to launch", position: "foreground-right-above", required: false },
@@ -247,7 +247,7 @@ export const STORY_TEMPLATES: Record<string, StoryTemplate> = {
       sceneDescription: "The crew looks out from inside a retro-futuristic rocket ship cockpit. Through the large curved windows, a dazzling galaxy spreads before them with colorful planets, sparkling stars, and swirling purple nebulae.",
       setting: "Inside spacecraft cockpit. Curved panoramic windows. Colorful control panels with glowing buttons. View of space with Saturn-like ringed planet, colorful nebula, countless stars. Cozy retro-futuristic interior.",
       mood: "Wonder-filled, exciting, cosmic adventure",
-      originalImageUrl: null,
+      originalImageUrl: "/images/the-great-galaxy-road-trip.jpg",
       characters: [
         { slot: 1, role: "Pilot", action: "Hands on controls, piloting through an asteroid field", position: "pilot-seat-center", required: true },
         { slot: 2, role: "Co-Pilot", action: "Pointing excitedly at a ringed planet through window", position: "co-pilot-seat", required: false },
