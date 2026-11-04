@@ -20,56 +20,50 @@ interface PreviewPage {
 
 type Step = "characters" | "story" | "style" | "preview";
 
-const stories = [
-  {
-    slug: "dragon-castle-valley",
-    title: "The Dragon of Castle Valley",
-    tagline: "A dragon guards the road to the glowing castle.",
-    cast: 4,
-    category: "fantasy",
-    image: "/images/the-dragon-of-castle-valley.jpg",
-  },
-  {
-    slug: "fairy-glade",
-    title: "The Fairy Glade",
-    tagline: "Follow the fireflies to where the fairies are waiting.",
-    cast: 4,
-    category: "magical",
-    image: "/images/the-fairy-glade.jpg",
-  },
-  {
-    slug: "grand-final-day",
-    title: "Grand Final Day",
-    tagline: "One game, one final siren, one family cheering.",
-    cast: 5,
-    category: "sports",
-    image: "/images/grand-final-day.jpg",
-  },
-  {
-    slug: "cloud-ship",
-    title: "Captain of the Cloud Ship",
-    tagline: "Take the helm of a flying ship through the clouds.",
-    cast: 4,
-    category: "adventure",
-    image: "/images/captain-of-the-cloud-ship.jpg",
-  },
-  {
-    slug: "super-squad",
-    title: "The Super Squad",
-    tagline: "Suit up to save the city from a cheeky sorceress.",
-    cast: 4,
-    category: "superhero",
-    image: "/images/the-super-squad-and-the-sorceress.jpg",
-  },
-  {
-    slug: "galaxy-road-trip",
-    title: "The Great Galaxy Road Trip",
-    tagline: "Blast off through the solar system and back before bedtime.",
-    cast: 4,
-    category: "space",
-    image: "/images/the-great-galaxy-road-trip.jpg",
-  },
-];
+// Category icons/emojis
+const categoryIcons: Record<string, string> = {
+  fantasy: "🐉",
+  magical: "✨",
+  sports: "🏆",
+  adventure: "⛵",
+  superhero: "🦸",
+  space: "🚀",
+};
+
+const categoryColors: Record<string, string> = {
+  fantasy: "from-purple-600 to-indigo-800",
+  magical: "from-pink-500 to-purple-700",
+  sports: "from-green-500 to-teal-700",
+  adventure: "from-cyan-500 to-blue-700",
+  superhero: "from-red-500 to-orange-600",
+  space: "from-indigo-600 to-violet-800",
+};
+
+// Fallback images for stories by slug
+const storyImages: Record<string, string> = {
+  "dragon-castle-valley": "/images/the-dragon-of-castle-valley.jpg",
+  "fairy-glade": "/images/the-fairy-glade.jpg",
+  "grand-final-day": "/images/grand-final-day.jpg",
+  "cloud-ship": "/images/captain-of-the-cloud-ship.jpg",
+  "super-squad": "/images/the-super-squad-and-the-sorceress.jpg",
+  "galaxy-road-trip": "/images/the-great-galaxy-road-trip.jpg",
+  "the-dragon-of-castle-valley": "/images/the-dragon-of-castle-valley.jpg",
+  "the-fairy-glade": "/images/the-fairy-glade.jpg",
+  "captain-of-the-cloud-ship": "/images/captain-of-the-cloud-ship.jpg",
+  "the-super-squad-and-the-sorceress": "/images/the-super-squad-and-the-sorceress.jpg",
+  "the-great-galaxy-road-trip": "/images/the-great-galaxy-road-trip.jpg",
+};
+
+interface Story {
+  id: string;
+  slug: string;
+  title: string;
+  tagline: string;
+  category: string;
+  page_count: number;
+  is_featured?: boolean;
+  cover_image_url?: string;
+}
 
 const artStyles = [
   { slug: "glow", name: "Enchanted glow", desc: "Rich painted light with golden sparkles", image: "/images/enchanted-glow.jpg" },
@@ -111,6 +105,11 @@ export default function CreatePage() {
   const [showBookViewer, setShowBookViewer] = useState(false);
   const [bookError, setBookError] = useState<string | null>(null);
 
+  // Stories from API
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loadingStories, setLoadingStories] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
   // Auth state
   const [user, setUser] = useState<User | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -145,6 +144,24 @@ export default function CreatePage() {
       // Ignore errors
     }
   };
+
+  // Fetch stories
+  useEffect(() => {
+    async function fetchStories() {
+      setLoadingStories(true);
+      try {
+        const res = await fetch("/api/stories");
+        if (res.ok) {
+          const data = await res.json();
+          setStories(data.stories || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stories:", error);
+      }
+      setLoadingStories(false);
+    }
+    fetchStories();
+  }, []);
 
   // Fetch user and characters on mount
   useEffect(() => {
@@ -964,45 +981,204 @@ export default function CreatePage() {
           {/* Step 2: Choose Story */}
           {currentStep === "story" && (
             <div>
-              <h1 className="text-4xl font-black text-white mb-2">
-                Choose your adventure
-              </h1>
-              <p className="text-lg text-text-muted mb-8">
-                Pick a world for your characters to explore.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {stories.map((story) => (
-                  <button
-                    key={story.slug}
-                    onClick={() => setSelectedStory(story.slug)}
-                    className={`text-left bg-brand-purple-light border rounded-2xl overflow-hidden transition-all ${
-                      selectedStory === story.slug
-                        ? "border-accent-gold ring-2 ring-accent-gold"
-                        : "border-brand-purple-muted hover:border-accent-gold/50"
-                    }`}
-                  >
-                    <div className="h-40 bg-gradient-to-br from-[#2C4F3E] to-[#1B1446] overflow-hidden">
-                      <img
-                        src={story.image}
-                        alt={story.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <span className="text-xs font-bold text-accent-gold uppercase">
-                        {story.category} · {story.cast} characters
-                      </span>
-                      <h3 className="text-xl font-black text-white mt-1">
-                        {story.title}
-                      </h3>
-                      <p className="text-text-muted text-sm mt-1">
-                        {story.tagline}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+              {/* Header */}
+              <div className="text-center mb-10">
+                <h1 className="text-4xl font-black text-white mb-3">
+                  Choose your adventure
+                </h1>
+                <p className="text-lg text-text-muted max-w-2xl mx-auto">
+                  Pick a world for your characters to explore. Each adventure has unique settings and stories waiting to be told.
+                </p>
               </div>
+
+              {/* Category filter */}
+              {(() => {
+                const categories = [...new Set(stories.map((s) => s.category).filter(Boolean))];
+                return (
+                  <div className="flex flex-wrap justify-center gap-3 mb-10">
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className={`px-5 py-2 rounded-full font-bold transition-all ${
+                        selectedCategory === null
+                          ? "bg-accent-gold text-brand-dark"
+                          : "bg-brand-purple-light text-text-muted hover:text-white border border-brand-purple-muted"
+                      }`}
+                    >
+                      All worlds
+                    </button>
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
+                        className={`px-5 py-2 rounded-full font-bold transition-all flex items-center gap-2 ${
+                          selectedCategory === cat
+                            ? "bg-accent-gold text-brand-dark"
+                            : "bg-brand-purple-light text-text-muted hover:text-white border border-brand-purple-muted"
+                        }`}
+                      >
+                        <span>{categoryIcons[cat] || "📖"}</span>
+                        <span className="capitalize">{cat}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {loadingStories ? (
+                <div className="text-center py-20">
+                  <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-text-muted">Loading story worlds...</p>
+                </div>
+              ) : (
+                (() => {
+                  const filteredStories = selectedCategory
+                    ? stories.filter((s) => s.category === selectedCategory)
+                    : stories;
+                  const featuredStories = filteredStories.filter((s) => s.is_featured);
+                  const otherStories = filteredStories.filter((s) => !s.is_featured);
+
+                  return (
+                    <>
+                      {/* Featured stories */}
+                      {featuredStories.length > 0 && (
+                        <div className="mb-10">
+                          <h2 className="text-xl font-black text-white mb-5 flex items-center gap-2">
+                            <span className="text-accent-gold">★</span> Featured Adventures
+                          </h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {featuredStories.map((story) => {
+                              const isSelected = selectedStory === story.slug;
+                              const gradient = categoryColors[story.category] || "from-purple-600 to-indigo-800";
+                              const icon = categoryIcons[story.category] || "📖";
+                              const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
+
+                              return (
+                                <button
+                                  key={story.slug}
+                                  onClick={() => setSelectedStory(story.slug)}
+                                  className={`group block text-left transition-all ${
+                                    isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
+                                  }`}
+                                >
+                                  <div className="relative rounded-3xl overflow-hidden ring-2 ring-accent-gold">
+                                    <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
+                                      {imageUrl ? (
+                                        <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <span className="text-8xl opacity-50">{icon}</span>
+                                        </div>
+                                      )}
+                                      <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                                        <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
+                                          {isSelected ? "✓ Selected" : "Select this world"}
+                                        </span>
+                                      </div>
+                                      <div className="absolute top-4 right-4 bg-accent-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">
+                                        ★ Featured
+                                      </div>
+                                      <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
+                                        <span>{icon}</span>
+                                        {story.category}
+                                      </div>
+                                    </div>
+                                    <div className="bg-brand-purple-light p-5">
+                                      <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
+                                        {story.title}
+                                      </h3>
+                                      <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
+                                      <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
+                                        <span>{story.page_count} pages</span>
+                                        <span className="flex items-center gap-1">
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                          </svg>
+                                          Ages 4-10
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Other stories */}
+                      {otherStories.length > 0 && (
+                        <div>
+                          <h2 className="text-xl font-black text-white mb-5">
+                            {featuredStories.length > 0 ? "More Adventures" : "All Adventures"}
+                          </h2>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {otherStories.map((story) => {
+                              const isSelected = selectedStory === story.slug;
+                              const gradient = categoryColors[story.category] || "from-purple-600 to-indigo-800";
+                              const icon = categoryIcons[story.category] || "📖";
+                              const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
+
+                              return (
+                                <button
+                                  key={story.slug}
+                                  onClick={() => setSelectedStory(story.slug)}
+                                  className={`group block text-left transition-all ${
+                                    isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
+                                  }`}
+                                >
+                                  <div className="relative rounded-3xl overflow-hidden">
+                                    <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
+                                      {imageUrl ? (
+                                        <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <span className="text-8xl opacity-50">{icon}</span>
+                                        </div>
+                                      )}
+                                      <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                                        <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
+                                          {isSelected ? "✓ Selected" : "Select this world"}
+                                        </span>
+                                      </div>
+                                      <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
+                                        <span>{icon}</span>
+                                        {story.category}
+                                      </div>
+                                    </div>
+                                    <div className="bg-brand-purple-light p-5">
+                                      <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
+                                        {story.title}
+                                      </h3>
+                                      <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
+                                      <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
+                                        <span>{story.page_count} pages</span>
+                                        <span className="flex items-center gap-1">
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                          </svg>
+                                          Ages 4-10
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {filteredStories.length === 0 && (
+                        <div className="text-center py-20">
+                          <p className="text-text-muted text-lg">
+                            No stories found in this category.
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
+              )}
             </div>
           )}
 
