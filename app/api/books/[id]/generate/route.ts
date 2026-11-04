@@ -243,17 +243,18 @@ export async function POST(
     });
 
     // Call OpenAI images.edit with ALL character images as references
-    // Using gpt-image-1 (best available for image editing with references)
-    // Low resolution for faster generation during testing
+    // Using gpt-image-2.5-sunburst (best model) with high quality
+    // Low resolution, JPEG output format
     console.log("Calling OpenAI images.edit with multiple character references...");
-    console.log("Settings: model=gpt-image-1, size=1024x1024, quality=low");
+    console.log("Settings: model=gpt-image-2.5-sunburst, size=1024x1024, quality=high, output=jpeg");
     const response = await openai.images.edit({
-      model: "gpt-image-1",
+      model: "gpt-image-2.5-sunburst",
       image: characterImageFiles.length === 1 ? characterImageFiles[0] : characterImageFiles,
       prompt,
       n: 1,
-      size: "1024x1024", // Low res for testing
-      quality: "low", // Fast generation for testing
+      size: "1024x1024", // Low res
+      quality: "high", // Best quality
+      output_format: "jpeg", // JPEG format
     });
 
     const imageData = response.data?.[0];
@@ -275,12 +276,12 @@ export async function POST(
 
     console.log(`Cover generated: ${outputBuffer.length} bytes`);
 
-    // Upload to storage
-    const fileName = `${user.id}/${id}/cover.png`;
+    // Upload to storage (JPEG format)
+    const fileName = `${user.id}/${id}/cover.jpg`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
       .upload(fileName, outputBuffer, {
-        contentType: "image/png",
+        contentType: "image/jpeg",
         upsert: true,
       });
 
