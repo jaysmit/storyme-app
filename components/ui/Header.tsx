@@ -266,16 +266,28 @@ export default function Header({ theme = "dark" }: HeaderProps) {
             </div>
           </>
         ) : (
-          <Link
-            href="/login"
-            className="hidden md:block font-bold py-2 no-underline"
-            style={{
-              color: textColor,
-              borderBottom: `3px solid ${pathname === "/login" ? accentLine : "transparent"}`,
-            }}
-          >
-            Log in
-          </Link>
+          <div className="hidden md:flex items-center gap-4">
+            <Link
+              href="/login"
+              className="font-bold py-2 no-underline"
+              style={{
+                color: textColor,
+                borderBottom: `3px solid ${pathname === "/login" ? accentLine : "transparent"}`,
+              }}
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register"
+              className="font-bold py-2 no-underline"
+              style={{
+                color: textColor,
+                borderBottom: `3px solid ${pathname === "/register" ? accentLine : "transparent"}`,
+              }}
+            >
+              Sign up
+            </Link>
+          </div>
         )}
 
         {/* CTA Button - compact on mobile */}
@@ -323,14 +335,24 @@ export default function Header({ theme = "dark" }: HeaderProps) {
               </Link>
             ))}
             {!user && (
-              <Link
-                href="/login"
-                className="px-4 py-2.5 text-sm font-bold no-underline"
-                style={{ color: textColor }}
-                onClick={() => setShowMobileMenu(false)}
-              >
-                Log in
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2.5 text-sm font-bold no-underline"
+                  style={{ color: textColor }}
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2.5 text-sm font-bold no-underline"
+                  style={{ color: textColor }}
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  Sign up
+                </Link>
+              </>
             )}
             {user && (
               <button
