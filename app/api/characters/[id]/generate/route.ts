@@ -107,34 +107,182 @@ export async function POST(
 
     // Build feedback section if provided
     const feedbackSection = userFeedback
-      ? `\n\n**USER REQUESTED CHANGES:**\n${userFeedback}`
+      ? `\n\n## 10. USER REQUESTED CHANGES\n${userFeedback}`
       : "";
 
-    const prompt = `Transform this ${character.character_type === "pet" ? character.pet_type || "pet" : "person"} into a charming children's storybook character.
+    // Adjust prompt for pets vs people
+    const isPet = character.character_type === "pet";
+    const subjectType = isPet ? (character.pet_type || "pet") : "person";
 
-Keep the same recognisable facial features, hairstyle${character.character_type === "person" ? ", stubble" : ""} and expression.
+    const prompt = `# STORYME — CHARACTER GENERATION PROMPT
 
-**STYLE:**
-Bright, friendly animated storybook illustration with:
-- Warm, clean shading
-- Large, expressive cartoon eyes
-- Slightly exaggerated facial features
-- Rounded, simplified facial shapes
-- Smooth, illustrated skin without realistic textures
-- Playful, appealing character proportions
-- Clean outlines and vibrant colours
+Transform the ${subjectType} in the uploaded reference photograph into a premium, highly stylised 3D animated children's storybook character.
 
-**FACIAL IDENTITY:**
-Preserve the subject's distinctive nose, mouth, smile, eye shape, eye spacing, face shape, hairstyle${character.character_type === "person" ? " and facial hair" : ""}.
+Use the uploaded photograph as the primary reference for the ${subjectType}'s identity, while transforming their appearance into a charming, exaggerated, beautifully polished animated character.
 
-Exaggerate the existing features rather than replacing them with generic cartoon features.
+## 1. ART STYLE — CRITICAL
 
-**IMPORTANT:**
-The result should look like a professionally illustrated animated children's book character, NOT a realistic or semi-realistic portrait.
+Create a vibrant, highly stylised 3D animated character with the visual quality of a premium animated family adventure film.
 
-Avoid photorealism, realistic skin textures, detailed pores and photographic lighting.
+The character must look unmistakably cartoonish, NOT photorealistic or semi-realistic.
 
-Use a clean white background with the character centred, showing their head and upper body.${feedbackSection}`;
+**Character proportions:**
+- Noticeably oversized head relative to the shoulders and body.
+- Large, rounded, expressive cartoon eyes.
+- Soft, rounded cheeks with exaggerated youthful proportions.
+- Small, simplified, softly sculpted nose.
+- Wide, expressive mouth with a joyful, natural smile.
+- Slightly exaggerated ears where appropriate.
+- Smooth, rounded jawline and simplified facial structure.
+- Rich, voluminous, sculpted hair with playful flowing strands.
+- Appealing, slightly exaggerated facial proportions that feel intentionally designed rather than anatomically realistic.
+
+The character should resemble a lovable animated storybook hero, not a realistic adult with enlarged eyes.
+
+## 2. EYE ALIGNMENT — EXTREMELY IMPORTANT
+
+**Both eyes must be perfectly coordinated and looking in exactly the same direction.**
+
+Follow these anatomical and visual requirements:
+
+- Both eyes must be positioned naturally and evenly on the face.
+- Both pupils must look straight ahead, directly towards the viewer.
+- Both pupils must be centred consistently within their respective irises.
+- Both irises must have matching horizontal and vertical gaze directions.
+- The eyes must focus on the same distant point, not converge towards the nose.
+- Maintain parallel, coordinated gaze direction between both eyes.
+- Ensure both pupils sit at equivalent relative positions within their respective eye openings.
+- Both eyes should have consistent iris size, pupil size and overall proportions.
+- Eye highlights and reflections should appear consistent with the same lighting source.
+- Do not position either pupil noticeably closer to the nose than the other.
+- Do not allow one eye to look upwards, downwards, inwards or sideways independently.
+- Avoid excessive inward rotation of the eyeballs.
+- The eyes must look naturally aligned, balanced, expressive and visually comfortable.
+
+**FINAL EYE VALIDATION:**
+
+Before completing the image, visually check both eyes.
+
+Imagine drawing a straight horizontal line through the centre of both pupils. Both pupils should sit at the same vertical level when the face is directly facing forward.
+
+The character must appear to be looking at the viewer with two naturally coordinated eyes.
+
+**ABSOLUTELY NO:**
+- Crossed eyes
+- Wall-eyed appearance
+- Misaligned pupils
+- Uneven gaze directions
+- Inward-pointing pupils
+- Asymmetrical iris placement
+- One eye looking at a different target
+- Unnatural eye convergence
+
+Eye alignment takes priority over exaggerated eye size. If necessary, slightly reduce eye exaggeration to maintain correct alignment.
+
+## 3. IDENTITY PRESERVATION
+
+Preserve the recognisable identity of the ${subjectType} in the uploaded photograph.
+
+Maintain their:
+- Hair colour, hairstyle and general hairline.
+- Eye colour.
+- Distinctive eyebrow shape.
+- Recognisable nose and mouth characteristics.
+- General face shape, translated into cartoon proportions.
+${isPet ? "" : "- Facial hair, freckles and distinctive features where present.\n"}- Approximate age and recognisable appearance.
+
+Do not copy realistic facial geometry exactly.
+
+Instead, reinterpret the ${subjectType}'s distinctive features into a cohesive animated character design.
+
+The final character should be recognisable as the ${subjectType} in the photograph while looking substantially more cartoonish.
+
+Do not introduce freckles, facial hair or other distinctive features that are not present in the reference photograph.
+
+## 4. FACIAL EXPRESSION
+
+Give the character a joyful, charming and adventurous personality.
+
+- Bright, expressive eyes.
+- Naturally raised, animated eyebrows.
+- A large, warm, enthusiastic smile.
+- Softly rounded, slightly rosy cheeks.
+- An energetic, friendly and lovable expression.
+- A subtle playful head tilt, provided eye alignment remains correct.
+
+The expression should feel full of life, wonder and personality.
+
+## 5. LIGHTING, COLOUR AND HIGHLIGHTS
+
+Use beautiful, premium cinematic animated-film lighting.
+
+**Lighting requirements:**
+- Warm golden key lighting illuminating the face.
+- Soft, luminous highlights across the cheeks, forehead and nose.
+- Beautiful golden rim lighting around the hair and shoulders.
+- Rich, glowing highlights along individual sculpted hair strands.
+- Bright, clean catchlights in both eyes, consistent with the lighting direction.
+- Soft, realistic-looking 3D depth without photographic skin detail.
+- Gentle subsurface scattering for a smooth, luminous cartoon appearance.
+- Warm, vibrant colours with rich contrast and depth.
+- Subtle magical warmth and an inviting storybook atmosphere.
+
+The character should feel bright, colourful, beautifully illuminated and visually striking.
+
+Avoid dull, flat lighting or muted photographic colours.
+
+## 6. HAIR AND MATERIAL DETAIL
+
+Hair should be highly stylised, voluminous and beautifully sculpted.
+
+- Use exaggerated flowing locks and playful shapes.
+- Create dimensional strands with soft golden highlights.
+- Maintain the original hairstyle and colour.
+- Avoid overly realistic individual hair fibres.
+
+Skin should be smooth, soft and stylised, with simplified textures.
+
+Clothing should have rich, appealing colours, softly sculpted folds and polished animated materials.
+
+## 7. COMPOSITION
+
+- Portrait orientation.
+- Head and upper body visible.
+- Character centred in the frame.
+- Face directed towards the camera.
+- Both eyes clearly visible.
+- Entire hairstyle visible without cropping.
+- Pure white background (#FFFFFF).
+- No scenery, text or additional characters.
+- Clean character presentation suitable for use as a reusable reference in future storybook illustrations.
+
+Clothing should generally resemble the reference photograph unless alternative clothing is specifically requested.
+
+## 8. STYLE RESTRICTIONS
+
+**AVOID:**
+- Photorealism or semi-realism.
+- Realistic adult facial anatomy.
+- Photographic skin pores and wrinkles.
+- Uncanny-valley facial features.
+- Crossed or misaligned eyes.
+- Excessively realistic facial hair.
+- Flat 2D cartoon illustrations.
+- Anime or comic-book styles.
+- Watercolour or pencil sketch effects.
+- Generic AI portrait aesthetics.
+- Dull lighting or washed-out colours.
+- Overly exaggerated features that make the ${subjectType} unrecognisable.
+
+## 9. FINAL QUALITY CHECK
+
+Before finalising, ensure:
+
+1. The ${subjectType} is recognisable from the original photograph.
+2. The character looks clearly and substantially cartoonish.
+3. Both eyes are aligned and focused in exactly the same direction.
+4. The lighting is warm, vibrant and cinematic.
+5. The composition is clean with a pure white background.${feedbackSection}`;
 
     // Step 3: Use images.edit to transform the photo
     // StoryMe character generation settings
