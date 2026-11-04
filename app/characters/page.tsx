@@ -93,6 +93,7 @@ export default function CharactersPage() {
             characterType: "person",
             petType: "",
             customType: "",
+            age: null,
             saving: false,
           },
           ...prev,
@@ -146,6 +147,7 @@ export default function CharactersPage() {
           photoBase64: pending.photoBase64,
           characterType: pending.characterType,
           petType: petTypeToSave,
+          age: pending.age,
         }),
       });
 

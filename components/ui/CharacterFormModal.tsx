@@ -21,6 +21,7 @@ export interface PendingCharacter {
   characterType: "person" | "pet" | "other";
   petType: string;
   customType: string;
+  age: number | null; // Age in years for proportionate sizing
   saving: boolean;
 }
 
@@ -43,6 +44,7 @@ export default function CharacterFormModal({
   const [localType, setLocalType] = useState<"person" | "pet" | "other">("person");
   const [localPetType, setLocalPetType] = useState("");
   const [localCustomType, setLocalCustomType] = useState("");
+  const [localAge, setLocalAge] = useState<number | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
   // Sync local state when pendingCharacter changes
@@ -52,6 +54,7 @@ export default function CharacterFormModal({
       setLocalType(pendingCharacter.characterType);
       setLocalPetType(pendingCharacter.petType);
       setLocalCustomType(pendingCharacter.customType);
+      setLocalAge(pendingCharacter.age);
       setShowConfirmClose(false);
     }
   }, [pendingCharacter?.id]);
@@ -93,6 +96,7 @@ export default function CharacterFormModal({
       characterType: localType,
       petType: localPetType,
       customType: localCustomType,
+      age: localAge,
     };
     onSave(updated);
   };
@@ -203,6 +207,35 @@ export default function CharacterFormModal({
               autoFocus
             />
           </div>
+
+          {/* Age input - only for people */}
+          {localType === "person" && (
+            <div>
+              <label className="block text-sm font-bold text-white mb-1.5">Age (optional)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={localAge ?? ""}
+                  onChange={(e) => setLocalAge(e.target.value ? parseInt(e.target.value) : null)}
+                  placeholder="Enter age..."
+                  disabled={pendingCharacter.saving}
+                  className="flex-1 px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
+                />
+                <span className="text-text-muted text-sm">
+                  {localAge !== null && localAge > 0 && (
+                    localAge <= 3 ? "👶 Toddler" :
+                    localAge <= 12 ? "🧒 Child" :
+                    localAge <= 17 ? "🧑 Teen" :
+                    localAge <= 64 ? "🧑 Adult" :
+                    "👴 Senior"
+                  )}
+                </span>
+              </div>
+              <p className="text-xs text-text-muted mt-1">Helps with proportionate sizing in illustrations</p>
+            </div>
+          )}
 
           {/* Character type toggle */}
           <div>

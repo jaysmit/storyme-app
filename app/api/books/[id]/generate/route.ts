@@ -12,6 +12,7 @@ interface CharacterInput {
   name: string;
   character_type?: string;
   pet_type?: string;
+  age?: number | null;
   generated_image_url?: string;
 }
 
@@ -38,7 +39,7 @@ async function downloadImage(url: string, label: string): Promise<Buffer> {
 function mapCharactersToSlots(
   characters: CharacterInput[],
   pageDefinition: PageDefinition
-): { name: string; slot: number; role: string; action: string }[] {
+): { name: string; slot: number; role: string; action: string; age?: number | null; characterType?: string }[] {
   return pageDefinition.characters
     .slice(0, characters.length)
     .map((slot, index) => ({
@@ -46,6 +47,8 @@ function mapCharactersToSlots(
       slot: slot.slot,
       role: slot.role,
       action: slot.action,
+      age: characters[index].age,
+      characterType: characters[index].character_type,
     }));
 }
 
@@ -141,7 +144,7 @@ export async function POST(
     // Fetch characters
     const { data: charData, error: charError } = await supabase
       .from("characters")
-      .select("id, name, character_type, pet_type, generated_image_url")
+      .select("id, name, character_type, pet_type, age, generated_image_url")
       .in("id", characterIds);
 
     if (charError) {

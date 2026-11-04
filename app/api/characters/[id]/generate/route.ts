@@ -94,16 +94,106 @@ export async function POST(
     const photoFile = new File([photoBlob], `photo.${ext}`, { type: contentType });
 
     // Step 2: Build the prompt for image transformation
-    const characterTypeContext =
-      character.character_type === "pet"
-        ? `This is a ${character.pet_type || "pet"}.`
-        : character.character_type === "other"
-        ? "This is a unique character."
-        : character.age_group === "child"
-        ? "This is a child."
-        : character.age_group === "senior"
-        ? "This is an elderly person."
-        : "This is a person.";
+    // Determine age-based proportions and context
+    const age = character.age as number | null;
+    const ageGroup = character.age_group as string | null;
+
+    let characterTypeContext: string;
+    let proportionGuidance: string;
+
+    if (character.character_type === "pet") {
+      characterTypeContext = `This is a ${character.pet_type || "pet"}.`;
+      proportionGuidance = "Use appropriate animal proportions for this pet type.";
+    } else if (character.character_type === "other") {
+      characterTypeContext = "This is a unique character.";
+      proportionGuidance = "Use creative fantasy proportions appropriate for this character type.";
+    } else {
+      // Person - use age for proportions
+      if (age !== null && age > 0) {
+        if (age <= 3) {
+          characterTypeContext = `This is a toddler (${age} year${age === 1 ? '' : 's'} old).`;
+          proportionGuidance = `
+TODDLER PROPORTIONS (age ${age}):
+- Very large head relative to body (about 1/4 of total height)
+- Short, chubby limbs with baby fat
+- Round, soft facial features
+- Big expressive eyes relative to face
+- Small nose and mouth
+- Chubby cheeks
+- Short neck or almost no visible neck
+- Tiny hands and feet
+- Overall very small stature`;
+        } else if (age <= 6) {
+          characterTypeContext = `This is a young child (${age} years old).`;
+          proportionGuidance = `
+YOUNG CHILD PROPORTIONS (age ${age}):
+- Large head relative to body (about 1/5 of total height)
+- Short limbs with some baby roundness remaining
+- Round, soft facial features
+- Large expressive eyes
+- Small nose
+- Round cheeks
+- Short torso
+- Small hands and feet
+- Overall small stature, noticeably shorter than adults`;
+        } else if (age <= 12) {
+          characterTypeContext = `This is a child (${age} years old).`;
+          proportionGuidance = `
+CHILD PROPORTIONS (age ${age}):
+- Head slightly large relative to body (about 1/6 of total height)
+- Developing limbs, still somewhat short
+- Youthful facial features
+- Bright, expressive eyes
+- Medium-sized but still youthful features
+- Less round cheeks than toddlers
+- Growing but still compact stature
+- Medium stature, about 2/3 adult height`;
+        } else if (age <= 17) {
+          characterTypeContext = `This is a teenager (${age} years old).`;
+          proportionGuidance = `
+TEEN PROPORTIONS (age ${age}):
+- Head proportional to body (about 1/7 of total height)
+- Longer limbs, approaching adult proportions
+- More defined facial features
+- Adult-like eyes
+- Developing adult features
+- Face shape becoming more defined
+- Taller stature, approaching adult height
+- Lanky or gangly appearance typical of teens`;
+        } else if (age <= 64) {
+          characterTypeContext = `This is an adult (${age} years old).`;
+          proportionGuidance = `
+ADULT PROPORTIONS (age ${age}):
+- Standard adult head-to-body ratio (about 1/7.5 of total height)
+- Full adult limb proportions
+- Mature facial features
+- Normal adult stature`;
+        } else {
+          characterTypeContext = `This is a senior (${age} years old).`;
+          proportionGuidance = `
+SENIOR PROPORTIONS (age ${age}):
+- Standard adult head-to-body ratio
+- May show slight posture changes appropriate for age
+- Mature, wise facial features
+- Silver/grey hair if natural hair color
+- Kind, experienced expression
+- Gentle smile lines and character appropriate for age`;
+        }
+      } else if (ageGroup) {
+        // Fallback to age_group if no specific age
+        characterTypeContext = ageGroup === "child" ? "This is a child."
+                            : ageGroup === "toddler" ? "This is a toddler."
+                            : ageGroup === "teen" ? "This is a teenager."
+                            : ageGroup === "senior" ? "This is an elderly person."
+                            : "This is a person.";
+        proportionGuidance = ageGroup === "child" || ageGroup === "toddler"
+          ? "Use child-appropriate proportions with larger head relative to body."
+          : "Use standard adult proportions.";
+      } else {
+        characterTypeContext = "This is a person.";
+        proportionGuidance = "Use proportions appropriate for the apparent age in the photograph.";
+      }
+    }
 
     // Build feedback section if provided
     const feedbackSection = userFeedback
@@ -138,6 +228,13 @@ The character must look unmistakably cartoonish, NOT photorealistic or semi-real
 - Appealing, slightly exaggerated facial proportions that feel intentionally designed rather than anatomically realistic.
 
 The character should resemble a lovable animated storybook hero, not a realistic adult with enlarged eyes.
+
+## 1B. AGE-APPROPRIATE PROPORTIONS — CRITICAL
+
+${characterTypeContext}
+${proportionGuidance}
+
+**IMPORTANT:** When creating story scenes with multiple characters, these proportions must be maintained so that children appear noticeably smaller than adults, toddlers smaller than children, etc. Character heights should be proportionate to their age.
 
 ## 2. EYE ALIGNMENT — EXTREMELY IMPORTANT
 

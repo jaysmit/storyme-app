@@ -56,17 +56,48 @@ export async function createCompositeReference(
 export function buildPagePrompt(options: {
   sceneDescription: string;
   setting: string;
-  characters: { name: string; slot: number; role: string; action: string }[];
+  characters: { name: string; slot: number; role: string; action: string; age?: number | null; characterType?: string }[];
   styleDetails: string;
   pageNumber: number;
   totalPages: number;
 }): string {
   const { sceneDescription, setting, characters, styleDetails, pageNumber, totalPages } = options;
 
+  // Helper to describe character size based on age
+  const getAgeDescription = (age: number | null | undefined, charType?: string): string => {
+    if (charType === "pet") return "pet-sized";
+    if (!age || age <= 0) return "";
+    if (age <= 3) return "toddler-sized (very small, about 1/3 adult height)";
+    if (age <= 6) return "young child-sized (small, about 1/2 adult height)";
+    if (age <= 12) return "child-sized (medium, about 2/3 adult height)";
+    if (age <= 17) return "teen-sized (near adult height)";
+    return "adult-sized";
+  };
+
   const characterMapping = characters
     .sort((a, b) => a.slot - b.slot)
-    .map(c => `- SLOT ${c.slot} → "${c.name}" (${c.role}): ${c.action}`)
+    .map(c => {
+      const ageDesc = getAgeDescription(c.age, c.characterType);
+      const sizeNote = ageDesc ? ` [${ageDesc}]` : "";
+      return `- SLOT ${c.slot} → "${c.name}" (${c.role})${sizeNote}: ${c.action}`;
+    })
     .join("\n");
+
+  // Build proportional sizing instructions
+  const hasMultipleAges = characters.some(c => c.age && c.age <= 12) && characters.some(c => !c.age || c.age > 17);
+  const proportionInstructions = hasMultipleAges ? `
+## CHARACTER PROPORTIONS - CRITICAL
+Characters must be drawn at proportionate sizes based on their ages:
+${characters
+  .filter(c => c.age)
+  .sort((a, b) => (a.age || 0) - (b.age || 0))
+  .map(c => `- "${c.name}" (age ${c.age}): ${getAgeDescription(c.age, c.characterType)}`)
+  .join("\n")}
+
+Ensure children appear noticeably SMALLER than adults in the same scene.
+Toddlers should be about 1/3 the height of adults.
+Children (6-12) should be about 2/3 the height of adults.
+` : "";
 
   return `# PAGE ${pageNumber} OF ${totalPages} - RECREATION WITH CHARACTER REPLACEMENT
 
@@ -81,7 +112,7 @@ ${setting}
 
 ## CHARACTER MAPPING (reference portraits shown below main image, left to right)
 ${characterMapping}
-
+${proportionInstructions}
 ## CRITICAL INSTRUCTIONS
 1. The MAIN IMAGE (top) shows the exact scene composition, poses, and layout to recreate
 2. The CHARACTER PORTRAITS (bottom row) show the exact appearance of each character

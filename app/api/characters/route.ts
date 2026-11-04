@@ -45,10 +45,21 @@ export async function POST(request: NextRequest) {
     let name: string;
     let characterType: string;
     let petType: string | null;
+    let age: number | null;
     let ageGroup: string | null;
     let fileBuffer: Buffer;
     let fileExt: string;
     let mimeType: string;
+
+    // Helper to derive age_group from numeric age
+    const deriveAgeGroup = (numericAge: number | null): string | null => {
+      if (numericAge === null) return null;
+      if (numericAge <= 3) return "toddler";
+      if (numericAge <= 12) return "child";
+      if (numericAge <= 17) return "teen";
+      if (numericAge <= 64) return "adult";
+      return "senior";
+    };
 
     if (contentType.includes("application/json")) {
       // Handle JSON with base64
@@ -56,7 +67,8 @@ export async function POST(request: NextRequest) {
       name = body.name;
       characterType = body.characterType || "person";
       petType = body.petType || null;
-      ageGroup = body.ageGroup || null;
+      age = body.age ? parseInt(body.age) : null;
+      ageGroup = body.ageGroup || deriveAgeGroup(age);
 
       if (!body.photoBase64 || !name) {
         return NextResponse.json(
@@ -84,7 +96,9 @@ export async function POST(request: NextRequest) {
       name = formData.get("name") as string;
       characterType = (formData.get("type") as string) || "person";
       petType = formData.get("petType") as string | null;
-      ageGroup = formData.get("ageGroup") as string | null;
+      const ageStr = formData.get("age") as string | null;
+      age = ageStr ? parseInt(ageStr) : null;
+      ageGroup = (formData.get("ageGroup") as string | null) || deriveAgeGroup(age);
 
       if (!file || !name) {
         return NextResponse.json(
@@ -121,8 +135,8 @@ export async function POST(request: NextRequest) {
       data: { publicUrl },
     } = supabase.storage.from("photos").getPublicUrl(fileName);
 
-    // Create character record - try with pet_type first, fallback without if column doesn't exist
-    const baseData = {
+    // Create character record - try with all fields, fallback without optional columns if they don't exist
+    const baseData: Record<string, unknown> = {
       user_id: user.id,
       name,
       original_photo_url: publicUrl,
@@ -130,6 +144,11 @@ export async function POST(request: NextRequest) {
       age_group: ageGroup,
       generation_status: "pending",
     };
+
+    // Add age if provided (column may not exist yet)
+    if (age !== null) {
+      baseData.age = age;
+    }
 
     let character;
     let insertError;
