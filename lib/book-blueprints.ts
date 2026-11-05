@@ -10,6 +10,50 @@ import path from "path";
 export const BLUEPRINT_SCHEMA_VERSION = "1.0";
 
 // ============================================
+// Slug to Book ID Mapping
+// Maps old story-templates slugs to new blueprint book IDs
+// ============================================
+
+const SLUG_TO_BOOK_ID: Record<string, string> = {
+  // Old slugs from story-templates.ts -> new blueprint book IDs
+  "dragon-castle-valley": "the-dragon-of-castle-valley",
+  "fairy-glade": "the-fairy-glade",
+  "grand-final-day": "grand-final-day",
+  "cloud-ship": "captain-of-the-cloud-ship",
+  "super-squad": "the-super-squad-and-the-sorceress",
+  "galaxy-road-trip": "the-great-galaxy-road-trip",
+  // Additional books (use same ID)
+  "the-crystal-asteroid": "the-crystal-asteroid",
+  "the-dinosaur-egg-dig": "the-dinosaur-egg-dig",
+  "the-dragon-of-castle-valley": "the-dragon-of-castle-valley",
+  "the-fairy-glade": "the-fairy-glade",
+  "the-great-backyard-expedition": "the-great-backyard-expedition",
+  "the-great-galaxy-road-trip": "the-great-galaxy-road-trip",
+  "the-great-lighthouse-rescue": "the-great-lighthouse-rescue",
+  "the-lost-jungle-temple": "the-lost-jungle-temple",
+  "the-snow-globe-kingdom": "the-snow-globe-kingdom",
+  "the-super-squad-and-the-sorceress": "the-super-squad-and-the-sorceress",
+  "under-the-kelp-forest": "under-the-kelp-forest",
+  "captain-of-the-cloud-ship": "captain-of-the-cloud-ship",
+  "dragon-day-at-school": "dragon-day-at-school",
+  "the-birthday-that-wouldnt-end": "the-birthday-that-wouldnt-end",
+  "the-brick-by-brick-kingdom": "the-brick-by-brick-kingdom",
+};
+
+/**
+ * Convert a story slug to a blueprint book ID
+ * Handles both old slugs (from story-templates.ts) and new book IDs
+ */
+export function resolveBookId(slugOrBookId: string): string {
+  // Check if it's in the mapping
+  if (SLUG_TO_BOOK_ID[slugOrBookId]) {
+    return SLUG_TO_BOOK_ID[slugOrBookId];
+  }
+  // Otherwise, assume it's already a valid book ID
+  return slugOrBookId;
+}
+
+// ============================================
 // Type Definitions
 // ============================================
 

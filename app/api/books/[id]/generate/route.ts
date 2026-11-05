@@ -8,6 +8,7 @@ import {
   loadBlueprintCover,
   buildPromptFromBlueprint,
   getOriginalImagePath,
+  resolveBookId,
   type CrewAssignment,
   type BookBlueprint,
   type BlueprintPage,
@@ -176,16 +177,20 @@ export async function POST(
 
     // Get generation params
     const body = await request.json().catch(() => ({}));
-    const bookId = body.bookId || book.metadata?.bookId || book.metadata?.storySlug;
+    const rawBookId = body.bookId || book.metadata?.bookId || book.metadata?.storySlug;
     const characterIds: string[] =
       body.characterIds || book.metadata?.characterIds || [];
 
-    if (!bookId) {
+    if (!rawBookId) {
       return NextResponse.json(
         { error: "Missing book selection" },
         { status: 400 }
       );
     }
+
+    // Resolve the book ID (handles old slugs like "dragon-castle-valley" -> "the-dragon-of-castle-valley")
+    const bookId = resolveBookId(rawBookId);
+    console.log(`Book ID resolved: "${rawBookId}" -> "${bookId}"`);
 
     // Enforce max 5 characters
     if (characterIds.length > 5) {
