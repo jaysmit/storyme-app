@@ -229,24 +229,21 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                   <div className="py-2">
                     <Link
                       href="/characters"
-                      className="block px-4 py-2 text-sm hover:bg-brand-purple-muted transition-colors"
-                      style={{ color: textColor }}
+                      className="block px-4 py-2 text-sm text-[#F3F0FF] hover:bg-brand-purple-muted transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
                       My Characters
                     </Link>
                     <Link
                       href="/books"
-                      className="block px-4 py-2 text-sm hover:bg-brand-purple-muted transition-colors"
-                      style={{ color: textColor }}
+                      className="block px-4 py-2 text-sm text-[#F3F0FF] hover:bg-brand-purple-muted transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
                       My Books
                     </Link>
                     <Link
                       href="/favorites"
-                      className="block px-4 py-2 text-sm hover:bg-brand-purple-muted transition-colors"
-                      style={{ color: textColor }}
+                      className="block px-4 py-2 text-sm text-[#F3F0FF] hover:bg-brand-purple-muted transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
                       Favorites
@@ -337,8 +334,7 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
-                  style={{ color: textColor }}
+                  className={`px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors ${isLight ? "text-[#1E1B4B]" : "text-[#F3F0FF]"}`}
                   onClick={() => setShowMobileMenu(false)}
                 >
                   {link.label}
@@ -349,16 +345,14 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                   <div className="border-t my-2" style={{ borderColor: "#3D3A6E" }} />
                   <Link
                     href="/login"
-                    className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
-                    style={{ color: textColor }}
+                    className={`px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors ${isLight ? "text-[#1E1B4B]" : "text-[#F3F0FF]"}`}
                     onClick={() => setShowMobileMenu(false)}
                   >
                     Log in
                   </Link>
                   <Link
                     href="/register"
-                    className="px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors"
-                    style={{ color: textColor }}
+                    className={`px-4 py-3 text-base font-bold no-underline hover:bg-brand-purple-muted/50 transition-colors ${isLight ? "text-[#1E1B4B]" : "text-[#F3F0FF]"}`}
                     onClick={() => setShowMobileMenu(false)}
                   >
                     Sign up
