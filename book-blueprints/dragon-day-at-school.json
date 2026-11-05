@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "dragon-day-at-school",
+  "title": "Dragon Day At School",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Warm bright polished 3D animated family comedy, school posters and colourful classroom clutter",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "baby_dragon",
+        "name": "baby_dragon",
+        "description": "small orange-red baby dragon with wings sitting amid broken eggshells",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "right upper-middle",
+        "poseAction": "leaning over desk, holding fire extinguisher",
+        "wardrobe": "purple cardigan, glasses",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "left foreground",
+        "poseAction": "crouching to offer cookie to dragon",
+        "wardrobe": "white school shirt, dark skirt and shoes",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "upper-left centre on stool",
+        "poseAction": "pointing excitedly at dragon",
+        "wardrobe": "white shirt, blue school vest and shorts",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-right under desk",
+        "poseAction": "peeking out excitedly",
+        "wardrobe": "red bandana",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "dragon-day-at-school.jpg",
+      "scene": {
+        "description": "In a sunlit colourful classroom, a small orange dragon has hatched from an egg on the floor. A girl offers it a cookie, a boy points excitedly from a stool, grandmother holds a red fire extinguisher and the dog peeks from beneath a desk.",
+        "visualStyle": "Warm bright polished 3D animated family comedy, school posters and colourful classroom clutter"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 768,
+          "height": 512
+        },
+        "notes": "Dragon is fixed; maintain girl’s cookie-to-dragon interaction and grandmother’s extinguisher."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "right upper-middle",
+          "poseAction": "leaning over desk, holding fire extinguisher",
+          "wardrobe": "purple cardigan, glasses"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "left foreground",
+          "poseAction": "crouching to offer cookie to dragon",
+          "wardrobe": "white school shirt, dark skirt and shoes"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "upper-left centre on stool",
+          "poseAction": "pointing excitedly at dragon",
+          "wardrobe": "white shirt, blue school vest and shorts"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-right under desk",
+          "poseAction": "peeking out excitedly",
+          "wardrobe": "red bandana"
+        }
+      ],
+      "protectedElements": [
+        "broken eggshells and cookie",
+        "red fire extinguisher",
+        "classroom desks, globe, rainbow posters and windows"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 1,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

@@ -3,14 +3,19 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
-import { getStoryTemplate, type PageDefinition } from "@/lib/story-templates";
-import { PRECISE_STYLE_DEFINITIONS, buildPagePrompt } from "@/lib/image-composite";
+import {
+  loadBlueprint,
+  loadBlueprintCover,
+  buildPromptFromBlueprint,
+  getOriginalImagePath,
+  type CrewAssignment,
+  type BookBlueprint,
+  type BlueprintPage,
+} from "@/lib/book-blueprints";
 import {
   downloadImage,
   loadLocalImage,
   selectOutputSize,
-  classifyCharacters,
-  compositeEditedImage,
   type ProcessedImage,
 } from "@/lib/image-processing";
 
@@ -24,24 +29,100 @@ interface CharacterInput {
   generated_image_url?: string;
 }
 
-// Build character mapping for this page
-function mapCharactersToSlots(
-  characters: CharacterInput[],
-  pageDefinition: PageDefinition
-): { name: string; slot: number; role: string; action: string; age?: number | null; characterType?: string }[] {
-  return pageDefinition.characters
-    .slice(0, characters.length)
-    .map((slot, index) => ({
-      name: characters[index].name,
-      slot: slot.slot,
-      role: slot.role,
-      action: slot.action,
-      age: characters[index].age,
-      characterType: characters[index].character_type,
-    }));
+// Map customer character type to crew slot type
+function matchCharacterToSlotType(
+  characterType: string | undefined,
+  petType: string | undefined
+): "adult" | "child" | "baby" | "dog" | "other" {
+  if (characterType === "pet") {
+    if (petType === "dog") return "dog";
+    return "other";
+  }
+  if (characterType === "person") {
+    // Default to child unless we have age info
+    return "child";
+  }
+  return "other";
 }
 
-// POST /api/books/[id]/generate - Generate cover page using image references
+// Assign customer characters to crew slots based on type matching
+function assignCharactersToSlots(
+  characters: CharacterInput[],
+  blueprint: BookBlueprint,
+  page: BlueprintPage
+): CrewAssignment[] {
+  const assignments: CrewAssignment[] = [];
+  const usedSlots = new Set<string>();
+  const usedCharacters = new Set<string>();
+
+  // Get available slots from the page's character placements
+  const availableSlots = page.characterPlacements
+    .map((placement) => {
+      const slot = blueprint.characters.crewSlots.find(
+        (s) => s.slotId === placement.slotId
+      );
+      return slot ? { placement, slot } : null;
+    })
+    .filter(Boolean) as { placement: typeof page.characterPlacements[0]; slot: typeof blueprint.characters.crewSlots[0] }[];
+
+  // Sort slots by priority (required first, then by type preference)
+  const sortedSlots = [...availableSlots].sort((a, b) => {
+    if (a.slot.required && !b.slot.required) return -1;
+    if (!a.slot.required && b.slot.required) return 1;
+    return 0;
+  });
+
+  // First pass: exact type matching
+  for (const character of characters) {
+    if (usedCharacters.has(character.id)) continue;
+
+    const charType = matchCharacterToSlotType(
+      character.character_type,
+      character.pet_type
+    );
+
+    // Find best matching slot
+    for (const { slot } of sortedSlots) {
+      if (usedSlots.has(slot.slotId)) continue;
+
+      // Exact type match
+      if (slot.characterType === charType) {
+        assignments.push({
+          slotId: slot.slotId,
+          characterId: character.id,
+          characterName: character.name,
+          imageIndex: assignments.length + 2, // IMAGE 2, 3, 4...
+        });
+        usedSlots.add(slot.slotId);
+        usedCharacters.add(character.id);
+        break;
+      }
+    }
+  }
+
+  // Second pass: fill remaining characters into any available slot
+  for (const character of characters) {
+    if (usedCharacters.has(character.id)) continue;
+
+    for (const { slot } of sortedSlots) {
+      if (usedSlots.has(slot.slotId)) continue;
+
+      assignments.push({
+        slotId: slot.slotId,
+        characterId: character.id,
+        characterName: character.name,
+        imageIndex: assignments.length + 2,
+      });
+      usedSlots.add(slot.slotId);
+      usedCharacters.add(character.id);
+      break;
+    }
+  }
+
+  return assignments;
+}
+
+// POST /api/books/[id]/generate - Generate cover page using blueprint system
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -87,7 +168,7 @@ export async function POST(
           error: "Insufficient tokens",
           required: tokenCost,
           balance,
-          message: `You need ${tokenCost} token for a book cover but only have ${balance}.`
+          message: `You need ${tokenCost} token for a book cover but only have ${balance}.`,
         },
         { status: 402 }
       );
@@ -95,24 +176,15 @@ export async function POST(
 
     // Get generation params
     const body = await request.json().catch(() => ({}));
-    const storySlug = body.storySlug || book.metadata?.storySlug;
-    const artStyle = body.artStyle || book.metadata?.artStyle || "glow";
-    const characterIds: string[] = body.characterIds || book.metadata?.characterIds || [];
+    const bookId = body.bookId || book.metadata?.bookId || book.metadata?.storySlug;
+    const characterIds: string[] =
+      body.characterIds || book.metadata?.characterIds || [];
 
-    if (!storySlug) {
-      return NextResponse.json({ error: "Missing story selection" }, { status: 400 });
-    }
-
-    // Get story template
-    const template = getStoryTemplate(storySlug);
-    if (!template) {
-      return NextResponse.json({ error: `Unknown story template: ${storySlug}` }, { status: 400 });
-    }
-
-    // Get style definition
-    const styleDetails = PRECISE_STYLE_DEFINITIONS[artStyle];
-    if (!styleDetails) {
-      return NextResponse.json({ error: `Unknown art style: ${artStyle}` }, { status: 400 });
+    if (!bookId) {
+      return NextResponse.json(
+        { error: "Missing book selection" },
+        { status: 400 }
+      );
     }
 
     // Enforce max 5 characters
@@ -130,7 +202,41 @@ export async function POST(
       );
     }
 
-    // Fetch characters - try with age column, fallback without if it doesn't exist
+    // ============================================
+    // Load book blueprint
+    // ============================================
+    let blueprint: BookBlueprint;
+    let coverPage: BlueprintPage;
+
+    try {
+      blueprint = await loadBlueprint(bookId);
+      coverPage = await loadBlueprintCover(bookId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      if (msg.includes("BLUEPRINT_NOT_FOUND")) {
+        return NextResponse.json(
+          {
+            error: "BLUEPRINT_NOT_FOUND",
+            message: `No blueprint found for book "${bookId}". Please ensure the book blueprint JSON exists.`,
+          },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    // Validate cover has original image
+    if (!coverPage.originalImage) {
+      return NextResponse.json(
+        {
+          error: "MASTER_IMAGE_REQUIRED",
+          message: `Book "${blueprint.title}" cover page has no original image configured.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Fetch characters from database
     let charData: CharacterInput[] | null = null;
     let charError: { message: string } | null = null;
 
@@ -162,73 +268,57 @@ export async function POST(
 
     const characters: CharacterInput[] = charData || [];
 
-    // STRICT: All characters MUST have generated images
-    const missingImages = characters.filter(c => !c.generated_image_url);
+    // Validate all characters have generated images
+    const missingImages = characters.filter((c) => !c.generated_image_url);
     if (missingImages.length > 0) {
-      const names = missingImages.map(c => c.name).join(", ");
+      const names = missingImages.map((c) => c.name).join(", ");
       return NextResponse.json(
         {
           error: `Character illustrations required: ${names}`,
-          missingCharacters: missingImages.map(c => ({ id: c.id, name: c.name }))
-        },
-        { status: 400 }
-      );
-    }
-
-    const coverPage = template.coverPage;
-
-    // ============================================
-    // CRITICAL: Validate master image exists
-    // ============================================
-    if (!coverPage.originalImageUrl) {
-      return NextResponse.json(
-        {
-          error: "MASTER_IMAGE_REQUIRED",
-          message: `Story "${template.title}" cover page has no master illustration configured. Please contact support to add the original storybook image.`,
-          storySlug,
-          pageNumber: 0,
+          missingCharacters: missingImages.map((c) => ({ id: c.id, name: c.name })),
         },
         { status: 400 }
       );
     }
 
     // Update status to generating
-    await supabase
-      .from("books")
-      .update({ status: "generating" })
-      .eq("id", id);
+    await supabase.from("books").update({ status: "generating" }).eq("id", id);
 
-    const characterMapping = mapCharactersToSlots(characters, coverPage);
+    // ============================================
+    // Assign characters to crew slots
+    // ============================================
+    const crewAssignments = assignCharactersToSlots(characters, blueprint, coverPage);
 
-    console.log("=== BOOK COVER GENERATION ===");
-    console.log(`Story: ${template.title} (${storySlug})`);
-    console.log(`Style: ${artStyle}`);
-    console.log(`Master image: ${coverPage.originalImageUrl}`);
-    console.log(`Protected characters: ${template.protectedCharacters?.join(", ") || "none"}`);
-    console.log(`Characters (${characters.length}):`);
-    characters.forEach((c, i) => {
-      console.log(`  ${i + 1}. ${c.name} -> Slot ${characterMapping[i]?.slot} (${characterMapping[i]?.role})`);
+    console.log("=== BOOK COVER GENERATION (Blueprint System) ===");
+    console.log(`Book: ${blueprint.title} (${bookId})`);
+    console.log(`Visual Style: ${blueprint.visualStyle.substring(0, 50)}...`);
+    console.log(`Original Image: ${coverPage.originalImage}`);
+    console.log(`Dimensions: ${coverPage.composition.dimensions.width}x${coverPage.composition.dimensions.height}`);
+    console.log(`\nCrew Assignments (${crewAssignments.length}):`);
+    crewAssignments.forEach((a) => {
+      console.log(`  ${a.slotId} -> "${a.characterName}" (IMAGE ${a.imageIndex})`);
+    });
+    console.log(`\nBook Characters (protected): ${blueprint.characters.bookCharacters.length}`);
+    blueprint.characters.bookCharacters.forEach((c) => {
+      console.log(`  - ${c.name}: ${c.description.substring(0, 50)}...`);
     });
 
     // ============================================
-    // Load master page from local public folder
+    // Load master page from local files
     // ============================================
+    const masterImagePath = getOriginalImagePath(coverPage);
     let masterPage: ProcessedImage;
+
     try {
-      masterPage = await loadLocalImage(
-        coverPage.originalImageUrl,
-        "Master page (cover template)"
-      );
+      masterPage = await loadLocalImage(masterImagePath, "Master page (cover)");
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      // If master image is missing, return clear error instead of generating from scratch
       if (msg.includes("MASTER_IMAGE_MISSING")) {
+        await supabase.from("books").update({ status: "failed" }).eq("id", id);
         return NextResponse.json(
           {
             error: "MASTER_IMAGE_NOT_FOUND",
-            message: `The master illustration for "${template.title}" cover could not be loaded. File path: ${coverPage.originalImageUrl}`,
-            storySlug,
-            pageNumber: 0,
+            message: `The master illustration for "${blueprint.title}" could not be loaded. File: ${masterImagePath}`,
           },
           { status: 500 }
         );
@@ -236,81 +326,79 @@ export async function POST(
       throw error;
     }
 
-    console.log(`Master page loaded: ${masterPage.dimensions.width}x${masterPage.dimensions.height} (${masterPage.dimensions.orientation})`);
-
-    // Download ALL character images (guest references)
+    // Download customer character images
     const characterImages: ProcessedImage[] = [];
-    for (const char of characters) {
-      const image = await downloadImage(
-        char.generated_image_url!,
-        `Character "${char.name}"`
-      );
-      characterImages.push(image);
+    for (const assignment of crewAssignments) {
+      const character = characters.find((c) => c.id === assignment.characterId);
+      if (character?.generated_image_url) {
+        const image = await downloadImage(
+          character.generated_image_url,
+          `Character "${character.name}"`
+        );
+        characterImages.push(image);
+      }
     }
 
-    // Classify characters for the prompt
-    const classification = classifyCharacters(
-      characterMapping,
-      template.protectedCharacters || [],
-      5
-    );
+    // ============================================
+    // Build prompt from blueprint
+    // ============================================
+    const prompt = buildPromptFromBlueprint(blueprint, coverPage, crewAssignments);
 
-    // Build the precision character replacement prompt
-    const prompt = buildPagePrompt({
-      sceneDescription: coverPage.sceneDescription,
-      setting: coverPage.setting,
-      characters: characterMapping,
-      styleDetails,
-      pageNumber: 0,
-      totalPages: template.totalPages,
-      protectedCharacters: template.protectedCharacters,
-      maxSlots: 5,
-    });
-
-    console.log("\n=== PROMPT ===");
-    console.log(prompt);
+    console.log("\n=== PROMPT (first 500 chars) ===");
+    console.log(prompt.substring(0, 500));
+    console.log("...[truncated]");
     console.log("=== END PROMPT ===\n");
-
-    console.log("\n=== CHARACTER CLASSIFICATION ===");
-    console.log(`Guest characters: ${classification.guestCharacters.map(c => `${c.name} (Slot ${c.slot})`).join(", ")}`);
-    console.log(`Protected: ${classification.protectedCharacters.join(", ") || "none"}`);
-    console.log(`Unassigned slots to remove: ${classification.unassignedSlots.join(", ") || "none"}`);
-    console.log("===\n");
 
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
 
     // ============================================
-    // Build image array: IMAGE 1 = master page, IMAGES 2+ = guest characters
+    // Build image array: IMAGE 1 = master, IMAGES 2+ = crew
     // ============================================
     const allImageFiles: File[] = [];
 
     // IMAGE 1: Master page (REQUIRED)
-    const masterBlob = new Blob([new Uint8Array(masterPage.buffer)], { type: "image/png" });
-    const masterFile = new File([masterBlob], "1-master-page.png", { type: "image/png" });
+    const masterBlob = new Blob([new Uint8Array(masterPage.buffer)], {
+      type: "image/png",
+    });
+    const masterFile = new File([masterBlob], "1-master-page.png", {
+      type: "image/png",
+    });
     allImageFiles.push(masterFile);
-    console.log(`IMAGE 1: Master page (${masterPage.dimensions.width}x${masterPage.dimensions.height})`);
+    console.log(
+      `IMAGE 1: Master page (${masterPage.dimensions.width}x${masterPage.dimensions.height})`
+    );
 
-    // IMAGES 2+: Guest character references
+    // IMAGES 2+: Customer character references
     characterImages.forEach((image, index) => {
+      const assignment = crewAssignments[index];
       const imageNum = index + 2;
       const blob = new Blob([new Uint8Array(image.buffer)], { type: "image/png" });
-      const charName = characters[index].name.replace(/[^a-zA-Z0-9]/g, "-");
-      const file = new File([blob], `${imageNum}-guest-${charName}.png`, { type: "image/png" });
+      const charName = assignment.characterName.replace(/[^a-zA-Z0-9]/g, "-");
+      const file = new File([blob], `${imageNum}-crew-${charName}.png`, {
+        type: "image/png",
+      });
       allImageFiles.push(file);
-      console.log(`IMAGE ${imageNum}: Guest "${characters[index].name}" (${image.dimensions.width}x${image.dimensions.height})`);
+      console.log(
+        `IMAGE ${imageNum}: "${assignment.characterName}" -> ${assignment.slotId}`
+      );
     });
 
     // ============================================
-    // Determine output size based on master image orientation
+    // Determine output size based on original image
     // ============================================
     const outputSize = selectOutputSize(masterPage.dimensions);
-    console.log(`\nOutput size: ${outputSize} (based on ${masterPage.dimensions.orientation} input)`);
+    console.log(
+      `\nOutput size: ${outputSize} (original: ${masterPage.dimensions.orientation})`
+    );
 
+    // ============================================
     // Call OpenAI images.edit
-    // Using gpt-image-2.5-sunburst (best model) with high quality
+    // ============================================
     console.log("\nCalling OpenAI images.edit...");
-    console.log(`Settings: model=gpt-image-2.5-sunburst, size=${outputSize}, quality=high, output=jpeg`);
+    console.log(
+      `Settings: model=gpt-image-2.5-sunburst, size=${outputSize}, quality=high, output=jpeg`
+    );
     console.log(`Total images: ${allImageFiles.length}`);
 
     const response = await openai.images.edit({
@@ -331,7 +419,9 @@ export async function POST(
     } else if (imageData?.url) {
       const imgResponse = await fetch(imageData.url);
       if (!imgResponse.ok) {
-        throw new Error(`Failed to download generated image. Status: ${imgResponse.status}`);
+        throw new Error(
+          `Failed to download generated image. Status: ${imgResponse.status}`
+        );
       }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
@@ -342,20 +432,11 @@ export async function POST(
 
     console.log(`Cover generated: ${outputBuffer.length} bytes`);
 
-    // ============================================
-    // Post-processing: Composite edited regions onto original
-    // This helps preserve original pixels outside edit regions
-    // ============================================
-    // For now, we skip compositing as we don't have per-page masks yet
-    // In production, this would composite only the character regions
-    const finalBuffer = await compositeEditedImage(masterPage, outputBuffer);
-    console.log(`Final image: ${finalBuffer.length} bytes`);
-
-    // Upload to storage (JPEG format)
+    // Upload to storage
     const fileName = `${user.id}/${id}/cover.jpg`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
-      .upload(fileName, finalBuffer, {
+      .upload(fileName, outputBuffer, {
         contentType: "image/jpeg",
         upsert: true,
       });
@@ -364,19 +445,23 @@ export async function POST(
       throw new Error(`Storage upload failed: ${uploadError.message}`);
     }
 
-    const { data: { publicUrl } } = serviceClient.storage
-      .from("previews")
-      .getPublicUrl(fileName);
+    const {
+      data: { publicUrl },
+    } = serviceClient.storage.from("previews").getPublicUrl(fileName);
 
     console.log("Cover uploaded:", publicUrl);
 
-    const generatedPages = [{
-      page_number: 0,
-      url: publicUrl,
-      title: coverPage.title,
-    }];
+    const generatedPages = [
+      {
+        page_number: 0,
+        url: publicUrl,
+        title: blueprint.title,
+      },
+    ];
 
-    // Update book
+    // ============================================
+    // Update book with generation metadata
+    // ============================================
     const { data: updatedBook, error: updateError } = await supabase
       .from("books")
       .update({
@@ -384,13 +469,13 @@ export async function POST(
         status: "preview_ready",
         metadata: {
           ...book.metadata,
-          storySlug,
-          artStyle,
-          characterIds,
+          bookId,
+          blueprintVersion: blueprint.blueprintVersion,
           characterCount: characters.length,
-          characterMapping,
-          outputSize, // Track what size was used
-          masterImageUrl: coverPage.originalImageUrl,
+          crewAssignments,
+          outputSize,
+          masterImageUrl: masterImagePath,
+          generatedAt: new Date().toISOString(),
         },
         updated_at: new Date().toISOString(),
       })
@@ -409,7 +494,7 @@ export async function POST(
       tokenCost,
       "book_cover",
       id,
-      `Cover: "${template.title}" (${characters.length} characters)`
+      `Cover: "${blueprint.title}" (${characters.length} characters)`
     );
 
     return NextResponse.json({
@@ -423,12 +508,10 @@ export async function POST(
     console.error(error);
 
     // Update status to failed
-    await supabase
-      .from("books")
-      .update({ status: "failed" })
-      .eq("id", id);
+    await supabase.from("books").update({ status: "failed" }).eq("id", id);
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

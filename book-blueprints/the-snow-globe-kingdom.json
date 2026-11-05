@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-snow-globe-kingdom",
+  "title": "The Snow Globe Kingdom",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Premium 3D animated holiday fantasy, golden warm lamps, sparkling snow, blue-violet winter sky",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "upper-left rear sled",
+        "poseAction": "smiling and holding baby securely",
+        "wardrobe": "purple winter cape and glasses",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "left foreground sled",
+        "poseAction": "leaning forward smiling",
+        "wardrobe": "red winter cape, pink knitted scarf and gloves",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "centre foreground sled",
+        "poseAction": "holding sled front and smiling",
+        "wardrobe": "green winter jacket, red scarf",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "right-front sled",
+        "poseAction": "looking ahead with tongue out",
+        "wardrobe": "red scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_baby",
+        "characterType": "baby",
+        "archetype": "bundled infant",
+        "position": "upper-centre in grandmother arms",
+        "poseAction": "looking happily forward",
+        "wardrobe": "pink knit hat and winter clothes",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-snow-globe-kingdom.jpg",
+      "scene": {
+        "description": "Inside a large glass snow globe, a happy family rides a decorated wooden sled down a snowy slope through a magical winter kingdom, with a castle, frozen waterfalls, lanterns and sparkling snow. Grandmother holds a bundled baby while the girl, boy and dog ride at the front.",
+        "visualStyle": "Premium 3D animated holiday fantasy, golden warm lamps, sparkling snow, blue-violet winter sky"
+      },
+      "composition": {
+        "aspectRatio": 1.7768,
+        "dimensions": {
+          "width": 1672,
+          "height": 941
+        },
+        "notes": "Baby is a fifth optional Crew slot; keep inside grandmother’s arms. Preserve snow globe boundary."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "upper-left rear sled",
+          "poseAction": "smiling and holding baby securely",
+          "wardrobe": "purple winter cape and glasses"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "left foreground sled",
+          "poseAction": "leaning forward smiling",
+          "wardrobe": "red winter cape, pink knitted scarf and gloves"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre foreground sled",
+          "poseAction": "holding sled front and smiling",
+          "wardrobe": "green winter jacket, red scarf"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "right-front sled",
+          "poseAction": "looking ahead with tongue out",
+          "wardrobe": "red scarf"
+        },
+        {
+          "slotId": "crew_baby",
+          "position": "upper-centre in grandmother arms",
+          "poseAction": "looking happily forward",
+          "wardrobe": "pink knit hat and winter clothes"
+        }
+      ],
+      "protectedElements": [
+        "glass globe and ornate golden base",
+        "decorated wooden sled with golden star",
+        "snowy pine forest, winter castle and frozen waterfalls",
+        "snowflakes and lanterns"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 5,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

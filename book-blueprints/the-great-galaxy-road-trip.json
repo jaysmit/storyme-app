@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-great-galaxy-road-trip",
+  "title": "The Great Galaxy Road Trip",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Bright glossy 3D animated space adventure; metallic blue-and-red rocket, golden light trails and intense purple-blue cosmic glow",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "upper-left cockpit",
+        "poseAction": "seated behind driver smiling",
+        "wardrobe": "white-and-blue astronaut suit",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "upper-middle right cockpit",
+        "poseAction": "steering with left hand and pointing outward with right",
+        "wardrobe": "white-and-blue astronaut suit",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "front-centre cockpit",
+        "poseAction": "peeking over cockpit rim and looking upward",
+        "wardrobe": "white-and-blue astronaut suit",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "left-middle cockpit",
+        "poseAction": "paws on edge, looking forward excitedly",
+        "wardrobe": "red scarf, transparent bubble helmet",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-great-galaxy-road-trip.jpg",
+      "scene": {
+        "description": "A family flies through space in an open-topped retro rocket car, with a girl steering and pointing toward distant planets, grandmother seated behind, a boy peeking from the front cockpit and a dog enjoying the ride. A spiral galaxy, ringed planets and asteroids surround them.",
+        "visualStyle": "Bright glossy 3D animated space adventure; metallic blue-and-red rocket, golden light trails and intense purple-blue cosmic glow"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Keep all four Crew inside original cockpit seating positions and preserve vehicle silhouette."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "upper-left cockpit",
+          "poseAction": "seated behind driver smiling",
+          "wardrobe": "white-and-blue astronaut suit"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "upper-middle right cockpit",
+          "poseAction": "steering with left hand and pointing outward with right",
+          "wardrobe": "white-and-blue astronaut suit"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "front-centre cockpit",
+          "poseAction": "peeking over cockpit rim and looking upward",
+          "wardrobe": "white-and-blue astronaut suit"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "left-middle cockpit",
+          "poseAction": "paws on edge, looking forward excitedly",
+          "wardrobe": "red scarf, transparent bubble helmet"
+        }
+      ],
+      "protectedElements": [
+        "retro rocket car with glass windscreen, gold stars and glowing engines",
+        "ringed planets and distant Earth-like globe",
+        "asteroids, spiral galaxy, golden orbital trails"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

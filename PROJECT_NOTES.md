@@ -92,6 +92,19 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-05)
+- [x] **Book Blueprint System** - Complete architecture for personalized storybook generation
+  - Created `book-blueprints/` directory with 16 individual book JSON files
+  - Each blueprint contains: scene description, visual style, crew slots, book characters, protected elements
+  - New `lib/book-blueprints.ts` with blueprint loader, validator, and prompt builder
+  - Crew slots use semantic IDs (crew_grandmother, crew_girl, crew_boy, crew_dog, crew_baby)
+  - Book characters are protected story elements (dragons, dinosaurs, fairies, etc.)
+  - Blueprint-driven prompt generation for precise character replacement
+  - Character-to-slot matching based on type (adult, child, dog, etc.)
+  - Schema version 1.0 with validation
+  - Ready for interior page blueprints (pages array in each JSON)
+  - Migration script: `scripts/split-blueprints.js`
+
 ### Recent Changes (2026-11-04 PM)
 - [x] **OpenAI Image Editing Pipeline Fix** - Critical overhaul of image generation
   - Master images now required - API returns clear error if missing instead of generating from scratch

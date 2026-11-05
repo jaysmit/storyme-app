@@ -1,0 +1,1019 @@
+{
+  "schema_version": "1.0.0",
+  "purpose": "StoryMe cover personalisation blueprint. Filename-keyed template analysis for image-edit prompt assembly.",
+  "classification_assumption": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production.",
+  "global_generation_rules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "coordinate_system": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+  "books": {
+    "the-crystal-asteroid.jpg": {
+      "scene_description": "On a grey cratered asteroid, a spacefaring family rushes from a retro rocket and discovers floating fantasy islands, waterfalls and distant castles against an immense planetary sky. The girl points ahead as the boy and dog bound forward and grandmother follows behind.",
+      "visual_style": "Polished vivid 3D animated family-film aesthetic; glowing crystal accents, dramatic celestial purple-blue and warm orange light, wide cinematic perspective",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-left, behind girl",
+          "pose_action": "smiling and stepping out near rocket",
+          "wardrobe": "purple spacesuit and transparent bubble helmet",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre-left foreground",
+          "pose_action": "running forward, right arm extended pointing right",
+          "wardrobe": "white spacesuit with blue-gold details and bubble helmet",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "lower-left foreground",
+          "pose_action": "running excitedly toward right",
+          "wardrobe": "white spacesuit with red accents and bubble helmet",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-centre foreground",
+          "pose_action": "leaping forward with mouth open",
+          "wardrobe": "red scarf and bubble helmet",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [],
+      "protected_elements": [
+        "red-and-white rocket and open lit hatch",
+        "grey lunar surface and colourful crystals",
+        "floating waterfall islands and castles",
+        "giant ringed planet, planets and spiral galaxy"
+      ],
+      "composition_notes": "Crew grouped on left; visual destination on right; keep running directions and depth layering.",
+      "image_filename": "the-crystal-asteroid.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 0,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-dinosaur-egg-dig.jpg": {
+      "scene_description": "At a sunny prehistoric canyon excavation, a baby green horned dinosaur hatches from a huge speckled egg as two children, grandmother and dog gather in delighted amazement. A river winds through mesas and distant long-neck dinosaurs graze.",
+      "visual_style": "Delicate textured watercolour and ink storybook illustration; warm sandy terracotta, soft blue sky and fine painted paper grain",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-left centre behind children",
+          "pose_action": "smiling, holding an open field notebook",
+          "wardrobe": "tan explorer hat, purple scarf, beige expedition clothing and backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "left foreground",
+          "pose_action": "kneeling, brushing dirt from the egg",
+          "wardrobe": "tan explorer outfit, red scarf, backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "centre-right behind egg",
+          "pose_action": "kneeling, examining hatchling through magnifying glass",
+          "wardrobe": "green explorer shirt, red scarf, backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "right foreground",
+          "pose_action": "crouching, looking toward hatchling with tongue out",
+          "wardrobe": "red neckerchief",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "baby_dinosaur",
+          "description": "small friendly green triceratops-like hatchling emerging from broken egg",
+          "preserve": true
+        },
+        {
+          "name": "distant_dinosaurs",
+          "description": "two small long-necked dinosaurs on far riverbank",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "large broken speckled egg and shards",
+        "brush, magnifier, compass, field hat and map",
+        "orange mesas, winding turquoise river and distant mountains"
+      ],
+      "composition_notes": "Preserve the baby dinosaur exactly; foreground egg is the focal point and all Crew react to it.",
+      "image_filename": "the-dinosaur-egg-dig.jpg",
+      "image_dimensions": {
+        "width": 1672,
+        "height": 941
+      },
+      "aspect_ratio": 1.7768,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 2,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-dragon-of-castle-valley(1).jpg": {
+      "scene_description": "On a rocky ledge overlooking a luminous fairytale castle valley at sunset, a brave girl with sword and shield and a boy with glowing bow confront a gigantic green fire-breathing dragon, while grandmother casts a golden protective spell and the dog stands alert.",
+      "visual_style": "Highly saturated cinematic 3D fantasy animation; golden magical arc, orange sunset and green dragon against blue-purple mountains",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-left behind girl",
+          "pose_action": "raising wand to cast protective golden magic",
+          "wardrobe": "deep purple wizard cloak with gold embroidery",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "left-centre foreground",
+          "pose_action": "heroic stance, sword raised and star-emblem shield held forward",
+          "wardrobe": "leather armour, red cape, boots",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "lower-centre foreground",
+          "pose_action": "kneeling and aiming glowing bow at dragon",
+          "wardrobe": "green ranger outfit, cape, boots",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-left foreground",
+          "pose_action": "standing excitedly facing dragon",
+          "wardrobe": "blue fantasy harness",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "dragon",
+          "description": "enormous green horned dragon at upper right with orange glowing eyes, wings, claws and fiery breath",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "golden magical shield arc",
+        "fairytale castle, waterfalls and bridges",
+        "sunset mountain valley",
+        "rocky foreground ledge"
+      ],
+      "composition_notes": "Maintain dramatic left-to-right confrontation; dragon must remain fixed and visually dominant.",
+      "image_filename": "the-dragon-of-castle-valley(1).jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-fairy-glade.jpg": {
+      "scene_description": "In a bright enchanted garden of giant mushrooms, flowering trees and streams, grandmother raises a glowing lantern while a girl in a lavender dress reaches toward a tiny fairy and a seated boy watches in delight. A dog stands among the flowers, with many fairies flying around the glade.",
+      "visual_style": "Warm detailed 3D animated fantasy illustration, lush saturated greens and pinks, glowing fairy dust and golden sunlight",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "left upper-middle",
+          "pose_action": "leaning forward holding up glowing lantern",
+          "wardrobe": "purple embroidered cloak",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre-left foreground",
+          "pose_action": "seated or kneeling, open palm extended toward fairy",
+          "wardrobe": "lavender fairy-tale dress, flower crown",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "centre-right foreground",
+          "pose_action": "sitting by stream with one hand raised",
+          "wardrobe": "earth-toned tunic and green vest",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-left foreground",
+          "pose_action": "standing smiling toward group",
+          "wardrobe": "green floral collar",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "fairies",
+          "description": "numerous tiny winged fairies with colourful dresses flying around scene",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "fairy-tale castle in distance",
+        "stone bridge and cascading stream",
+        "mushroom houses, glowing windows, flowers and trees",
+        "fairy dust"
+      ],
+      "composition_notes": "Do not replace background fairies; preserve girl’s extended palm and fairy interaction.",
+      "image_filename": "the-fairy-glade.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-great-backyard-expedition.jpg": {
+      "scene_description": "At night in an oversized magical backyard, two young explorers and grandmother investigate a luminous beetle beside giant grass and glowing mushrooms, with a dog bounding alongside. Grandmother studies a map under a lantern while a snail and frog watch nearby.",
+      "visual_style": "Detailed whimsical 3D animation with warm lantern light against deep blue night, oversized macro garden perspective",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-right behind children",
+          "pose_action": "smiling and examining treasure map",
+          "wardrobe": "purple jacket, glasses, explorer backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "upper-left centre",
+          "pose_action": "crouching, pointing toward beetle",
+          "wardrobe": "brown safari hat, khaki explorer outfit, backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "centre foreground",
+          "pose_action": "crouching and aiming flashlight toward beetle",
+          "wardrobe": "blue cap with headlamp, blue explorer outfit",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-centre right",
+          "pose_action": "bounding toward glowing beetle",
+          "wardrobe": "red scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "beetle",
+          "description": "large iridescent green-blue beetle on log",
+          "preserve": true
+        },
+        {
+          "name": "snail",
+          "description": "large snail perched upper-left",
+          "preserve": true
+        },
+        {
+          "name": "frog",
+          "description": "small green frog in lower-left vegetation",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "glowing mushrooms",
+        "giant grass and flowers",
+        "warmly lit house and garden fence",
+        "lantern and map"
+      ],
+      "composition_notes": "Preserve exaggerated scale of backyard creatures; keep beetle focal point in bottom-right.",
+      "image_filename": "the-great-backyard-expedition.jpg",
+      "image_dimensions": {
+        "width": 768,
+        "height": 512
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 3,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-great-galaxy-road-trip.jpg": {
+      "scene_description": "A family flies through space in an open-topped retro rocket car, with a girl steering and pointing toward distant planets, grandmother seated behind, a boy peeking from the front cockpit and a dog enjoying the ride. A spiral galaxy, ringed planets and asteroids surround them.",
+      "visual_style": "Bright glossy 3D animated space adventure; metallic blue-and-red rocket, golden light trails and intense purple-blue cosmic glow",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-left cockpit",
+          "pose_action": "seated behind driver smiling",
+          "wardrobe": "white-and-blue astronaut suit",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "upper-middle right cockpit",
+          "pose_action": "steering with left hand and pointing outward with right",
+          "wardrobe": "white-and-blue astronaut suit",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "front-centre cockpit",
+          "pose_action": "peeking over cockpit rim and looking upward",
+          "wardrobe": "white-and-blue astronaut suit",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "left-middle cockpit",
+          "pose_action": "paws on edge, looking forward excitedly",
+          "wardrobe": "red scarf, transparent bubble helmet",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [],
+      "protected_elements": [
+        "retro rocket car with glass windscreen, gold stars and glowing engines",
+        "ringed planets and distant Earth-like globe",
+        "asteroids, spiral galaxy, golden orbital trails"
+      ],
+      "composition_notes": "Keep all four Crew inside original cockpit seating positions and preserve vehicle silhouette.",
+      "image_filename": "the-great-galaxy-road-trip.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 0,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-great-lighthouse-rescue.jpg": {
+      "scene_description": "During a violent lightning storm at sea, grandmother rows a wooden boat carrying a girl, boy and raincoated dog toward a rocky lighthouse. A small seal clings to rocks at the right, gripping the boat’s rescue rope.",
+      "visual_style": "Cinematic 3D animated storm scene, dark navy waves, bright white foam and dramatic warm lighthouse beam",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "left side of boat",
+          "pose_action": "rowing with a wooden oar and smiling determinedly",
+          "wardrobe": "purple rain cloak and glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre of boat",
+          "pose_action": "holding a glowing lantern high",
+          "wardrobe": "red-orange rain cloak and scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "front-centre of boat",
+          "pose_action": "leaning over bow and looking toward seal",
+          "wardrobe": "green rain jacket and red scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "right bow of boat",
+          "pose_action": "leaning toward seal",
+          "wardrobe": "yellow raincoat and red scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "seal",
+          "description": "small pale grey spotted seal on rock at lower-right holding a rope",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "wooden rescue rowboat, oars and rope",
+        "stormy waves, sea spray and lightning",
+        "rocky lighthouse, keeper cottage and strong golden beam"
+      ],
+      "composition_notes": "Seal and rescue rope are fixed story elements; keep the boat’s angle and storm action.",
+      "image_filename": "the-great-lighthouse-rescue.jpg",
+      "image_dimensions": {
+        "width": 1672,
+        "height": 941
+      },
+      "aspect_ratio": 1.7768,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-lost-jungle-temple.jpg": {
+      "scene_description": "In a lush tropical jungle, a girl carrying a flaming torch leads an expedition toward a glowing ancient stone temple across waterfalls and rope bridges. Grandmother carries a blond boy on her shoulders, and a dog trots ahead; parrots and a monkey inhabit the canopy.",
+      "visual_style": "Painterly textured watercolour storybook style, muted green jungle, sunlit golden temple and atmospheric mist",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "left-centre middle",
+          "pose_action": "walking with boy on shoulders, looking at temple",
+          "wardrobe": "beige safari shirt, tan explorer hat, backpack, purple scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre-left foreground",
+          "pose_action": "stepping forward holding lit torch",
+          "wardrobe": "beige explorer clothes, red scarf, belt",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "upper-left atop grandmother shoulders",
+          "pose_action": "pointing toward temple",
+          "wardrobe": "green explorer outfit, backpack",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-centre foreground",
+          "pose_action": "trotting toward temple",
+          "wardrobe": "red bandana and small pack",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "monkey",
+          "description": "small brown monkey hanging from vine near top-left",
+          "preserve": true
+        },
+        {
+          "name": "parrots",
+          "description": "colourful tropical parrots in upper-left canopy",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "ancient jungle temple and glowing doorway",
+        "stone carved faces",
+        "rope bridge, waterfalls, foliage and torch flame"
+      ],
+      "composition_notes": "Keep boy seated on grandmother’s shoulders; preserve painterly style and temple geography.",
+      "image_filename": "the-lost-jungle-temple.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 2,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-snow-globe-kingdom.jpg": {
+      "scene_description": "Inside a large glass snow globe, a happy family rides a decorated wooden sled down a snowy slope through a magical winter kingdom, with a castle, frozen waterfalls, lanterns and sparkling snow. Grandmother holds a bundled baby while the girl, boy and dog ride at the front.",
+      "visual_style": "Premium 3D animated holiday fantasy, golden warm lamps, sparkling snow, blue-violet winter sky",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-left rear sled",
+          "pose_action": "smiling and holding baby securely",
+          "wardrobe": "purple winter cape and glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "left foreground sled",
+          "pose_action": "leaning forward smiling",
+          "wardrobe": "red winter cape, pink knitted scarf and gloves",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "centre foreground sled",
+          "pose_action": "holding sled front and smiling",
+          "wardrobe": "green winter jacket, red scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "right-front sled",
+          "pose_action": "looking ahead with tongue out",
+          "wardrobe": "red scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "baby",
+          "archetype": "bundled infant",
+          "position": "upper-centre in grandmother arms",
+          "pose_action": "looking happily forward",
+          "wardrobe": "pink knit hat and winter clothes",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [],
+      "protected_elements": [
+        "glass globe and ornate golden base",
+        "decorated wooden sled with golden star",
+        "snowy pine forest, winter castle and frozen waterfalls",
+        "snowflakes and lanterns"
+      ],
+      "composition_notes": "Baby is a fifth optional Crew slot; keep inside grandmother’s arms. Preserve snow globe boundary.",
+      "image_filename": "the-snow-globe-kingdom.jpg",
+      "image_dimensions": {
+        "width": 1672,
+        "height": 941
+      },
+      "aspect_ratio": 1.7768,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 5,
+      "book_character_count": 0,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-super-squad-and-the-sorceress.jpg": {
+      "scene_description": "On a chaotic city street, two young superheroes fly toward a powerful grey-haired sorceress who is unleashing swirling violet energy and levitating debris and a car. A caped dog leaps below the children amid rubble and electrical effects.",
+      "visual_style": "High-energy cinematic 3D superhero animation, vibrant red, blue and purple energy, sunny city backdrop",
+      "crew_slots": [
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "upper-left flying",
+          "pose_action": "flying forward and firing a golden energy blast from outstretched hand",
+          "wardrobe": "blue-and-gold superhero suit, red cape, gold star emblem",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "centre-left flying",
+          "pose_action": "flying forward with arms outstretched and lightning effects",
+          "wardrobe": "red-and-black superhero suit, red cape and gold lightning symbol",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-centre flying",
+          "pose_action": "leaping in mid-air with open mouth",
+          "wardrobe": "blue cape, superhero mask and red neck scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "sorceress",
+          "description": "grey-white-haired villain in dark purple cloak at upper-right, generating purple magical vortex",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "city buildings and central skyscraper",
+        "levitating car, flying rocks and broken street",
+        "gold lightning blast and purple vortex",
+        "traffic and rubble"
+      ],
+      "composition_notes": "Sorceress is a fixed antagonist, not grandmother Crew. Preserve action trajectories and energy effects.",
+      "image_filename": "the-super-squad-and-the-sorceress.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 3,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "under-the-kelp-forest.jpg": {
+      "scene_description": "A split-level ocean scene shows grandmother captaining a little wooden boat and a dog swimming at the surface, while two children in snorkelling gear explore a colourful kelp forest below. The boy holds a friendly sea turtle while an orange octopus watches from the reef.",
+      "visual_style": "Bright glossy 3D underwater family adventure, turquoise water, sunlight shafts, lush kelp and vibrant fish",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "top-right above water",
+          "pose_action": "waving from boat and holding steering wheel",
+          "wardrobe": "purple jacket, tan sun hat, glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "lower-left underwater",
+          "pose_action": "swimming toward boy with arms extended",
+          "wardrobe": "dark wetsuit, pink snorkel mask and flippers",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "lower-centre underwater",
+          "pose_action": "swimming and gently holding turtle",
+          "wardrobe": "blue wetsuit and blue snorkel mask",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "top-left surface",
+          "pose_action": "paddling at surface with head above water",
+          "wardrobe": "blue snorkel mask and red scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "sea_turtle",
+          "description": "friendly green sea turtle held by boy",
+          "preserve": true
+        },
+        {
+          "name": "octopus",
+          "description": "orange octopus at lower-right reef",
+          "preserve": true
+        },
+        {
+          "name": "fish",
+          "description": "numerous colourful tropical reef fish",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "surface waterline dividing scene",
+        "small wooden boat",
+        "kelp forest, reef, coral and bubbles"
+      ],
+      "composition_notes": "Maintain waterline and positions above/below surface; preserve turtle and octopus.",
+      "image_filename": "under-the-kelp-forest.jpg",
+      "image_dimensions": {
+        "width": 768,
+        "height": 512
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 3,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "captain-of-the-cloud-ship.jpg": {
+      "scene_description": "On a whimsical wooden sailing airship high above a fantasy valley, a girl steers the wheel and points to a floating castle while grandmother reads a star map. A boy uses a telescope from a raised lookout and a dog playfully holds a wooden spoon near cooking pots.",
+      "visual_style": "Bright polished 3D animated storybook, golden sun, clear blue sky, wood and brass ship details",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "left-middle deck",
+          "pose_action": "holding and studying large parchment star map",
+          "wardrobe": "purple cloak, white trousers, gold compass necklace",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre deck",
+          "pose_action": "one hand on wheel, other pointing toward distant floating castle",
+          "wardrobe": "blue captain coat, feathered tricorne hat",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "upper-right lookout basket",
+          "pose_action": "looking through telescope",
+          "wardrobe": "green shirt and red scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-left foreground deck",
+          "pose_action": "standing with wooden spoon in mouth",
+          "wardrobe": "white chef hat, red bandana",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [],
+      "protected_elements": [
+        "ship wheel, rigging, sails and wooden deck",
+        "floating castle and valley below",
+        "brass lanterns, ropes and cooking pot",
+        "clear blue sky"
+      ],
+      "composition_notes": "Square image; preserve exact ship structure and positions, especially boy in lookout and dog beside pot.",
+      "image_filename": "captain-of-the-cloud-ship.jpg",
+      "image_dimensions": {
+        "width": 1254,
+        "height": 1254
+      },
+      "aspect_ratio": 1.0,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 0,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "dragon-day-at-school.jpg": {
+      "scene_description": "In a sunlit colourful classroom, a small orange dragon has hatched from an egg on the floor. A girl offers it a cookie, a boy points excitedly from a stool, grandmother holds a red fire extinguisher and the dog peeks from beneath a desk.",
+      "visual_style": "Warm bright polished 3D animated family comedy, school posters and colourful classroom clutter",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "right upper-middle",
+          "pose_action": "leaning over desk, holding fire extinguisher",
+          "wardrobe": "purple cardigan, glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "left foreground",
+          "pose_action": "crouching to offer cookie to dragon",
+          "wardrobe": "white school shirt, dark skirt and shoes",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "upper-left centre on stool",
+          "pose_action": "pointing excitedly at dragon",
+          "wardrobe": "white shirt, blue school vest and shorts",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-right under desk",
+          "pose_action": "peeking out excitedly",
+          "wardrobe": "red bandana",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "baby_dragon",
+          "description": "small orange-red baby dragon with wings sitting amid broken eggshells",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "broken eggshells and cookie",
+        "red fire extinguisher",
+        "classroom desks, globe, rainbow posters and windows"
+      ],
+      "composition_notes": "Dragon is fixed; maintain girl’s cookie-to-dragon interaction and grandmother’s extinguisher.",
+      "image_filename": "dragon-day-at-school.jpg",
+      "image_dimensions": {
+        "width": 768,
+        "height": 512
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "grand-final-day.jpg": {
+      "scene_description": "At a packed Australian-rules football stadium, a blond boy leaps to catch a red football above a defending adult player while a girl and grandmother cheer from the left and a dog runs across the grass. Goalposts and spectators fill the background.",
+      "visual_style": "Dynamic glossy 3D animated sports action, vivid midday sun, red-black versus navy-white uniforms",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "far-left foreground",
+          "pose_action": "cheering with both fists raised",
+          "wardrobe": "black-and-red supporter shirt and scarf",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "left-middle foreground",
+          "pose_action": "running and cheering toward airborne boy",
+          "wardrobe": "black-and-red football kit",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "upper-middle foreground",
+          "pose_action": "jumping high and catching red oval football with both hands",
+          "wardrobe": "black-and-red football kit and boots",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-middle foreground",
+          "pose_action": "running excitedly across grass",
+          "wardrobe": "red-and-black team scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "opponent",
+          "description": "adult male football defender in navy-and-white uniform jumping beneath boy",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "red Australian rules football",
+        "goalposts and crowded stadium",
+        "grass field and stadium lights",
+        "team colours and dramatic airborne mark"
+      ],
+      "composition_notes": "Opponent is fixed non-Crew character; preserve the aerial catch and football trajectory.",
+      "image_filename": "grand-final-day.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-birthday-that-wouldnt-end.jpg": {
+      "scene_description": "A magical birthday party explodes with floating presents, balloons, cupcakes, time swirls and a huge clock. A girl in a princess dress blows out candles on a towering cake, a boy inspects a clue with magnifying glass, grandmother holds a pocket watch and a dog watches the cake.",
+      "visual_style": "Colourful festive 3D animated fantasy, glowing gold time spirals, bright pink and purple accents",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "upper-right background",
+          "pose_action": "smiling and presenting golden pocket watch",
+          "wardrobe": "purple star-patterned cape, glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "centre-left foreground",
+          "pose_action": "leaning toward large cake to blow candles",
+          "wardrobe": "pink princess dress and gold crown",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "left foreground",
+          "pose_action": "examining a small clue with magnifying glass",
+          "wardrobe": "tan detective hat, vest and white shirt",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "right foreground",
+          "pose_action": "looking eagerly toward cake",
+          "wardrobe": "red scarf",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [],
+      "protected_elements": [
+        "huge multi-tier birthday cake with lit candles",
+        "large floating clock and swirling golden time magic",
+        "balloons, gifts, confetti and floating cupcakes"
+      ],
+      "composition_notes": "Cake and clock are main story objects; maintain girl blowing candles and boy’s detective pose.",
+      "image_filename": "the-birthday-that-wouldnt-end.jpg",
+      "image_dimensions": {
+        "width": 768,
+        "height": 512
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 0,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    },
+    "the-brick-by-brick-kingdom.jpg": {
+      "scene_description": "In a sunlit playroom transformed into a vast kingdom of colourful toy bricks, a girl stands on a castle tower raising a red turret, a boy rides a giant brick-built dragon, grandmother studies a map and a brick-textured dog runs across the floor.",
+      "visual_style": "Whimsical 3D animation with all characters and structures rendered from small colourful interlocking toy bricks; warm daylight",
+      "crew_slots": [
+        {
+          "slot_id": "grandmother",
+          "archetype": "grandmother",
+          "position": "lower-left foreground",
+          "pose_action": "reading folded brick-textured map",
+          "wardrobe": "purple scarf, tan hat, brick-built clothes and glasses",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "girl",
+          "archetype": "red-haired girl",
+          "position": "upper-left castle tower",
+          "pose_action": "holding red castle roof aloft",
+          "wardrobe": "brick-textured explorer clothing",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "boy",
+          "archetype": "blond curly-haired boy",
+          "position": "upper-right riding dragon",
+          "pose_action": "riding and raising blue toy sword",
+          "wardrobe": "green brick-textured adventurer outfit and red cape",
+          "replace_entire_character": true
+        },
+        {
+          "slot_id": "dog",
+          "archetype": "brown-and-white floppy-eared dog",
+          "position": "lower-middle foreground",
+          "pose_action": "running with blue toy brick in mouth",
+          "wardrobe": "brick-textured brown-white fur, red collar",
+          "replace_entire_character": true
+        }
+      ],
+      "book_characters": [
+        {
+          "name": "brick_dragon",
+          "description": "large friendly red, yellow and blue toy-brick dragon with wings at right",
+          "preserve": true
+        }
+      ],
+      "protected_elements": [
+        "multicoloured brick castle and turrets",
+        "scattered toy bricks",
+        "sunny playroom windows and furniture",
+        "toy-brick construction aesthetic"
+      ],
+      "composition_notes": "All Crew must be transformed into the same brick-built aesthetic; preserve brick dragon and castle.",
+      "image_filename": "the-brick-by-brick-kingdom.jpg",
+      "image_dimensions": {
+        "width": 1536,
+        "height": 1024
+      },
+      "aspect_ratio": 1.5,
+      "edit_strategy": "reference-guided targeted replacement; mask Crew areas where possible",
+      "crew_count": 4,
+      "book_character_count": 1,
+      "review_status": "provisional_visual_analysis_needs_owner_confirmation",
+      "crew_slot_geometry_status": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor"
+    }
+  }
+}

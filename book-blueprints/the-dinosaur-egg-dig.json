@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-dinosaur-egg-dig",
+  "title": "The Dinosaur Egg Dig",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Delicate textured watercolour and ink storybook illustration; warm sandy terracotta, soft blue sky and fine painted paper grain",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "baby_dinosaur",
+        "name": "baby_dinosaur",
+        "description": "small friendly green triceratops-like hatchling emerging from broken egg",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "distant_dinosaurs",
+        "name": "distant_dinosaurs",
+        "description": "two small long-necked dinosaurs on far riverbank",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "upper-left centre behind children",
+        "poseAction": "smiling, holding an open field notebook",
+        "wardrobe": "tan explorer hat, purple scarf, beige expedition clothing and backpack",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "left foreground",
+        "poseAction": "kneeling, brushing dirt from the egg",
+        "wardrobe": "tan explorer outfit, red scarf, backpack",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "centre-right behind egg",
+        "poseAction": "kneeling, examining hatchling through magnifying glass",
+        "wardrobe": "green explorer shirt, red scarf, backpack",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "right foreground",
+        "poseAction": "crouching, looking toward hatchling with tongue out",
+        "wardrobe": "red neckerchief",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-dinosaur-egg-dig.jpg",
+      "scene": {
+        "description": "At a sunny prehistoric canyon excavation, a baby green horned dinosaur hatches from a huge speckled egg as two children, grandmother and dog gather in delighted amazement. A river winds through mesas and distant long-neck dinosaurs graze.",
+        "visualStyle": "Delicate textured watercolour and ink storybook illustration; warm sandy terracotta, soft blue sky and fine painted paper grain"
+      },
+      "composition": {
+        "aspectRatio": 1.7768,
+        "dimensions": {
+          "width": 1672,
+          "height": 941
+        },
+        "notes": "Preserve the baby dinosaur exactly; foreground egg is the focal point and all Crew react to it."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "upper-left centre behind children",
+          "poseAction": "smiling, holding an open field notebook",
+          "wardrobe": "tan explorer hat, purple scarf, beige expedition clothing and backpack"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "left foreground",
+          "poseAction": "kneeling, brushing dirt from the egg",
+          "wardrobe": "tan explorer outfit, red scarf, backpack"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre-right behind egg",
+          "poseAction": "kneeling, examining hatchling through magnifying glass",
+          "wardrobe": "green explorer shirt, red scarf, backpack"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "right foreground",
+          "poseAction": "crouching, looking toward hatchling with tongue out",
+          "wardrobe": "red neckerchief"
+        }
+      ],
+      "protectedElements": [
+        "large broken speckled egg and shards",
+        "brush, magnifier, compass, field hat and map",
+        "orange mesas, winding turquoise river and distant mountains"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 2,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

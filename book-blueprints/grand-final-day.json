@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "grand-final-day",
+  "title": "Grand Final Day",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Dynamic glossy 3D animated sports action, vivid midday sun, red-black versus navy-white uniforms",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "opponent",
+        "name": "opponent",
+        "description": "adult male football defender in navy-and-white uniform jumping beneath boy",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "far-left foreground",
+        "poseAction": "cheering with both fists raised",
+        "wardrobe": "black-and-red supporter shirt and scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "left-middle foreground",
+        "poseAction": "running and cheering toward airborne boy",
+        "wardrobe": "black-and-red football kit",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "upper-middle foreground",
+        "poseAction": "jumping high and catching red oval football with both hands",
+        "wardrobe": "black-and-red football kit and boots",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-middle foreground",
+        "poseAction": "running excitedly across grass",
+        "wardrobe": "red-and-black team scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "grand-final-day.jpg",
+      "scene": {
+        "description": "At a packed Australian-rules football stadium, a blond boy leaps to catch a red football above a defending adult player while a girl and grandmother cheer from the left and a dog runs across the grass. Goalposts and spectators fill the background.",
+        "visualStyle": "Dynamic glossy 3D animated sports action, vivid midday sun, red-black versus navy-white uniforms"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Opponent is fixed non-Crew character; preserve the aerial catch and football trajectory."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "far-left foreground",
+          "poseAction": "cheering with both fists raised",
+          "wardrobe": "black-and-red supporter shirt and scarf"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "left-middle foreground",
+          "poseAction": "running and cheering toward airborne boy",
+          "wardrobe": "black-and-red football kit"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "upper-middle foreground",
+          "poseAction": "jumping high and catching red oval football with both hands",
+          "wardrobe": "black-and-red football kit and boots"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-middle foreground",
+          "poseAction": "running excitedly across grass",
+          "wardrobe": "red-and-black team scarf"
+        }
+      ],
+      "protectedElements": [
+        "red Australian rules football",
+        "goalposts and crowded stadium",
+        "grass field and stadium lights",
+        "team colours and dramatic airborne mark"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 1,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

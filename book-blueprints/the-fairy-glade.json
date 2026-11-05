@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-fairy-glade",
+  "title": "The Fairy Glade",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Warm detailed 3D animated fantasy illustration, lush saturated greens and pinks, glowing fairy dust and golden sunlight",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "fairies",
+        "name": "fairies",
+        "description": "numerous tiny winged fairies with colourful dresses flying around scene",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "left upper-middle",
+        "poseAction": "leaning forward holding up glowing lantern",
+        "wardrobe": "purple embroidered cloak",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "centre-left foreground",
+        "poseAction": "seated or kneeling, open palm extended toward fairy",
+        "wardrobe": "lavender fairy-tale dress, flower crown",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "centre-right foreground",
+        "poseAction": "sitting by stream with one hand raised",
+        "wardrobe": "earth-toned tunic and green vest",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-left foreground",
+        "poseAction": "standing smiling toward group",
+        "wardrobe": "green floral collar",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-fairy-glade.jpg",
+      "scene": {
+        "description": "In a bright enchanted garden of giant mushrooms, flowering trees and streams, grandmother raises a glowing lantern while a girl in a lavender dress reaches toward a tiny fairy and a seated boy watches in delight. A dog stands among the flowers, with many fairies flying around the glade.",
+        "visualStyle": "Warm detailed 3D animated fantasy illustration, lush saturated greens and pinks, glowing fairy dust and golden sunlight"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Do not replace background fairies; preserve girl’s extended palm and fairy interaction."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "left upper-middle",
+          "poseAction": "leaning forward holding up glowing lantern",
+          "wardrobe": "purple embroidered cloak"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "centre-left foreground",
+          "poseAction": "seated or kneeling, open palm extended toward fairy",
+          "wardrobe": "lavender fairy-tale dress, flower crown"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre-right foreground",
+          "poseAction": "sitting by stream with one hand raised",
+          "wardrobe": "earth-toned tunic and green vest"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-left foreground",
+          "poseAction": "standing smiling toward group",
+          "wardrobe": "green floral collar"
+        }
+      ],
+      "protectedElements": [
+        "fairy-tale castle in distance",
+        "stone bridge and cascading stream",
+        "mushroom houses, glowing windows, flowers and trees",
+        "fairy dust"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 1,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

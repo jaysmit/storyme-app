@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-great-backyard-expedition",
+  "title": "The Great Backyard Expedition",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Detailed whimsical 3D animation with warm lantern light against deep blue night, oversized macro garden perspective",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "beetle",
+        "name": "beetle",
+        "description": "large iridescent green-blue beetle on log",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "snail",
+        "name": "snail",
+        "description": "large snail perched upper-left",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "frog",
+        "name": "frog",
+        "description": "small green frog in lower-left vegetation",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "upper-right behind children",
+        "poseAction": "smiling and examining treasure map",
+        "wardrobe": "purple jacket, glasses, explorer backpack",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "upper-left centre",
+        "poseAction": "crouching, pointing toward beetle",
+        "wardrobe": "brown safari hat, khaki explorer outfit, backpack",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "centre foreground",
+        "poseAction": "crouching and aiming flashlight toward beetle",
+        "wardrobe": "blue cap with headlamp, blue explorer outfit",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-centre right",
+        "poseAction": "bounding toward glowing beetle",
+        "wardrobe": "red scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-great-backyard-expedition.jpg",
+      "scene": {
+        "description": "At night in an oversized magical backyard, two young explorers and grandmother investigate a luminous beetle beside giant grass and glowing mushrooms, with a dog bounding alongside. Grandmother studies a map under a lantern while a snail and frog watch nearby.",
+        "visualStyle": "Detailed whimsical 3D animation with warm lantern light against deep blue night, oversized macro garden perspective"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 768,
+          "height": 512
+        },
+        "notes": "Preserve exaggerated scale of backyard creatures; keep beetle focal point in bottom-right."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "upper-right behind children",
+          "poseAction": "smiling and examining treasure map",
+          "wardrobe": "purple jacket, glasses, explorer backpack"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "upper-left centre",
+          "poseAction": "crouching, pointing toward beetle",
+          "wardrobe": "brown safari hat, khaki explorer outfit, backpack"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre foreground",
+          "poseAction": "crouching and aiming flashlight toward beetle",
+          "wardrobe": "blue cap with headlamp, blue explorer outfit"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-centre right",
+          "poseAction": "bounding toward glowing beetle",
+          "wardrobe": "red scarf"
+        }
+      ],
+      "protectedElements": [
+        "glowing mushrooms",
+        "giant grass and flowers",
+        "warmly lit house and garden fence",
+        "lantern and map"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 3,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

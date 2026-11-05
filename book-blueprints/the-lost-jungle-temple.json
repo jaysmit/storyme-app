@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-lost-jungle-temple",
+  "title": "The Lost Jungle Temple",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Painterly textured watercolour storybook style, muted green jungle, sunlit golden temple and atmospheric mist",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "monkey",
+        "name": "monkey",
+        "description": "small brown monkey hanging from vine near top-left",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "parrots",
+        "name": "parrots",
+        "description": "colourful tropical parrots in upper-left canopy",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "left-centre middle",
+        "poseAction": "walking with boy on shoulders, looking at temple",
+        "wardrobe": "beige safari shirt, tan explorer hat, backpack, purple scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "centre-left foreground",
+        "poseAction": "stepping forward holding lit torch",
+        "wardrobe": "beige explorer clothes, red scarf, belt",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "upper-left atop grandmother shoulders",
+        "poseAction": "pointing toward temple",
+        "wardrobe": "green explorer outfit, backpack",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-centre foreground",
+        "poseAction": "trotting toward temple",
+        "wardrobe": "red bandana and small pack",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-lost-jungle-temple.jpg",
+      "scene": {
+        "description": "In a lush tropical jungle, a girl carrying a flaming torch leads an expedition toward a glowing ancient stone temple across waterfalls and rope bridges. Grandmother carries a blond boy on her shoulders, and a dog trots ahead; parrots and a monkey inhabit the canopy.",
+        "visualStyle": "Painterly textured watercolour storybook style, muted green jungle, sunlit golden temple and atmospheric mist"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Keep boy seated on grandmother’s shoulders; preserve painterly style and temple geography."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "left-centre middle",
+          "poseAction": "walking with boy on shoulders, looking at temple",
+          "wardrobe": "beige safari shirt, tan explorer hat, backpack, purple scarf"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "centre-left foreground",
+          "poseAction": "stepping forward holding lit torch",
+          "wardrobe": "beige explorer clothes, red scarf, belt"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "upper-left atop grandmother shoulders",
+          "poseAction": "pointing toward temple",
+          "wardrobe": "green explorer outfit, backpack"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-centre foreground",
+          "poseAction": "trotting toward temple",
+          "wardrobe": "red bandana and small pack"
+        }
+      ],
+      "protectedElements": [
+        "ancient jungle temple and glowing doorway",
+        "stone carved faces",
+        "rope bridge, waterfalls, foliage and torch flame"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 2,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

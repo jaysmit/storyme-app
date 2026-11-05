@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "captain-of-the-cloud-ship",
+  "title": "Captain Of The Cloud Ship",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Bright polished 3D animated storybook, golden sun, clear blue sky, wood and brass ship details",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "left-middle deck",
+        "poseAction": "holding and studying large parchment star map",
+        "wardrobe": "purple cloak, white trousers, gold compass necklace",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "centre deck",
+        "poseAction": "one hand on wheel, other pointing toward distant floating castle",
+        "wardrobe": "blue captain coat, feathered tricorne hat",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "upper-right lookout basket",
+        "poseAction": "looking through telescope",
+        "wardrobe": "green shirt and red scarf",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "lower-left foreground deck",
+        "poseAction": "standing with wooden spoon in mouth",
+        "wardrobe": "white chef hat, red bandana",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "captain-of-the-cloud-ship.jpg",
+      "scene": {
+        "description": "On a whimsical wooden sailing airship high above a fantasy valley, a girl steers the wheel and points to a floating castle while grandmother reads a star map. A boy uses a telescope from a raised lookout and a dog playfully holds a wooden spoon near cooking pots.",
+        "visualStyle": "Bright polished 3D animated storybook, golden sun, clear blue sky, wood and brass ship details"
+      },
+      "composition": {
+        "aspectRatio": 1,
+        "dimensions": {
+          "width": 1254,
+          "height": 1254
+        },
+        "notes": "Square image; preserve exact ship structure and positions, especially boy in lookout and dog beside pot."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "left-middle deck",
+          "poseAction": "holding and studying large parchment star map",
+          "wardrobe": "purple cloak, white trousers, gold compass necklace"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "centre deck",
+          "poseAction": "one hand on wheel, other pointing toward distant floating castle",
+          "wardrobe": "blue captain coat, feathered tricorne hat"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "upper-right lookout basket",
+          "poseAction": "looking through telescope",
+          "wardrobe": "green shirt and red scarf"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower-left foreground deck",
+          "poseAction": "standing with wooden spoon in mouth",
+          "wardrobe": "white chef hat, red bandana"
+        }
+      ],
+      "protectedElements": [
+        "ship wheel, rigging, sails and wooden deck",
+        "floating castle and valley below",
+        "brass lanterns, ropes and cooking pot",
+        "clear blue sky"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}

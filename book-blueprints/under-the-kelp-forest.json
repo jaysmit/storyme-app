@@ -1,0 +1,156 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "under-the-kelp-forest",
+  "title": "Under The Kelp Forest",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot’s pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "Where precise preservation is required, use an editable mask of Crew regions and composite protected elements if needed.",
+    "Do not interpret the grandmother-looking sorceress in the superhero cover as the Crew grandmother.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Bright glossy 3D underwater family adventure, turquoise water, sunlight shafts, lush kelp and vibrant fish",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "sea_turtle",
+        "name": "sea_turtle",
+        "description": "friendly green sea turtle held by boy",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "octopus",
+        "name": "octopus",
+        "description": "orange octopus at lower-right reef",
+        "preserve": true,
+        "role": "story_character"
+      },
+      {
+        "characterId": "fish",
+        "name": "fish",
+        "description": "numerous colourful tropical reef fish",
+        "preserve": true,
+        "role": "story_character"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "top-right above water",
+        "poseAction": "waving from boat and holding steering wheel",
+        "wardrobe": "purple jacket, tan sun hat, glasses",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "red-haired girl",
+        "position": "lower-left underwater",
+        "poseAction": "swimming toward boy with arms extended",
+        "wardrobe": "dark wetsuit, pink snorkel mask and flippers",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "blond curly-haired boy",
+        "position": "lower-centre underwater",
+        "poseAction": "swimming and gently holding turtle",
+        "wardrobe": "blue wetsuit and blue snorkel mask",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "brown-and-white floppy-eared dog",
+        "position": "top-left surface",
+        "poseAction": "paddling at surface with head above water",
+        "wardrobe": "blue snorkel mask and red scarf",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "under-the-kelp-forest.jpg",
+      "scene": {
+        "description": "A split-level ocean scene shows grandmother captaining a little wooden boat and a dog swimming at the surface, while two children in snorkelling gear explore a colourful kelp forest below. The boy holds a friendly sea turtle while an orange octopus watches from the reef.",
+        "visualStyle": "Bright glossy 3D underwater family adventure, turquoise water, sunlight shafts, lush kelp and vibrant fish"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 768,
+          "height": 512
+        },
+        "notes": "Maintain waterline and positions above/below surface; preserve turtle and octopus."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_grandmother",
+          "position": "top-right above water",
+          "poseAction": "waving from boat and holding steering wheel",
+          "wardrobe": "purple jacket, tan sun hat, glasses"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "lower-left underwater",
+          "poseAction": "swimming toward boy with arms extended",
+          "wardrobe": "dark wetsuit, pink snorkel mask and flippers"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "lower-centre underwater",
+          "poseAction": "swimming and gently holding turtle",
+          "wardrobe": "blue wetsuit and blue snorkel mask"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "top-left surface",
+          "poseAction": "paddling at surface with head above water",
+          "wardrobe": "blue snorkel mask and red scarf"
+        }
+      ],
+      "protectedElements": [
+        "surface waterline dividing scene",
+        "small wooden boat",
+        "kelp forest, reef, coral and bubbles"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 3,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image; optional slot masks should be drawn/approved separately",
+    "classificationNote": "Recurring grandmother, red-haired girl, blond boy and brown-white dog are replaceable Crew archetypes; baby in snow globe also provisionally Crew. Story-specific creatures and opponents remain fixed. Confirm in admin before production."
+  }
+}
