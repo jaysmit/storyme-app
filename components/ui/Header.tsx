@@ -177,19 +177,20 @@ export default function Header({ theme = "dark" }: HeaderProps) {
               </Link>
             )}
 
-            <div className="relative">
+            {/* User dropdown - hidden on mobile, use hamburger menu instead */}
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 font-bold py-2"
                 style={{ color: textColor }}
               >
                 <div
-                  className="w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center text-xs md:text-sm font-bold"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
                   style={{ background: "#6E67B8", color: "#FFFFFF" }}
                 >
                   {initials}
                 </div>
-                <span className="hidden md:inline">{displayName}</span>
+                <span>{displayName}</span>
                 <svg
                   width="16"
                   height="16"
@@ -197,7 +198,7 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
-                  className={`hidden md:block transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+                  className={`transition-transform ${showUserMenu ? "rotate-180" : ""}`}
                 >
                   <path d="M6 9l6 6 6-6" />
                 </svg>
@@ -362,6 +363,19 @@ export default function Header({ theme = "dark" }: HeaderProps) {
               {user && (
                 <>
                   <div className="border-t my-2" style={{ borderColor: "#3D3A6E" }} />
+                  {/* User info in mobile menu */}
+                  <div className="px-4 py-3 flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{ background: "#6E67B8", color: "#FFFFFF" }}
+                    >
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{displayName}</p>
+                      <p className="text-xs text-text-muted truncate">{user.email}</p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       handleSignOut();
