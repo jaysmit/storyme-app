@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "baby-brother",
+  "title": "Baby Brother",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot's pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Warm, heartfelt 3D animated family-film aesthetic; soft pastel colours, cozy domestic lighting, gentle expressions",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_baby",
+        "characterType": "baby",
+        "archetype": "baby sibling",
+        "position": "centre foreground",
+        "poseAction": "being held or sitting in crib",
+        "wardrobe": "soft onesie or baby clothes",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "older sister",
+        "position": "left side",
+        "poseAction": "looking lovingly at baby",
+        "wardrobe": "casual home clothes",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "older brother",
+        "position": "right side",
+        "poseAction": "leaning in curiously",
+        "wardrobe": "casual home clothes",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother or parent",
+        "position": "background centre",
+        "poseAction": "watching warmly",
+        "wardrobe": "comfortable home attire",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "baby-brother.jpg",
+      "scene": {
+        "description": "A heartwarming family scene welcoming a new baby sibling. Older children gather around to meet their new brother or sister, with warm domestic lighting and cozy home setting.",
+        "visualStyle": "Warm, heartfelt 3D animated family-film aesthetic; soft pastel colours, cozy domestic lighting, gentle expressions"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Family grouped around baby; warm domestic setting; loving expressions throughout."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_baby",
+          "position": "centre foreground",
+          "poseAction": "being held or sitting in crib",
+          "wardrobe": "soft onesie or baby clothes"
+        },
+        {
+          "slotId": "crew_girl",
+          "position": "left side",
+          "poseAction": "looking lovingly at baby",
+          "wardrobe": "casual home clothes"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "right side",
+          "poseAction": "leaning in curiously",
+          "wardrobe": "casual home clothes"
+        },
+        {
+          "slotId": "crew_grandmother",
+          "position": "background centre",
+          "poseAction": "watching warmly",
+          "wardrobe": "comfortable home attire"
+        }
+      ],
+      "protectedElements": [
+        "cozy home interior setting",
+        "soft domestic lighting",
+        "nursery or living room background elements"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image",
+    "classificationNote": "Family story with baby as central character. All characters are replaceable Crew."
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-outback-star-train",
+  "title": "The Outback Star Train",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot's pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Warm Australian outback 3D animated aesthetic; golden sunset and starry night blending, red earth tones, magical vintage steam train",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "excited girl",
+        "position": "train window or platform left",
+        "poseAction": "waving from train window or boarding excitedly",
+        "wardrobe": "outback adventure clothes with hat",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "adventurous boy",
+        "position": "train window or platform right",
+        "poseAction": "looking out at the stars or holding tickets",
+        "wardrobe": "outback adventure clothes",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "train carriage interior",
+        "poseAction": "settling into seat or pointing out window",
+        "wardrobe": "comfortable travel attire",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "family dog",
+        "position": "platform or train floor",
+        "poseAction": "sitting alert or tail wagging",
+        "wardrobe": "bandana",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-outback-star-train.jpg",
+      "scene": {
+        "description": "A magical vintage steam train travels through the Australian outback under a spectacular starry sky. The train glows with warm light against the red earth landscape, as the family embarks on a nighttime journey across the country.",
+        "visualStyle": "Warm Australian outback 3D animated aesthetic; golden sunset and starry night blending, red earth tones, magical vintage steam train"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Train as central element; vast outback landscape; dramatic starry sky; warm lighting from train windows."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "train window or platform left",
+          "poseAction": "waving from train window or boarding excitedly",
+          "wardrobe": "outback adventure clothes with hat"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "train window or platform right",
+          "poseAction": "looking out at the stars or holding tickets",
+          "wardrobe": "outback adventure clothes"
+        },
+        {
+          "slotId": "crew_grandmother",
+          "position": "train carriage interior",
+          "poseAction": "settling into seat or pointing out window",
+          "wardrobe": "comfortable travel attire"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "platform or train floor",
+          "poseAction": "sitting alert or tail wagging",
+          "wardrobe": "bandana"
+        }
+      ],
+      "protectedElements": [
+        "vintage steam train with glowing windows",
+        "Australian outback red earth landscape",
+        "spectacular starry night sky",
+        "train tracks and platform elements"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image",
+    "classificationNote": "Australian outback adventure. All human/pet characters are replaceable Crew."
+  }
+}

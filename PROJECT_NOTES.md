@@ -92,9 +92,20 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-05 PM)
+- [x] **Expanded to 20 Story Books** - Now showing all available stories in UI
+  - Added 4 missing blueprints: baby-brother, the-moon-borrowers, the-outback-star-train, the-quest-for-unicorn-valley
+  - Updated `/api/stories` to read from blueprints instead of hardcoded demo list
+  - All 20 stories now appear in Worlds page and Create wizard story selection
+  - Each story has proper category, tagline, and cover image mapping
+- [x] **Character Creation Fix** - Fixed 500 error when creating new crew members
+  - Fixed `age_group` CHECK constraint violation (was using invalid values "toddler"/"teen")
+  - Now correctly maps ages: 0-17 = child, 18-64 = adult, 65+ = senior
+  - Added better error messages for debugging
+
 ### Recent Changes (2026-11-05)
 - [x] **Book Blueprint System** - Complete architecture for personalized storybook generation
-  - Created `book-blueprints/` directory with 16 individual book JSON files
+  - Created `book-blueprints/` directory with 20 individual book JSON files
   - Each blueprint contains: scene description, visual style, crew slots, book characters, protected elements
   - New `lib/book-blueprints.ts` with blueprint loader, validator, and prompt builder
   - Crew slots use semantic IDs (crew_grandmother, crew_girl, crew_boy, crew_dog, crew_baby)

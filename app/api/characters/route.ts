@@ -52,11 +52,10 @@ export async function POST(request: NextRequest) {
     let mimeType: string;
 
     // Helper to derive age_group from numeric age
+    // Valid values: child, adult, senior (per database CHECK constraint)
     const deriveAgeGroup = (numericAge: number | null): string | null => {
       if (numericAge === null) return null;
-      if (numericAge <= 3) return "toddler";
-      if (numericAge <= 12) return "child";
-      if (numericAge <= 17) return "teen";
+      if (numericAge <= 17) return "child";
       if (numericAge <= 64) return "adult";
       return "senior";
     };
@@ -188,7 +187,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error("Insert error:", insertError);
       return NextResponse.json(
-        { error: "Failed to create character" },
+        { error: `Failed to create character: ${insertError.message}` },
         { status: 500 }
       );
     }

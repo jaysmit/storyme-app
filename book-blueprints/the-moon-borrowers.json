@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-moon-borrowers",
+  "title": "The Moon Borrowers",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot's pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Dreamy night-time 3D animated aesthetic; silver moonlight, starry skies, whimsical floating elements, soft glowing highlights",
+  "characters": {
+    "bookCharacters": [],
+    "crewSlots": [
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "curious girl",
+        "position": "centre-left foreground",
+        "poseAction": "reaching toward the moon or looking up in wonder",
+        "wardrobe": "nightgown or pajamas with moon motifs",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "adventurous boy",
+        "position": "centre-right foreground",
+        "poseAction": "pointing at the moon or holding a net",
+        "wardrobe": "pajamas or adventure outfit",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "background left",
+        "poseAction": "watching from window or doorway",
+        "wardrobe": "nightrobe or comfortable home attire",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "family dog",
+        "position": "lower foreground",
+        "poseAction": "looking up at the moon",
+        "wardrobe": "collar",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-moon-borrowers.jpg",
+      "scene": {
+        "description": "A magical nighttime scene where children discover that pieces of the moon have gone missing. The moon hangs in the starry sky with visible missing sections, while the children look up in wonder and prepare to investigate.",
+        "visualStyle": "Dreamy night-time 3D animated aesthetic; silver moonlight, starry skies, whimsical floating elements, soft glowing highlights"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Nighttime scene with prominent moon; children in foreground; dreamy atmospheric lighting."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "centre-left foreground",
+          "poseAction": "reaching toward the moon or looking up in wonder",
+          "wardrobe": "nightgown or pajamas with moon motifs"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre-right foreground",
+          "poseAction": "pointing at the moon or holding a net",
+          "wardrobe": "pajamas or adventure outfit"
+        },
+        {
+          "slotId": "crew_grandmother",
+          "position": "background left",
+          "poseAction": "watching from window or doorway",
+          "wardrobe": "nightrobe or comfortable home attire"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower foreground",
+          "poseAction": "looking up at the moon",
+          "wardrobe": "collar"
+        }
+      ],
+      "protectedElements": [
+        "large moon with missing pieces",
+        "starry night sky",
+        "magical floating moon fragments",
+        "nighttime atmospheric effects"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 0,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image",
+    "classificationNote": "Magical nighttime adventure. All human/pet characters are replaceable Crew."
+  }
+}

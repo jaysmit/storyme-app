@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "1.0",
+  "bookId": "the-quest-for-unicorn-valley",
+  "title": "The Quest for Unicorn Valley",
+  "blueprintVersion": 1,
+  "globalRules": [
+    "Send original cover as primary image reference; this JSON is supplementary guidance, not a replacement for source pixels.",
+    "Only change Crew slots assigned to uploaded guest character images. Do not change any fixed book characters.",
+    "Keep original camera, framing, aspect ratio, perspective, colours, style, lighting, scenery and story action as close to original as possible.",
+    "Match new Crew to each slot's pose, age-appropriate proportions, outfit, placement and interactions. Preserve guest facial identity from their references.",
+    "Do not add or remove background characters, animals, props or text unless explicitly instructed.",
+    "If a Crew slot is unassigned, retain the original character unless the product explicitly requests removal."
+  ],
+  "visualStyle": "Enchanted fantasy 3D animated aesthetic; rainbow colours, sparkles, magical glowing effects, lush meadow setting, ethereal lighting",
+  "characters": {
+    "bookCharacters": [
+      {
+        "characterId": "unicorn_main",
+        "name": "Unicorn",
+        "description": "Majestic white unicorn with flowing mane, spiral horn, and gentle eyes",
+        "preserve": true,
+        "role": "magical guide"
+      }
+    ],
+    "crewSlots": [
+      {
+        "slotId": "crew_girl",
+        "characterType": "child",
+        "archetype": "dreamy girl",
+        "position": "centre-left foreground",
+        "poseAction": "reaching toward unicorn or following rainbow",
+        "wardrobe": "flowing dress with flower crown",
+        "replaceEntireCharacter": true,
+        "required": true,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_boy",
+        "characterType": "child",
+        "archetype": "curious boy",
+        "position": "centre-right foreground",
+        "poseAction": "pointing at unicorn or carrying a map",
+        "wardrobe": "adventure outfit with sparkly accents",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_grandmother",
+        "characterType": "adult",
+        "archetype": "grandmother",
+        "position": "background centre",
+        "poseAction": "smiling and watching children discover unicorn",
+        "wardrobe": "flowing dress with magical embroidery",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      },
+      {
+        "slotId": "crew_dog",
+        "characterType": "dog",
+        "archetype": "family dog",
+        "position": "lower foreground",
+        "poseAction": "playfully running alongside or sniffing flowers",
+        "wardrobe": "flower collar",
+        "replaceEntireCharacter": true,
+        "required": false,
+        "boundingBox": null,
+        "assignedCharacterId": null
+      }
+    ]
+  },
+  "pages": [
+    {
+      "pageId": "cover",
+      "pageNumber": 0,
+      "pageType": "cover",
+      "originalImage": "the-quest-for-unicorn-valley.jpg",
+      "scene": {
+        "description": "A magical moment as the family discovers Unicorn Valley - a breathtaking hidden meadow filled with flowers, rainbows, and sparkles. A majestic unicorn stands in the centre of the valley, inviting them to enter this enchanted realm.",
+        "visualStyle": "Enchanted fantasy 3D animated aesthetic; rainbow colours, sparkles, magical glowing effects, lush meadow setting, ethereal lighting"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": {
+          "width": 1536,
+          "height": 1024
+        },
+        "notes": "Unicorn as central magical element; rainbow arching over valley; crew in foreground discovering the scene."
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "centre-left foreground",
+          "poseAction": "reaching toward unicorn or following rainbow",
+          "wardrobe": "flowing dress with flower crown"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre-right foreground",
+          "poseAction": "pointing at unicorn or carrying a map",
+          "wardrobe": "adventure outfit with sparkly accents"
+        },
+        {
+          "slotId": "crew_grandmother",
+          "position": "background centre",
+          "poseAction": "smiling and watching children discover unicorn",
+          "wardrobe": "flowing dress with magical embroidery"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "lower foreground",
+          "poseAction": "playfully running alongside or sniffing flowers",
+          "wardrobe": "flower collar"
+        }
+      ],
+      "protectedElements": [
+        "majestic white unicorn with spiral horn",
+        "rainbow arching across sky",
+        "magical flower meadow",
+        "sparkles and glowing magical effects",
+        "ethereal valley landscape"
+      ],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement; mask Crew areas where possible",
+        "preserveBackground": true,
+        "preserveBookCharacters": true,
+        "maskStatus": "not_annotated; position descriptions are qualitative",
+        "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
+      }
+    }
+  ],
+  "metadata": {
+    "crewCount": 4,
+    "bookCharacterCount": 1,
+    "coordinateSystem": "normalized [x,y,width,height] relative to original image",
+    "classificationNote": "Unicorn is protected book character. All human/pet characters are replaceable Crew."
+  }
+}
