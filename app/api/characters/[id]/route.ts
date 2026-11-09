@@ -48,7 +48,14 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { name, character_type, age_group } = body;
+  const {
+    name,
+    character_type,
+    age_group,
+    identity_profile,
+    identity_confirmed,
+    identity_version,
+  } = body;
 
   const { data: character, error } = await supabase
     .from("characters")
@@ -56,6 +63,9 @@ export async function PATCH(
       ...(name && { name }),
       ...(character_type && { character_type }),
       ...(age_group !== undefined && { age_group }),
+      ...(identity_profile !== undefined && { identity_profile }),
+      ...(identity_confirmed !== undefined && { identity_confirmed }),
+      ...(identity_version !== undefined && { identity_version }),
     })
     .eq("id", id)
     .eq("user_id", user.id)

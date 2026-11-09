@@ -200,6 +200,43 @@ SENIOR PROPORTIONS (age ${age}):
       ? `\n\n## 10. USER REQUESTED CHANGES\n${userFeedback}`
       : "";
 
+    // Build identity lock section if confirmed
+    let identityLockSection = "";
+    if (character.identity_profile && character.identity_confirmed) {
+      const p = character.identity_profile as {
+        hair: { color: string; style: string; length?: string };
+        eyes: { color: string };
+        skinTone: string;
+        distinctiveFeatures?: string[];
+        facialHair?: { type?: string; color?: string };
+      };
+      identityLockSection = `
+
+## 3B. LOCKED CHARACTER IDENTITY — CRITICAL
+
+These physical attributes are confirmed by the customer and MUST be preserved exactly:
+
+**HAIR — LOCKED**
+- Color: ${p.hair.color}
+- Style: ${p.hair.style}${p.hair.length ? `\n- Length: ${p.hair.length}` : ""}
+
+**EYES — LOCKED**
+- Color: ${p.eyes.color}
+
+**SKIN — LOCKED**
+- Tone: ${p.skinTone}
+${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
+**DISTINCTIVE FEATURES — LOCKED**
+${p.distinctiveFeatures.map((f: string) => `- ${f}`).join("\n")}` : ""}${p.facialHair?.type && p.facialHair.type !== "none" ? `
+
+**FACIAL HAIR — LOCKED**
+- Type: ${p.facialHair.type}
+- Color: ${p.facialHair.color || "match hair color"}` : ""}
+
+Do not deviate from these locked attributes under any circumstances.
+`;
+    }
+
     // Adjust prompt for pets vs people
     const isPet = character.character_type === "pet";
     const subjectType = isPet ? (character.pet_type || "pet") : "person";
@@ -295,7 +332,7 @@ Instead, reinterpret the ${subjectType}'s distinctive features into a cohesive a
 The final character should be recognisable as the ${subjectType} in the photograph while looking substantially more cartoonish.
 
 Do not introduce freckles, facial hair or other distinctive features that are not present in the reference photograph.
-
+${identityLockSection}
 ## 4. FACIAL EXPRESSION
 
 Give the character a joyful, charming and adventurous personality.

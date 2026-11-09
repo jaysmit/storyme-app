@@ -28,6 +28,13 @@ interface CharacterInput {
   pet_type?: string;
   age?: number | null;
   generated_image_url?: string;
+  identity_profile?: {
+    hair: { color: string; style: string; length?: string };
+    eyes: { color: string };
+    skinTone: string;
+    distinctiveFeatures?: string[];
+  } | null;
+  identity_confirmed?: boolean;
 }
 
 // Map customer character type to crew slot type
@@ -247,12 +254,12 @@ export async function POST(
 
     const { data: data1, error: error1 } = await supabase
       .from("characters")
-      .select("id, name, character_type, pet_type, age, generated_image_url")
+      .select("id, name, character_type, pet_type, age, generated_image_url, identity_profile, identity_confirmed")
       .in("id", characterIds);
 
-    if (error1?.message?.includes("age")) {
-      // age column doesn't exist, try without it
-      console.log("age column not found, fetching without it");
+    if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {
+      // Some columns don't exist, try minimal query
+      console.log("Some columns not found, fetching minimal set");
       const { data: data2, error: error2 } = await supabase
         .from("characters")
         .select("id, name, character_type, pet_type, generated_image_url")
@@ -293,6 +300,19 @@ export async function POST(
     // Assign characters to crew slots
     // ============================================
     const crewAssignments = assignCharactersToSlots(characters, blueprint, coverPage);
+
+    // Enrich crew assignments with identity profiles
+    crewAssignments.forEach((assignment) => {
+      const char = characters.find((c) => c.id === assignment.characterId);
+      if (char?.identity_profile && char?.identity_confirmed) {
+        assignment.identityProfile = char.identity_profile as {
+          hair: { color: string; style: string; length?: string };
+          eyes: { color: string };
+          skinTone: string;
+          distinctiveFeatures?: string[];
+        };
+      }
+    });
 
     console.log("=== BOOK COVER GENERATION (Blueprint System) ===");
     console.log(`Book: ${blueprint.title} (${bookId})`);

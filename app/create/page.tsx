@@ -7,9 +7,10 @@ import Footer from "@/components/ui/Footer";
 import BookViewer from "@/components/BookViewer";
 import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
+import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
 import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
-import type { Character } from "@/lib/types";
+import type { Character, IdentityProfile } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 
 interface PreviewPage {
@@ -135,6 +136,12 @@ export default function CreatePage() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [regenerateFeedback, setRegenerateFeedback] = useState("");
   const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
+
+  // Identity confirmation state
+  const [showIdentityConfirmModal, setShowIdentityConfirmModal] = useState(false);
+  const [characterForIdentityConfirm, setCharacterForIdentityConfirm] = useState<Character | null>(null);
+  const [extractedIdentityProfile, setExtractedIdentityProfile] = useState<IdentityProfile | null>(null);
+  const [analyzingCharacterId, setAnalyzingCharacterId] = useState<string | null>(null);
 
   // Fetch tokens
   const fetchTokens = async () => {
@@ -413,6 +420,91 @@ export default function CreatePage() {
     setRegenerateFeedback("");
   };
 
+  // Analyze photo for identity profile, then show confirmation modal
+  const analyzeAndGenerate = async (char: Character) => {
+    // Start identity analysis
+    setAnalyzingCharacterId(char.id);
+    setCharacterForIdentityConfirm(char);
+    setShowIdentityConfirmModal(true);
+
+    try {
+      const res = await fetch(`/api/characters/${char.id}/analyze`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setExtractedIdentityProfile(data.identityProfile);
+        // Update character in list with new identity data
+        if (data.character) {
+          setExistingCharacters((prev) =>
+            prev.map((c) => (c.id === char.id ? data.character : c))
+          );
+        }
+      } else {
+        // Analysis failed - still show modal but with no profile
+        console.error("Identity analysis failed");
+        setExtractedIdentityProfile(null);
+      }
+    } catch (error) {
+      console.error("Identity analysis error:", error);
+      setExtractedIdentityProfile(null);
+    }
+
+    setAnalyzingCharacterId(null);
+  };
+
+  // Handle identity profile confirmation
+  const handleIdentityConfirm = async (profile: IdentityProfile) => {
+    if (!characterForIdentityConfirm) return;
+
+    // Save confirmed profile
+    try {
+      await fetch(`/api/characters/${characterForIdentityConfirm.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity_profile: profile,
+          identity_confirmed: true,
+        }),
+      });
+
+      // Update local state
+      setExistingCharacters((prev) =>
+        prev.map((c) =>
+          c.id === characterForIdentityConfirm.id
+            ? { ...c, identity_profile: profile, identity_confirmed: true }
+            : c
+        )
+      );
+    } catch (error) {
+      console.error("Failed to save identity profile:", error);
+    }
+
+    // Close modal and trigger generation
+    setShowIdentityConfirmModal(false);
+    requestGenerateCaricature(characterForIdentityConfirm);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+  };
+
+  // Handle identity skip (proceed without confirmed profile)
+  const handleIdentitySkip = () => {
+    if (!characterForIdentityConfirm) return;
+    setShowIdentityConfirmModal(false);
+    requestGenerateCaricature(characterForIdentityConfirm);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+  };
+
+  // Close identity modal without proceeding
+  const handleIdentityClose = () => {
+    setShowIdentityConfirmModal(false);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+    setAnalyzingCharacterId(null);
+  };
+
   // Handle confirmation
   const handleConfirmGeneration = async () => {
     if (!pendingAction) return;
@@ -549,8 +641,8 @@ export default function CreatePage() {
         setSelectedCharacterIds((prev) => new Set([...prev, newChar.id]));
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
 
-        // Auto-trigger generation (show token confirm)
-        requestGenerateCaricature(newChar);
+        // Trigger identity analysis then generation flow
+        analyzeAndGenerate(newChar);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -1780,6 +1872,17 @@ export default function CreatePage() {
         onSave={savePendingCharacter}
         onCancel={removePending}
         remainingCount={remainingPendingCount}
+      />
+
+      {/* Identity Confirmation Modal - shows after photo analysis */}
+      <IdentityConfirmModal
+        isOpen={showIdentityConfirmModal}
+        character={characterForIdentityConfirm}
+        identityProfile={extractedIdentityProfile}
+        onConfirm={handleIdentityConfirm}
+        onSkip={handleIdentitySkip}
+        onClose={handleIdentityClose}
+        isAnalyzing={!!analyzingCharacterId}
       />
 
       <Footer />

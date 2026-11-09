@@ -6,7 +6,8 @@ import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
-import type { Character } from "@/lib/types";
+import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
+import type { Character, IdentityProfile } from "@/lib/types";
 import { TOKEN_COSTS } from "@/lib/types";
 
 export default function CharactersPage() {
@@ -30,6 +31,12 @@ export default function CharactersPage() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [regenerateFeedback, setRegenerateFeedback] = useState("");
   const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
+
+  // Identity confirmation state
+  const [showIdentityConfirmModal, setShowIdentityConfirmModal] = useState(false);
+  const [characterForIdentityConfirm, setCharacterForIdentityConfirm] = useState<Character | null>(null);
+  const [extractedIdentityProfile, setExtractedIdentityProfile] = useState<IdentityProfile | null>(null);
+  const [analyzingCharacterId, setAnalyzingCharacterId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCharacters();
@@ -157,9 +164,8 @@ export default function CharactersPage() {
         setCharacters((prev) => [newChar, ...prev]);
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
 
-        // Auto-trigger generation (show token confirm)
-        setPendingCharacterForGen(newChar);
-        setShowTokenConfirm(true);
+        // Trigger identity analysis then generation flow
+        analyzeAndGenerate(newChar);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -267,6 +273,93 @@ export default function CharactersPage() {
     setGeneratingId(null);
     setCharacterToRegenerate(null);
     setRegenerateFeedback("");
+  }
+
+  // Analyze photo for identity profile, then show confirmation modal
+  async function analyzeAndGenerate(char: Character) {
+    // Start identity analysis
+    setAnalyzingCharacterId(char.id);
+    setCharacterForIdentityConfirm(char);
+    setShowIdentityConfirmModal(true);
+
+    try {
+      const res = await fetch(`/api/characters/${char.id}/analyze`, {
+        method: "POST",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setExtractedIdentityProfile(data.identityProfile);
+        // Update character in list with new identity data
+        if (data.character) {
+          setCharacters((prev) =>
+            prev.map((c) => (c.id === char.id ? data.character : c))
+          );
+        }
+      } else {
+        // Analysis failed - still show modal but with no profile
+        console.error("Identity analysis failed");
+        setExtractedIdentityProfile(null);
+      }
+    } catch (error) {
+      console.error("Identity analysis error:", error);
+      setExtractedIdentityProfile(null);
+    }
+
+    setAnalyzingCharacterId(null);
+  }
+
+  // Handle identity profile confirmation
+  async function handleIdentityConfirm(profile: IdentityProfile) {
+    if (!characterForIdentityConfirm) return;
+
+    // Save confirmed profile
+    try {
+      await fetch(`/api/characters/${characterForIdentityConfirm.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity_profile: profile,
+          identity_confirmed: true,
+        }),
+      });
+
+      // Update local state
+      setCharacters((prev) =>
+        prev.map((c) =>
+          c.id === characterForIdentityConfirm.id
+            ? { ...c, identity_profile: profile, identity_confirmed: true }
+            : c
+        )
+      );
+    } catch (error) {
+      console.error("Failed to save identity profile:", error);
+    }
+
+    // Close modal and trigger generation
+    setShowIdentityConfirmModal(false);
+    setPendingCharacterForGen(characterForIdentityConfirm);
+    setShowTokenConfirm(true);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+  }
+
+  // Handle identity skip (proceed without confirmed profile)
+  function handleIdentitySkip() {
+    if (!characterForIdentityConfirm) return;
+    setShowIdentityConfirmModal(false);
+    setPendingCharacterForGen(characterForIdentityConfirm);
+    setShowTokenConfirm(true);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+  }
+
+  // Close identity modal without proceeding
+  function handleIdentityClose() {
+    setShowIdentityConfirmModal(false);
+    setCharacterForIdentityConfirm(null);
+    setExtractedIdentityProfile(null);
+    setAnalyzingCharacterId(null);
   }
 
   // Handle token confirmation
@@ -610,6 +703,17 @@ export default function CharactersPage() {
         onSave={savePendingCharacter}
         onCancel={removePending}
         remainingCount={remainingPendingCount}
+      />
+
+      {/* Identity Confirmation Modal - shows after photo analysis */}
+      <IdentityConfirmModal
+        isOpen={showIdentityConfirmModal}
+        character={characterForIdentityConfirm}
+        identityProfile={extractedIdentityProfile}
+        onConfirm={handleIdentityConfirm}
+        onSkip={handleIdentitySkip}
+        onClose={handleIdentityClose}
+        isAnalyzing={!!analyzingCharacterId}
       />
 
       <Footer />

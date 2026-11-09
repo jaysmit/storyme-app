@@ -1,5 +1,35 @@
 // Database types
 
+// Identity profile for consistent character representation
+export interface IdentityProfile {
+  version: number;
+  extractedAt: string;
+  confirmedAt?: string;
+
+  hair: {
+    color: string;
+    style: string;
+    texture?: string;
+    length?: string;
+  };
+  eyes: {
+    color: string;
+    shape?: string;
+  };
+  eyebrows?: {
+    color?: string;
+    shape?: string;
+  };
+  facialHair?: {
+    type?: string;
+    color?: string;
+  };
+  skinTone: string;
+  faceShape?: string;
+  distinctiveFeatures: string[];
+  uncertainAttributes: string[];
+}
+
 export interface Profile {
   id: string;
   name: string | null;
@@ -31,7 +61,11 @@ export interface Character {
   character_type: "person" | "pet" | "other";
   pet_type: string | null;
   age_group: "child" | "adult" | "senior" | null;
+  age?: number | null;
   physical_description: string | null; // AI-generated description from photo for story scenes
+  identity_profile?: IdentityProfile | null;
+  identity_confirmed?: boolean;
+  identity_version?: number;
   created_at: string;
 }
 

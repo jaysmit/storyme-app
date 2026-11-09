@@ -92,6 +92,19 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-09)
+- [x] **Character Identity Profile System** - Structured identity data for consistent character representation
+  - New `identity_profile` JSONB column stores hair, eyes, skin tone, distinctive features
+  - `identity_confirmed` boolean tracks user approval
+  - GPT-4 Vision extracts attributes from uploaded photos
+  - `POST /api/characters/[id]/analyze` - Extracts structured identity profile
+  - `IdentityConfirmModal` component for reviewing/correcting attributes
+  - Confirmed attributes are "locked" in caricature generation prompt
+  - Identity profiles passed to book generation for consistent character appearance
+  - Migration 008 adds identity columns to characters table
+  - Flow: Upload photo -> Analyze identity -> Confirm/edit attributes -> Generate caricature
+  - Backwards compatible: Characters without profiles use existing behavior
+
 ### Recent Changes (2026-11-05 PM)
 - [x] **Expanded to 20 Story Books** - Now showing all available stories in UI
   - Added 4 missing blueprints: baby-brother, the-moon-borrowers, the-outback-star-train, the-quest-for-unicorn-valley
@@ -201,8 +214,9 @@ Optional: Character editing masks (for precise region editing):
 - `GET /api/characters` - List user's characters
 - `POST /api/characters` - Upload photo, create character
 - `GET /api/characters/[id]` - Get single character
-- `PATCH /api/characters/[id]` - Update character
+- `PATCH /api/characters/[id]` - Update character (including identity_profile)
 - `DELETE /api/characters/[id]` - Delete character
+- `POST /api/characters/[id]/analyze` - Extract identity profile from photo (GPT-4 Vision)
 - `POST /api/characters/[id]/generate` - Generate AI image
 
 ### Crews

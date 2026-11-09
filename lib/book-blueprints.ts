@@ -324,6 +324,12 @@ export interface CrewAssignment {
   characterId: string;
   characterName: string;
   imageIndex: number; // IMAGE 2, 3, 4...
+  identityProfile?: {
+    hair: { color: string; style: string; length?: string };
+    eyes: { color: string };
+    skinTone: string;
+    distinctiveFeatures?: string[];
+  };
 }
 
 /**
@@ -334,7 +340,7 @@ export function buildPromptFromBlueprint(
   page: BlueprintPage,
   crewAssignments: CrewAssignment[]
 ): string {
-  // Build crew replacement section
+  // Build crew replacement section with identity profiles
   const crewReplacements = crewAssignments
     .map((assignment) => {
       const placement = page.characterPlacements.find(
@@ -348,14 +354,60 @@ export function buildPromptFromBlueprint(
         return null;
       }
 
+      // Build identity section if profile exists
+      let identitySection = "";
+      if (assignment.identityProfile) {
+        const p = assignment.identityProfile;
+        identitySection = `
+  **LOCKED IDENTITY:**
+  - Hair: ${p.hair.color}, ${p.hair.style}
+  - Eyes: ${p.eyes.color}
+  - Skin: ${p.skinTone}${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
+  - Features: ${p.distinctiveFeatures.join(", ")}` : ""}`;
+      }
+
       return `- **${slot.archetype}** at ${placement.position} → Replace with **IMAGE ${assignment.imageIndex} "${assignment.characterName}"**
   Position: ${placement.position}
   Pose: ${placement.poseAction}
   Wardrobe: ${placement.wardrobe}
-  Preserve guest's face, hair, eyes, skin tone. Match the pose and wardrobe exactly.`;
+  Preserve guest's face, hair, eyes, skin tone. Match the pose and wardrobe exactly.${identitySection}`;
     })
     .filter(Boolean)
     .join("\n\n");
+
+  // Build identity locking section for characters with confirmed profiles
+  const charactersWithIdentity = crewAssignments.filter((a) => a.identityProfile);
+  let identityLockingSection = "";
+  if (charactersWithIdentity.length > 0) {
+    const identityDetails = charactersWithIdentity
+      .map((a) => {
+        const p = a.identityProfile!;
+        return `**${a.characterName} (IMAGE ${a.imageIndex})**
+- Hair: ${p.hair.color}, ${p.hair.style}
+- Eyes: ${p.eyes.color}
+- Skin: ${p.skinTone}${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
+- Features: ${p.distinctiveFeatures.join(", ")}` : ""}`;
+      })
+      .join("\n\n");
+
+    identityLockingSection = `
+
+## LOCKED CUSTOMER CHARACTER IDENTITY — CRITICAL
+
+Each customer character has an approved identity profile with locked physical attributes.
+
+**CHARACTER IDENTITY DATA**
+
+${identityDetails}
+
+**HAIR COLOUR — LOCKED:** Reproduce exactly. No substitutions.
+**EYE COLOUR — LOCKED:** Reproduce exactly. Do not match background/placeholder.
+**SKIN TONE — LOCKED:** Maintain while allowing natural lighting.
+**DISTINCTIVE FEATURES — LOCKED:** Preserve all listed features.
+
+When references conflict, prioritize the identity profile over placeholder appearance.
+`;
+  }
 
   // Build book characters section (protected)
   const bookCharactersSection =
@@ -425,7 +477,7 @@ For every assigned crew member:
 - Adapt the customer to the original page's illustration style, lighting and perspective.
 - Use the exact wardrobe and accessories described above.
 - Do not duplicate characters or create additional versions of them.
-
+${identityLockingSection}
 ## PROTECTED BOOK CHARACTERS
 
 ${bookCharactersSection}
