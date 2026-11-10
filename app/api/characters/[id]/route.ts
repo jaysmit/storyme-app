@@ -51,6 +51,7 @@ export async function PATCH(
   const {
     name,
     character_type,
+    age,
     age_group,
     identity_profile,
     identity_confirmed,
@@ -62,6 +63,7 @@ export async function PATCH(
     .update({
       ...(name && { name }),
       ...(character_type && { character_type }),
+      ...(age !== undefined && { age }),
       ...(age_group !== undefined && { age_group }),
       ...(identity_profile !== undefined && { identity_profile }),
       ...(identity_confirmed !== undefined && { identity_confirmed }),

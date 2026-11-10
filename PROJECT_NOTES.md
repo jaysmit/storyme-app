@@ -92,6 +92,25 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-10)
+- [x] **Book Generation Debugging Logs** - Comprehensive logging for troubleshooting
+  - Detailed character-to-slot assignment debug output
+  - Full prompt sent to OpenAI logged
+  - Response timing and image data details
+  - Fixed: People no longer placed in dog slots (Pass 2 only fills people slots)
+  - Age-based slot type mapping (adult/child/baby based on age)
+- [x] **Create Page UI Improvements**
+  - Fixed navigation buttons at bottom of screen
+  - Back button greyed out on step 1 (visible but disabled)
+  - Continue button greyed out until valid selection made
+  - Character cards now show age alongside type (e.g., "35 · person")
+  - Character editing includes name, age, and type fields
+- [x] **Enhanced Regenerate Modal**
+  - Dropdown selectors for hair color, eye color, skin tone
+  - Pre-fills from existing identity profile
+  - Saves updated attributes when regenerating
+  - Text box for additional custom instructions
+
 ### Recent Changes (2026-11-09)
 - [x] **Character Identity Profile System** - Structured identity data for consistent character representation
   - New `identity_profile` JSONB column stores hair, eyes, skin tone, distinctive features

@@ -87,6 +87,8 @@ export default function CreatePage() {
   // Editing existing characters
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingAge, setEditingAge] = useState<number | null>(null);
+  const [editingType, setEditingType] = useState<string>("");
 
   // Character generation state
   const [generatingCharacterId, setGeneratingCharacterId] = useState<string | null>(null);
@@ -136,6 +138,9 @@ export default function CreatePage() {
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [regenerateFeedback, setRegenerateFeedback] = useState("");
   const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
+  const [regenHairColor, setRegenHairColor] = useState("");
+  const [regenEyeColor, setRegenEyeColor] = useState("");
+  const [regenSkinTone, setRegenSkinTone] = useState("");
 
   // Identity confirmation state
   const [showIdentityConfirmModal, setShowIdentityConfirmModal] = useState(false);
@@ -289,9 +294,11 @@ export default function CreatePage() {
     e.stopPropagation();
     setEditingCharacterId(char.id);
     setEditingName(char.name);
+    setEditingAge(char.age ?? null);
+    setEditingType(char.character_type || "person");
   };
 
-  // Save character name edit
+  // Save character edit
   const saveCharacterEdit = async () => {
     if (!editingCharacterId || !editingName.trim()) return;
 
@@ -299,12 +306,20 @@ export default function CreatePage() {
       const res = await fetch(`/api/characters/${editingCharacterId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editingName.trim() }),
+        body: JSON.stringify({
+          name: editingName.trim(),
+          age: editingAge,
+          character_type: editingType,
+        }),
       });
 
       if (res.ok) {
         setExistingCharacters((prev) =>
-          prev.map((c) => (c.id === editingCharacterId ? { ...c, name: editingName.trim() } : c))
+          prev.map((c) =>
+            c.id === editingCharacterId
+              ? { ...c, name: editingName.trim(), age: editingAge ?? undefined, character_type: editingType as "person" | "pet" | "other" }
+              : c
+          )
         );
       }
     } catch (error) {
@@ -313,6 +328,8 @@ export default function CreatePage() {
 
     setEditingCharacterId(null);
     setEditingName("");
+    setEditingAge(null);
+    setEditingType("");
   };
 
   // Delete a character
@@ -355,12 +372,71 @@ export default function CreatePage() {
     if (generatingCharacterId) return;
     setCharacterToRegenerate(char);
     setRegenerateFeedback("");
+    // Pre-fill from identity profile if available
+    const profile = char.identity_profile;
+    setRegenHairColor(profile?.hair?.color || "");
+    setRegenEyeColor(profile?.eyes?.color || "");
+    setRegenSkinTone(profile?.skinTone || "");
     setShowRegenerateModal(true);
   };
 
   // Submit regeneration with feedback
-  const submitRegenerate = () => {
+  const submitRegenerate = async () => {
     if (!characterToRegenerate) return;
+
+    // Build combined feedback from selections and text
+    const feedbackParts: string[] = [];
+    if (regenHairColor) feedbackParts.push(`Hair color: ${regenHairColor}`);
+    if (regenEyeColor) feedbackParts.push(`Eye color: ${regenEyeColor}`);
+    if (regenSkinTone) feedbackParts.push(`Skin tone: ${regenSkinTone}`);
+    if (regenerateFeedback.trim()) feedbackParts.push(regenerateFeedback.trim());
+
+    const combinedFeedback = feedbackParts.join(". ");
+    setRegenerateFeedback(combinedFeedback);
+
+    // Also update the identity profile if attributes were changed
+    if (regenHairColor || regenEyeColor || regenSkinTone) {
+      const currentProfile = characterToRegenerate.identity_profile;
+      const updatedProfile = {
+        version: (currentProfile?.version || 0) + 1,
+        extractedAt: currentProfile?.extractedAt || new Date().toISOString(),
+        confirmedAt: new Date().toISOString(),
+        hair: {
+          color: regenHairColor || currentProfile?.hair?.color || "",
+          style: currentProfile?.hair?.style || "",
+          texture: currentProfile?.hair?.texture,
+          length: currentProfile?.hair?.length,
+        },
+        eyes: {
+          color: regenEyeColor || currentProfile?.eyes?.color || "",
+          shape: currentProfile?.eyes?.shape,
+        },
+        skinTone: regenSkinTone || currentProfile?.skinTone || "",
+        faceShape: currentProfile?.faceShape,
+        distinctiveFeatures: currentProfile?.distinctiveFeatures || [],
+        uncertainAttributes: [],
+      };
+
+      // Save updated profile
+      await fetch(`/api/characters/${characterToRegenerate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identity_profile: updatedProfile,
+          identity_confirmed: true,
+        }),
+      });
+
+      // Update local state
+      setExistingCharacters((prev) =>
+        prev.map((c) =>
+          c.id === characterToRegenerate.id
+            ? { ...c, identity_profile: updatedProfile, identity_confirmed: true }
+            : c
+        )
+      );
+    }
+
     setShowRegenerateModal(false);
     setPendingAction({ type: "character", characterId: characterToRegenerate.id, characterObj: characterToRegenerate });
     setShowTokenConfirm(true);
@@ -1060,40 +1136,62 @@ export default function CreatePage() {
                           {/* Name and controls */}
                           <div className="p-3">
                             {isEditing ? (
-                              <div className="flex gap-1">
+                              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                                 <input
                                   type="text"
                                   value={editingName}
                                   onChange={(e) => setEditingName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") saveCharacterEdit();
-                                    if (e.key === "Escape") {
-                                      setEditingCharacterId(null);
-                                      setEditingName("");
-                                    }
-                                  }}
-                                  className="flex-1 px-2 py-1 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold min-w-0"
+                                  placeholder="Name"
+                                  className="w-full px-2 py-1.5 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
                                   autoFocus
-                                  onClick={(e) => e.stopPropagation()}
                                 />
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    saveCharacterEdit();
-                                  }}
-                                  className="text-accent-gold hover:text-accent-gold-light shrink-0"
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M20 6L9 17l-5-5" />
-                                  </svg>
-                                </button>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    value={editingAge ?? ""}
+                                    onChange={(e) => setEditingAge(e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="Age"
+                                    min="0"
+                                    max="120"
+                                    className="w-16 px-2 py-1.5 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+                                  />
+                                  <select
+                                    value={editingType}
+                                    onChange={(e) => setEditingType(e.target.value)}
+                                    className="flex-1 px-2 py-1.5 rounded bg-brand-dark border border-brand-purple-muted text-white text-sm focus:outline-none focus:ring-1 focus:ring-accent-gold"
+                                  >
+                                    <option value="person">Person</option>
+                                    <option value="pet">Pet</option>
+                                    <option value="other">Other</option>
+                                  </select>
+                                </div>
+                                <div className="flex gap-1 pt-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingCharacterId(null);
+                                    }}
+                                    className="flex-1 py-1.5 rounded text-xs font-bold text-text-muted hover:text-white border border-brand-purple-muted"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      saveCharacterEdit();
+                                    }}
+                                    className="flex-1 py-1.5 rounded text-xs font-bold bg-accent-gold text-brand-dark hover:bg-accent-gold-light"
+                                  >
+                                    Save
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex items-start justify-between gap-1">
                                 <div className="min-w-0 flex-1">
                                   <p className="text-white font-bold text-sm truncate">{char.name}</p>
-                                  <p className="text-xs text-text-muted capitalize">
-                                    {char.pet_type || char.character_type}
+                                  <p className="text-xs text-text-muted">
+                                    {char.age ? `${char.age} · ` : ""}<span className="capitalize">{char.pet_type || char.character_type}</span>
                                   </p>
                                 </div>
                                 <div className="flex gap-1 shrink-0">
@@ -1731,36 +1829,44 @@ export default function CreatePage() {
             </div>
           )}
 
-          {/* Navigation buttons */}
-          <div className="mt-12 flex justify-between items-center">
-            <button
-              onClick={prevStep}
-              disabled={currentStepIndex === 0}
-              className={`px-6 py-3 rounded-full font-bold transition-colors ${
-                currentStepIndex === 0
-                  ? "opacity-0 pointer-events-none"
-                  : "text-white border border-brand-purple-muted hover:border-accent-gold"
-              }`}
-            >
-              ← Back
-            </button>
-
-            {currentStep !== "preview" && (
-              <button
-                onClick={nextStep}
-                disabled={!canProceed()}
-                className={`px-8 py-4 rounded-full font-extrabold transition-colors ${
-                  canProceed()
-                    ? "bg-accent-gold text-brand-dark hover:bg-accent-gold-light"
-                    : "bg-brand-purple-muted text-text-muted cursor-not-allowed"
-                }`}
-              >
-                Continue →
-              </button>
-            )}
-          </div>
         </div>
       </main>
+
+      {/* Fixed Navigation buttons at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-brand-dark/95 backdrop-blur-sm border-t border-brand-purple-muted z-40">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex justify-between items-center">
+          <button
+            onClick={prevStep}
+            disabled={currentStepIndex === 0}
+            className={`px-6 py-3 rounded-full font-bold transition-colors ${
+              currentStepIndex === 0
+                ? "bg-brand-purple-muted/50 text-text-muted/50 cursor-not-allowed"
+                : "text-white border border-brand-purple-muted hover:border-accent-gold hover:text-accent-gold"
+            }`}
+          >
+            ← Back
+          </button>
+
+          {currentStep !== "preview" ? (
+            <button
+              onClick={nextStep}
+              disabled={!canProceed()}
+              className={`px-8 py-3 rounded-full font-extrabold transition-colors ${
+                canProceed()
+                  ? "bg-accent-gold text-brand-dark hover:bg-accent-gold-light"
+                  : "bg-brand-purple-muted/50 text-text-muted/50 cursor-not-allowed"
+              }`}
+            >
+              Continue →
+            </button>
+          ) : (
+            <div /> // Empty div to maintain flex spacing
+          )}
+        </div>
+      </div>
+
+      {/* Spacer for fixed bottom nav */}
+      <div className="h-20" />
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && (
@@ -1799,28 +1905,102 @@ export default function CreatePage() {
 
       {/* Regenerate Feedback Modal */}
       {showRegenerateModal && characterToRegenerate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setShowRegenerateModal(false)}
           />
-          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-brand-purple-muted">
-            <h3 className="text-lg font-bold text-white mb-2">
+          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-brand-purple-muted max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-white mb-1">
               Regenerate {characterToRegenerate.name}&apos;s illustration
             </h3>
-            <p className="text-text-muted text-sm mb-4">
-              Describe any changes you&apos;d like to see in the new illustration:
+            <p className="text-text-muted text-sm mb-5">
+              Adjust attributes or add custom instructions
             </p>
 
-            <textarea
-              value={regenerateFeedback}
-              onChange={(e) => setRegenerateFeedback(e.target.value)}
-              placeholder="e.g., Make the eyes bigger, add a bigger smile, make the hair curlier..."
-              className="w-full h-24 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none"
-              autoFocus
-            />
+            {/* Attribute dropdowns */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div>
+                <label className="block text-xs font-bold text-white mb-1.5">Hair color</label>
+                <select
+                  value={regenHairColor}
+                  onChange={(e) => setRegenHairColor(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
+                >
+                  <option value="">Keep current</option>
+                  <option value="black">Black</option>
+                  <option value="dark brown">Dark brown</option>
+                  <option value="light brown">Light brown</option>
+                  <option value="blonde">Blonde</option>
+                  <option value="sandy blonde">Sandy blonde</option>
+                  <option value="auburn">Auburn</option>
+                  <option value="red">Red</option>
+                  <option value="ginger">Ginger</option>
+                  <option value="gray">Gray</option>
+                  <option value="white">White</option>
+                  <option value="silver">Silver</option>
+                </select>
+              </div>
 
-            <div className="flex gap-3 mt-4">
+              <div>
+                <label className="block text-xs font-bold text-white mb-1.5">Eye color</label>
+                <select
+                  value={regenEyeColor}
+                  onChange={(e) => setRegenEyeColor(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
+                >
+                  <option value="">Keep current</option>
+                  <option value="blue">Blue</option>
+                  <option value="bright blue">Bright blue</option>
+                  <option value="light blue">Light blue</option>
+                  <option value="green">Green</option>
+                  <option value="hazel">Hazel</option>
+                  <option value="brown">Brown</option>
+                  <option value="dark brown">Dark brown</option>
+                  <option value="amber">Amber</option>
+                  <option value="gray">Gray</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-white mb-1.5">Skin tone</label>
+                <select
+                  value={regenSkinTone}
+                  onChange={(e) => setRegenSkinTone(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
+                >
+                  <option value="">Keep current</option>
+                  <option value="fair">Fair</option>
+                  <option value="light">Light</option>
+                  <option value="medium">Medium</option>
+                  <option value="olive">Olive</option>
+                  <option value="tan">Tan</option>
+                  <option value="brown">Brown</option>
+                  <option value="dark brown">Dark brown</option>
+                  <option value="deep brown">Deep brown</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Current values hint */}
+            {characterToRegenerate.identity_profile && (
+              <p className="text-xs text-text-muted mb-4">
+                Current: {characterToRegenerate.identity_profile.hair?.color || "?"} hair, {characterToRegenerate.identity_profile.eyes?.color || "?"} eyes, {characterToRegenerate.identity_profile.skinTone || "?"} skin
+              </p>
+            )}
+
+            {/* Custom instructions */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-white mb-1.5">Additional instructions (optional)</label>
+              <textarea
+                value={regenerateFeedback}
+                onChange={(e) => setRegenerateFeedback(e.target.value)}
+                placeholder="e.g., Make the smile bigger, add glasses, make hair curlier..."
+                className="w-full h-20 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none text-sm"
+              />
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowRegenerateModal(false)}
                 className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors"

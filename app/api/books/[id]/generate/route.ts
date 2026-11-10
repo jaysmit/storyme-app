@@ -39,15 +39,22 @@ interface CharacterInput {
 
 // Map customer character type to crew slot type
 function matchCharacterToSlotType(
-  characterType: string | undefined,
-  petType: string | undefined
+  character: CharacterInput
 ): "adult" | "child" | "baby" | "dog" | "other" {
-  if (characterType === "pet") {
-    if (petType === "dog") return "dog";
+  const { character_type, pet_type, age } = character;
+
+  if (character_type === "pet") {
+    if (pet_type === "dog") return "dog";
     return "other";
   }
-  if (characterType === "person") {
-    // Default to child unless we have age info
+  if (character_type === "person") {
+    // Use age to determine adult vs child
+    if (age !== null && age !== undefined) {
+      if (age < 2) return "baby";
+      if (age < 18) return "child";
+      return "adult";
+    }
+    // Default to child if no age
     return "child";
   }
   return "other";
@@ -58,10 +65,27 @@ function assignCharactersToSlots(
   characters: CharacterInput[],
   blueprint: BookBlueprint,
   page: BlueprintPage
-): CrewAssignment[] {
+): { assignments: CrewAssignment[]; debugLog: string[] } {
   const assignments: CrewAssignment[] = [];
   const usedSlots = new Set<string>();
   const usedCharacters = new Set<string>();
+  const debugLog: string[] = [];
+
+  debugLog.push("=== CHARACTER TO SLOT ASSIGNMENT DEBUG ===");
+  debugLog.push("");
+
+  // Log input characters
+  debugLog.push("INPUT CHARACTERS:");
+  characters.forEach((char, i) => {
+    const mappedType = matchCharacterToSlotType(char);
+    debugLog.push(`  ${i + 1}. "${char.name}" (ID: ${char.id.substring(0, 8)}...)`);
+    debugLog.push(`     - character_type: ${char.character_type || "undefined"}`);
+    debugLog.push(`     - pet_type: ${char.pet_type || "undefined"}`);
+    debugLog.push(`     - age: ${char.age ?? "undefined"}`);
+    debugLog.push(`     - MAPPED TO: ${mappedType}`);
+    debugLog.push(`     - has generated_image_url: ${!!char.generated_image_url}`);
+  });
+  debugLog.push("");
 
   // Get available slots from the page's character placements
   const availableSlots = page.characterPlacements
@@ -73,6 +97,17 @@ function assignCharactersToSlots(
     })
     .filter(Boolean) as { placement: typeof page.characterPlacements[0]; slot: typeof blueprint.characters.crewSlots[0] }[];
 
+  // Log available slots
+  debugLog.push("AVAILABLE CREW SLOTS (from blueprint):");
+  availableSlots.forEach((item, i) => {
+    debugLog.push(`  ${i + 1}. ${item.slot.slotId}`);
+    debugLog.push(`     - characterType: ${item.slot.characterType}`);
+    debugLog.push(`     - archetype: ${item.slot.archetype}`);
+    debugLog.push(`     - position: ${item.slot.position}`);
+    debugLog.push(`     - required: ${item.slot.required}`);
+  });
+  debugLog.push("");
+
   // Sort slots by priority (required first, then by type preference)
   const sortedSlots = [...availableSlots].sort((a, b) => {
     if (a.slot.required && !b.slot.required) return -1;
@@ -80,18 +115,20 @@ function assignCharactersToSlots(
     return 0;
   });
 
+  debugLog.push("PASS 1: EXACT TYPE MATCHING");
   // First pass: exact type matching
   for (const character of characters) {
     if (usedCharacters.has(character.id)) continue;
 
-    const charType = matchCharacterToSlotType(
-      character.character_type,
-      character.pet_type
-    );
+    const charType = matchCharacterToSlotType(character);
+    debugLog.push(`  Trying to match "${character.name}" (type: ${charType})...`);
 
+    let matched = false;
     // Find best matching slot
     for (const { slot } of sortedSlots) {
-      if (usedSlots.has(slot.slotId)) continue;
+      if (usedSlots.has(slot.slotId)) {
+        continue;
+      }
 
       // Exact type match
       if (slot.characterType === charType) {
@@ -103,17 +140,47 @@ function assignCharactersToSlots(
         });
         usedSlots.add(slot.slotId);
         usedCharacters.add(character.id);
+        debugLog.push(`    ✓ MATCHED to ${slot.slotId} (exact type: ${charType})`);
+        matched = true;
         break;
       }
     }
+    if (!matched) {
+      debugLog.push(`    ✗ No exact match found for type "${charType}"`);
+    }
   }
+  debugLog.push("");
 
-  // Second pass: fill remaining characters into any available slot
+  debugLog.push("PASS 2: FILL REMAINING PEOPLE INTO PEOPLE SLOTS");
+  // Second pass: fill remaining PEOPLE into any available PEOPLE slot (adult/child/baby, NOT dog/other)
   for (const character of characters) {
-    if (usedCharacters.has(character.id)) continue;
+    if (usedCharacters.has(character.id)) {
+      debugLog.push(`  "${character.name}" already assigned, skipping`);
+      continue;
+    }
 
+    const charType = matchCharacterToSlotType(character);
+    const isPerson = charType === "adult" || charType === "child" || charType === "baby";
+
+    if (!isPerson) {
+      debugLog.push(`  "${character.name}" is not a person (type: ${charType}), will try in pass 3`);
+      continue;
+    }
+
+    debugLog.push(`  Trying to place person "${character.name}" (type: ${charType}) in any PEOPLE slot...`);
+
+    let placed = false;
     for (const { slot } of sortedSlots) {
-      if (usedSlots.has(slot.slotId)) continue;
+      if (usedSlots.has(slot.slotId)) {
+        continue;
+      }
+
+      // Only place people in people slots (not dog/other)
+      const slotIsPeople = slot.characterType === "adult" || slot.characterType === "child" || slot.characterType === "baby";
+      if (!slotIsPeople) {
+        debugLog.push(`    - Skipping ${slot.slotId} (slot type: ${slot.characterType}) - not a people slot`);
+        continue;
+      }
 
       assignments.push({
         slotId: slot.slotId,
@@ -123,11 +190,77 @@ function assignCharactersToSlots(
       });
       usedSlots.add(slot.slotId);
       usedCharacters.add(character.id);
+      debugLog.push(`    ✓ PLACED in ${slot.slotId} (slot expects: ${slot.characterType}, char is: ${charType})`);
+      placed = true;
       break;
     }
+    if (!placed) {
+      debugLog.push(`    ✗ NO PEOPLE SLOTS AVAILABLE for "${character.name}"`);
+    }
+  }
+  debugLog.push("");
+
+  debugLog.push("PASS 3: FILL REMAINING PETS INTO PET SLOTS");
+  // Third pass: fill remaining pets into any available pet slot
+  for (const character of characters) {
+    if (usedCharacters.has(character.id)) continue;
+
+    const charType = matchCharacterToSlotType(character);
+    const isPet = charType === "dog" || charType === "other";
+
+    if (!isPet) continue;
+
+    debugLog.push(`  Trying to place pet "${character.name}" (type: ${charType}) in any PET slot...`);
+
+    let placed = false;
+    for (const { slot } of sortedSlots) {
+      if (usedSlots.has(slot.slotId)) continue;
+
+      // Only place pets in pet slots
+      const slotIsPet = slot.characterType === "dog" || slot.characterType === "other";
+      if (!slotIsPet) continue;
+
+      assignments.push({
+        slotId: slot.slotId,
+        characterId: character.id,
+        characterName: character.name,
+        imageIndex: assignments.length + 2,
+      });
+      usedSlots.add(slot.slotId);
+      usedCharacters.add(character.id);
+      debugLog.push(`    ✓ PLACED in ${slot.slotId} (slot expects: ${slot.characterType}, char is: ${charType})`);
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      debugLog.push(`    ✗ NO PET SLOTS AVAILABLE for "${character.name}"`);
+    }
+  }
+  debugLog.push("");
+
+  debugLog.push("FINAL ASSIGNMENTS:");
+  if (assignments.length === 0) {
+    debugLog.push("  (none)");
+  } else {
+    assignments.forEach((a) => {
+      debugLog.push(`  IMAGE ${a.imageIndex}: "${a.characterName}" -> ${a.slotId}`);
+    });
   }
 
-  return assignments;
+  // Check for unassigned characters
+  const unassignedChars = characters.filter((c) => !usedCharacters.has(c.id));
+  if (unassignedChars.length > 0) {
+    debugLog.push("");
+    debugLog.push("⚠️  UNASSIGNED CHARACTERS (will NOT appear in image):");
+    unassignedChars.forEach((c) => {
+      debugLog.push(`  - "${c.name}" (type: ${matchCharacterToSlotType(c)})`);
+    });
+  }
+
+  debugLog.push("");
+  debugLog.push("=== END ASSIGNMENT DEBUG ===");
+
+  return { assignments, debugLog };
 }
 
 // POST /api/books/[id]/generate - Generate cover page using blueprint system
@@ -299,7 +432,10 @@ export async function POST(
     // ============================================
     // Assign characters to crew slots
     // ============================================
-    const crewAssignments = assignCharactersToSlots(characters, blueprint, coverPage);
+    const { assignments: crewAssignments, debugLog: assignmentDebug } = assignCharactersToSlots(characters, blueprint, coverPage);
+
+    // Log the detailed assignment debug info
+    console.log("\n" + assignmentDebug.join("\n") + "\n");
 
     // Enrich crew assignments with identity profiles
     crewAssignments.forEach((assignment) => {
@@ -316,12 +452,16 @@ export async function POST(
 
     console.log("=== BOOK COVER GENERATION (Blueprint System) ===");
     console.log(`Book: ${blueprint.title} (${bookId})`);
-    console.log(`Visual Style: ${blueprint.visualStyle.substring(0, 50)}...`);
+    console.log(`Visual Style: ${blueprint.visualStyle.substring(0, 100)}...`);
     console.log(`Original Image: ${coverPage.originalImage}`);
     console.log(`Dimensions: ${coverPage.composition.dimensions.width}x${coverPage.composition.dimensions.height}`);
+    console.log(`Characters provided: ${characters.length}`);
+    console.log(`Crew slots in blueprint: ${blueprint.characters.crewSlots.length}`);
+    console.log(`Assignments made: ${crewAssignments.length}`);
     console.log(`\nCrew Assignments (${crewAssignments.length}):`);
     crewAssignments.forEach((a) => {
-      console.log(`  ${a.slotId} -> "${a.characterName}" (IMAGE ${a.imageIndex})`);
+      const hasIdentity = a.identityProfile ? " [IDENTITY LOCKED]" : "";
+      console.log(`  ${a.slotId} -> "${a.characterName}" (IMAGE ${a.imageIndex})${hasIdentity}`);
     });
     console.log(`\nBook Characters (protected): ${blueprint.characters.bookCharacters.length}`);
     blueprint.characters.bookCharacters.forEach((c) => {
@@ -369,10 +509,12 @@ export async function POST(
     // ============================================
     const prompt = buildPromptFromBlueprint(blueprint, coverPage, crewAssignments);
 
-    console.log("\n=== PROMPT (first 500 chars) ===");
-    console.log(prompt.substring(0, 500));
-    console.log("...[truncated]");
-    console.log("=== END PROMPT ===\n");
+    console.log("\n=== FULL PROMPT SENT TO OPENAI ===");
+    console.log("Prompt length:", prompt.length, "characters");
+    console.log("-".repeat(80));
+    console.log(prompt);
+    console.log("-".repeat(80));
+    console.log("=== END FULL PROMPT ===\n");
 
     const openai = getOpenAI();
     const serviceClient = createServiceClient();
@@ -426,6 +568,9 @@ export async function POST(
     );
     console.log(`Total images: ${allImageFiles.length}`);
 
+    const startTime = Date.now();
+    console.log("Calling OpenAI images.edit at:", new Date().toISOString());
+
     const response = await openai.images.edit({
       model: "gpt-image-2.5-sunburst",
       image: allImageFiles,
@@ -436,12 +581,21 @@ export async function POST(
       output_format: "jpeg",
     });
 
+    const elapsedTime = Date.now() - startTime;
+    console.log(`\n=== OPENAI RESPONSE ===`);
+    console.log(`Response received in: ${elapsedTime}ms`);
+    console.log(`Response data count: ${response.data?.length || 0}`);
+
     const imageData = response.data?.[0];
     let outputBuffer: Buffer | null = null;
 
     if (imageData?.b64_json) {
+      console.log("Response type: base64 encoded image");
+      console.log(`Base64 length: ${imageData.b64_json.length} chars`);
       outputBuffer = Buffer.from(imageData.b64_json, "base64");
     } else if (imageData?.url) {
+      console.log("Response type: URL");
+      console.log(`Image URL: ${imageData.url.substring(0, 100)}...`);
       const imgResponse = await fetch(imageData.url);
       if (!imgResponse.ok) {
         throw new Error(
@@ -449,13 +603,17 @@ export async function POST(
         );
       }
       outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
+    } else {
+      console.log("Response type: UNKNOWN or EMPTY");
+      console.log("Full response:", JSON.stringify(response, null, 2));
     }
 
     if (!outputBuffer) {
       throw new Error("OpenAI returned no image data");
     }
 
-    console.log(`Cover generated: ${outputBuffer.length} bytes`);
+    console.log(`Image buffer size: ${outputBuffer.length} bytes (${(outputBuffer.length / 1024).toFixed(1)} KB)`);
+    console.log("=== END OPENAI RESPONSE ===\n");
 
     // Upload to storage
     const fileName = `${user.id}/${id}/cover.jpg`;
