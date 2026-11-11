@@ -45,9 +45,31 @@ export interface Profile {
 export const TOKEN_COSTS = {
   CHARACTER_ILLUSTRATION: 1,
   BOOK_COVER: 1, // Single cover page
+  BOOK_PAGE: 1,  // Each interior page
   BOOK_PREVIEW_PAGE: 1,
   BOOK_PREVIEW_FULL: 3, // 3 preview pages (for later)
 } as const;
+
+// Page generation status for full book generation
+export interface PageStatus {
+  pageId: string;         // "cover", "page-1", etc.
+  pageNumber: number;
+  status: "pending" | "generating" | "completed" | "failed";
+  url?: string;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+  retryCount: number;
+}
+
+// Generation config stored in book for resume capability
+export interface GenerationConfig {
+  bookId: string;         // Blueprint book ID
+  characterIds: string[];
+  artStyle: string;
+  totalPages: number;
+  startedAt: string;
+}
 
 export const NEW_USER_TOKENS = 5;
 
@@ -117,8 +139,11 @@ export interface Book {
   crew_id: string | null;
   story_id: string | null;
   art_style_id: string | null;
-  status: "draft" | "generating" | "preview_ready" | "purchased";
-  preview_pages: { url: string; page_number: number }[];
+  status: "draft" | "generating" | "preview_ready" | "cover_approved" | "generating_full" | "completed" | "purchased";
+  preview_pages: { url: string; page_number: number; title?: string }[];
+  page_statuses?: PageStatus[];
+  generation_config?: GenerationConfig;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }

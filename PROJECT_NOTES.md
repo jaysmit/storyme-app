@@ -92,6 +92,31 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-11)
+- [x] **Step 5: Full Book Generation** - Users can approve cover and generate all interior pages
+  - New database migration `009_book_pages.sql` adds `page_statuses` and `generation_config` columns
+  - Book status constraint updated to include `cover_approved`, `generating_full`, `completed`
+  - Five new API routes:
+    - `POST /api/books/[id]/approve-cover` - Approve cover and advance to Step 5
+    - `POST /api/books/[id]/start-full-generation` - Initialize page statuses for all pages
+    - `POST /api/books/[id]/generate-page` - Generate a single interior page
+    - `GET /api/books/[id]/status` - Poll generation progress
+    - `POST /api/books/[id]/retry-page` - Reset failed page for retry
+  - New `lib/page-generation.ts` with shared generation utilities
+  - New `hooks/useBookGeneration.ts` for client-side orchestration
+    - Parallel page generation (max 5 concurrent)
+    - Progress tracking with polling
+    - Resume capability on browser refresh
+  - New UI components:
+    - `PageGenerationGrid.tsx` - Grid of page thumbnails with status indicators
+    - `GenerationProgressBar.tsx` - Overall progress visualization
+  - Create wizard expanded from 4 to 5 steps
+    - Step 4 renamed to "Preview cover" with "Approve Cover" button
+    - Step 5 "Generate book" with full generation UI
+  - `PageStatus` and `GenerationConfig` types added to `lib/types.ts`
+  - `TOKEN_COSTS.BOOK_PAGE` added for per-page token deduction
+  - Graceful handling when interior pages not yet available (shows "coming soon" message)
+
 ### Recent Changes (2026-11-10)
 - [x] **Book Generation Debugging Logs** - Comprehensive logging for troubleshooting
   - Detailed character-to-slot assignment debug output

@@ -10,8 +10,11 @@ import CharacterFormModal, { type PendingCharacter } from "@/components/ui/Chara
 import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
 import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
-import type { Character, IdentityProfile } from "@/lib/types";
+import type { Character, IdentityProfile, PageStatus, Book } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
+import { useBookGeneration } from "@/hooks/useBookGeneration";
+import PageGenerationGrid from "@/components/PageGenerationGrid";
+import GenerationProgressBar from "@/components/GenerationProgressBar";
 
 interface PreviewPage {
   page_number: number;
@@ -19,7 +22,7 @@ interface PreviewPage {
   title: string;
 }
 
-type Step = "characters" | "story" | "style" | "preview";
+type Step = "characters" | "story" | "style" | "preview" | "generate";
 
 // Category icons/emojis
 const categoryIcons: Record<string, string> = {
@@ -75,6 +78,206 @@ const artStyles = [
   { slug: "silhouette", name: "Shadow silhouette", desc: "Bold silhouettes against sunset", image: "/images/shadow-silhouette.jpg" },
   { slug: "bricks", name: "Toy bricks", desc: "LEGO-style brick world", image: "/images/toy-bricks.jpg" },
 ];
+
+// Step 5: Generate Full Book Component
+interface Step5Props {
+  bookId: string;
+  storyTitle: string;
+  characterCount: number;
+  artStyleName: string;
+  coverUrl?: string;
+  onViewBook: (pages: PageStatus[]) => void;
+}
+
+function Step5GenerateBook({
+  bookId,
+  storyTitle,
+  characterCount,
+  artStyleName,
+  coverUrl,
+  onViewBook,
+}: Step5Props) {
+  const {
+    pageStatuses,
+    progress,
+    isGenerating,
+    hasInteriorPages,
+    startGeneration,
+    retryPage,
+    error,
+  } = useBookGeneration({
+    bookId,
+    onComplete: (book) => {
+      console.log("Book generation complete:", book);
+    },
+  });
+
+  const allComplete = progress.total > 0 && progress.completed === progress.total;
+
+  return (
+    <div>
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-black text-white mb-2">
+          Generate Your Book
+        </h1>
+        <p className="text-lg text-text-muted">
+          {isGenerating
+            ? "Creating your personalized storybook pages..."
+            : allComplete
+            ? "Your book is ready!"
+            : "Generate all interior pages with your characters"}
+        </p>
+      </div>
+
+      {/* Book summary card */}
+      <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden max-w-xl mx-auto mb-8">
+        <div className="flex items-start gap-4 p-5">
+          {coverUrl && (
+            <div className="w-24 h-32 rounded-xl overflow-hidden shrink-0">
+              <img
+                src={coverUrl}
+                alt="Book cover"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-black text-white mb-1 truncate">
+              {storyTitle}
+            </h2>
+            <p className="text-text-muted text-sm mb-3">
+              {characterCount} character{characterCount !== 1 && "s"} • {artStyleName} style
+            </p>
+
+            {!isGenerating && !allComplete && (
+              <button
+                onClick={startGeneration}
+                className="bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                </svg>
+                Generate Full Book
+              </button>
+            )}
+
+            {allComplete && (
+              <button
+                onClick={() => onViewBook(pageStatuses)}
+                className="bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                </svg>
+                View Complete Book
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* No interior pages message */}
+      {!hasInteriorPages && pageStatuses.length > 0 && !isGenerating && (
+        <div className="bg-brand-purple border border-accent-gold/30 rounded-2xl p-6 max-w-xl mx-auto text-center mb-8">
+          <div className="text-4xl mb-3">🎨</div>
+          <h3 className="text-xl font-bold text-white mb-2">Interior pages coming soon!</h3>
+          <p className="text-text-muted">
+            Our artists are still creating the interior page illustrations for this story.
+            You&apos;ll be notified when they&apos;re ready!
+          </p>
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4 max-w-xl mx-auto mb-8 text-red-300 text-sm text-center">
+          {error}
+        </div>
+      )}
+
+      {/* Progress bar */}
+      {pageStatuses.length > 0 && hasInteriorPages && (
+        <div className="max-w-xl mx-auto mb-8">
+          <GenerationProgressBar
+            completed={progress.completed}
+            total={progress.total}
+            failed={progress.failed}
+            generating={progress.generating}
+          />
+        </div>
+      )}
+
+      {/* Page generation grid */}
+      {pageStatuses.length > 0 && hasInteriorPages && (
+        <div className="max-w-3xl mx-auto">
+          <h3 className="text-lg font-bold text-white mb-4">
+            Book Pages
+          </h3>
+          <PageGenerationGrid
+            pageStatuses={pageStatuses}
+            onRetry={retryPage}
+          />
+        </div>
+      )}
+
+      {/* Purchase options when complete */}
+      {allComplete && (
+        <div className="mt-12 pt-8 border-t border-brand-purple-muted max-w-3xl mx-auto">
+          <h3 className="text-2xl font-black text-white mb-2 text-center">
+            Ready to print?
+          </h3>
+          <p className="text-text-muted mb-8 text-center">
+            Order a beautiful printed copy of your personalized book.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Digital */}
+            <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-5 flex flex-col">
+              <span className="text-accent-gold font-handwritten text-lg mb-1">Instant</span>
+              <h4 className="text-xl font-black text-white mb-1">Digital</h4>
+              <div className="flex items-baseline gap-1 mb-3">
+                <span className="text-2xl font-black text-white">$14.20</span>
+              </div>
+              <button className="w-full mt-auto bg-brand-purple text-white font-bold py-2.5 rounded-full hover:bg-accent-gold hover:text-brand-dark transition-colors text-sm">
+                Buy digital
+              </button>
+            </div>
+
+            {/* Softcover */}
+            <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl p-5 flex flex-col">
+              <span className="text-accent-gold font-handwritten text-lg mb-1">Great value</span>
+              <h4 className="text-xl font-black text-white mb-1">Softcover</h4>
+              <div className="flex items-baseline gap-1 mb-3">
+                <span className="text-2xl font-black text-white">$23</span>
+                <span className="text-xs text-text-muted">+ shipping</span>
+              </div>
+              <button className="w-full mt-auto bg-brand-purple text-white font-bold py-2.5 rounded-full hover:bg-accent-gold hover:text-brand-dark transition-colors text-sm">
+                Buy softcover
+              </button>
+            </div>
+
+            {/* Hardcover */}
+            <div className="bg-brand-purple border-2 border-accent-gold rounded-2xl p-5 flex flex-col relative">
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-accent-gold text-brand-dark text-xs font-bold px-2.5 py-0.5 rounded-full">
+                Most loved
+              </div>
+              <span className="text-accent-gold font-handwritten text-lg mb-1">Premium</span>
+              <h4 className="text-xl font-black text-white mb-1">Hardcover</h4>
+              <div className="flex items-baseline gap-1 mb-3">
+                <span className="text-2xl font-black text-white">$34</span>
+                <span className="text-xs text-text-muted">+ shipping</span>
+              </div>
+              <button className="w-full mt-auto bg-accent-gold text-brand-dark font-bold py-2.5 rounded-full hover:bg-accent-gold-light transition-colors text-sm">
+                Buy hardcover
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CreatePage() {
   const [currentStep, setCurrentStep] = useState<Step>("characters");
@@ -147,6 +350,11 @@ export default function CreatePage() {
   const [characterForIdentityConfirm, setCharacterForIdentityConfirm] = useState<Character | null>(null);
   const [extractedIdentityProfile, setExtractedIdentityProfile] = useState<IdentityProfile | null>(null);
   const [analyzingCharacterId, setAnalyzingCharacterId] = useState<string | null>(null);
+
+  // Step 5: Full book generation state
+  const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+  const [coverApproved, setCoverApproved] = useState(false);
+  const [approvingCover, setApprovingCover] = useState(false);
 
   // Fetch tokens
   const fetchTokens = async () => {
@@ -267,7 +475,8 @@ export default function CreatePage() {
     { key: "characters", label: "Add characters", number: 1 },
     { key: "story", label: "Choose adventure", number: 2 },
     { key: "style", label: "Pick enchantment", number: 3 },
-    { key: "preview", label: "Preview book", number: 4 },
+    { key: "preview", label: "Preview cover", number: 4 },
+    { key: "generate", label: "Generate book", number: 5 },
   ];
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
@@ -803,6 +1012,7 @@ export default function CreatePage() {
       }
 
       const { book } = await response.json();
+      setCurrentBookId(book.id);
       setGenerationProgress(10);
 
       const genResponse = await fetch(`/api/books/${book.id}/generate`, {
@@ -1605,13 +1815,79 @@ export default function CreatePage() {
                     title={stories.find((s) => s.slug === selectedStory)?.title || "Your Story"}
                   />
 
-                  {/* Purchase options */}
-                  <div className="mt-8">
-                    <h3 className="text-2xl font-black text-white mb-2 text-center">
-                      Love your cover? Order the full book
+                  {/* Approve Cover & Continue */}
+                  <div className="mt-8 text-center">
+                    <h3 className="text-2xl font-black text-white mb-2">
+                      Love your cover?
                     </h3>
-                    <p className="text-text-muted mb-8 text-center">
-                      We&apos;ll generate all pages in your chosen style. Every option includes 3 free amendments.
+                    <p className="text-text-muted mb-6">
+                      Approve your cover to continue generating the full book.
+                    </p>
+
+                    <button
+                      onClick={async () => {
+                        if (!currentBookId) return;
+                        setApprovingCover(true);
+                        try {
+                          const res = await fetch(`/api/books/${currentBookId}/approve-cover`, {
+                            method: "POST",
+                          });
+                          if (!res.ok) {
+                            const data = await res.json();
+                            throw new Error(data.error || "Failed to approve cover");
+                          }
+                          setCoverApproved(true);
+                          setCurrentStep("generate");
+                        } catch (err) {
+                          const errorMsg = err instanceof Error ? err.message : "Unknown error";
+                          setBookError(errorMsg);
+                        }
+                        setApprovingCover(false);
+                      }}
+                      disabled={approvingCover || !currentBookId}
+                      className={`px-8 py-4 rounded-full font-extrabold text-lg transition-colors flex items-center gap-3 mx-auto ${
+                        approvingCover || !currentBookId
+                          ? "bg-brand-purple-muted text-text-muted cursor-not-allowed"
+                          : "bg-accent-gold text-brand-dark hover:bg-accent-gold-light"
+                      }`}
+                    >
+                      {approvingCover ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                          Approve Cover & Generate Book
+                        </>
+                      )}
+                    </button>
+
+                    <p className="text-text-muted text-sm mt-4">
+                      Don&apos;t like this cover?{" "}
+                      <button
+                        onClick={() => {
+                          setShowBookViewer(false);
+                          setPreviewPages([]);
+                          setCurrentBookId(null);
+                        }}
+                        className="text-accent-gold hover:underline"
+                      >
+                        Generate a new one
+                      </button>
+                    </p>
+                  </div>
+
+                  {/* Purchase options - shown after full book is generated */}
+                  <div className="mt-12 pt-8 border-t border-brand-purple-muted">
+                    <h3 className="text-xl font-black text-white mb-2 text-center text-text-muted">
+                      Or skip to purchase
+                    </h3>
+                    <p className="text-text-muted mb-6 text-center text-sm">
+                      We&apos;ll generate all pages in your chosen style when you order.
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1829,6 +2105,25 @@ export default function CreatePage() {
             </div>
           )}
 
+          {/* Step 5: Generate Full Book */}
+          {currentStep === "generate" && currentBookId && (
+            <Step5GenerateBook
+              bookId={currentBookId}
+              storyTitle={stories.find((s) => s.slug === selectedStory)?.title || "Your Story"}
+              characterCount={selectedCharacters.length}
+              artStyleName={artStyles.find((s) => s.slug === selectedStyle)?.name || "Enchanted glow"}
+              coverUrl={previewPages.find((p) => p.page_number === 0)?.url}
+              onViewBook={(pages) => {
+                setPreviewPages(pages.map((p) => ({
+                  page_number: p.pageNumber,
+                  url: p.url || "",
+                  title: p.pageId === "cover" ? "Cover" : `Page ${p.pageNumber}`,
+                })));
+                setShowBookViewer(true);
+              }}
+            />
+          )}
+
         </div>
       </main>
 
@@ -1847,7 +2142,7 @@ export default function CreatePage() {
             ← Back
           </button>
 
-          {currentStep !== "preview" ? (
+          {currentStep !== "preview" && currentStep !== "generate" ? (
             <button
               onClick={nextStep}
               disabled={!canProceed()}
