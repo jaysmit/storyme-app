@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
@@ -10,7 +11,7 @@ import CharacterFormModal, { type PendingCharacter } from "@/components/ui/Chara
 import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
 import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
-import type { Character, IdentityProfile, PageStatus, Book } from "@/lib/types";
+import type { Character, IdentityProfile, PageStatus } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 import { useBookGeneration } from "@/hooks/useBookGeneration";
 import PageGenerationGrid from "@/components/PageGenerationGrid";
@@ -279,8 +280,12 @@ function Step5GenerateBook({
   );
 }
 
-export default function CreatePage() {
+function CreatePageInner() {
+  const searchParams = useSearchParams();
+  const resumeBookId = searchParams.get("book");
+
   const [currentStep, setCurrentStep] = useState<Step>("characters");
+  const [resumingBook, setResumingBook] = useState(false);
 
   // Existing characters from database
   const [existingCharacters, setExistingCharacters] = useState<Character[]>([]);
@@ -470,6 +475,79 @@ export default function CreatePage() {
 
     return () => subscription.unsubscribe();
   }, [supabase.auth]);
+
+  // Resume book from query param
+  useEffect(() => {
+    if (!resumeBookId || !user) return;
+
+    async function resumeBook() {
+      setResumingBook(true);
+      try {
+        const res = await fetch(`/api/books/${resumeBookId}`);
+        if (!res.ok) {
+          console.error("Failed to fetch book for resume");
+          setResumingBook(false);
+          return;
+        }
+
+        const { book } = await res.json();
+        if (!book) {
+          setResumingBook(false);
+          return;
+        }
+
+        // Set book ID
+        setCurrentBookId(book.id);
+
+        // Set selected characters from snapshot or metadata
+        if (book.characters_snapshot && Array.isArray(book.characters_snapshot)) {
+          const charIds = new Set<string>(book.characters_snapshot.map((c: { id: string }) => c.id));
+          setSelectedCharacterIds(charIds);
+        } else if (book.metadata?.characterIds && Array.isArray(book.metadata.characterIds)) {
+          setSelectedCharacterIds(new Set<string>(book.metadata.characterIds as string[]));
+        }
+
+        // Set story selection
+        if (book.metadata?.bookId || book.metadata?.storySlug) {
+          setSelectedStory(book.metadata.bookId || book.metadata.storySlug);
+        }
+
+        // Set art style
+        if (book.metadata?.artStyle) {
+          setSelectedStyle(book.metadata.artStyle);
+        }
+
+        // Set preview pages if available
+        if (book.preview_pages && book.preview_pages.length > 0) {
+          setPreviewPages(book.preview_pages);
+          setShowBookViewer(true);
+        }
+
+        // Jump to appropriate step based on book status
+        if (book.status === "completed" || book.status === "purchased") {
+          setCurrentStep("generate");
+          setCoverApproved(true);
+        } else if (book.status === "generating_full") {
+          setCurrentStep("generate");
+          setCoverApproved(true);
+        } else if (book.status === "cover_approved") {
+          setCurrentStep("generate");
+          setCoverApproved(true);
+        } else if (book.status === "preview_ready") {
+          setCurrentStep("preview");
+        } else if (book.metadata?.storySlug || book.metadata?.bookId) {
+          setCurrentStep("style");
+        }
+
+        setResumingBook(false);
+      } catch (error) {
+        console.error("Error resuming book:", error);
+        setResumingBook(false);
+      }
+    }
+
+    resumeBook();
+  }, [resumeBookId, user]);
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "characters", label: "Add characters", number: 1 },
@@ -2362,5 +2440,18 @@ export default function CreatePage() {
 
       <Footer />
     </div>
+  );
+}
+
+// Wrap with Suspense to handle useSearchParams during prerendering
+export default function CreatePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-dark flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CreatePageInner />
+    </Suspense>
   );
 }

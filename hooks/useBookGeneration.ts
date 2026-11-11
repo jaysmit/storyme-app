@@ -213,6 +213,9 @@ export function useBookGeneration({
         setHasInteriorPages(false);
         setIsGenerating(false);
         setPageStatuses(data.pageStatuses || []);
+        updateProgress(data.pageStatuses || []);
+        // Reset so user can retry if needed
+        isStartedRef.current = false;
         return;
       }
 

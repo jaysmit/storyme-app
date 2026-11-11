@@ -122,25 +122,36 @@ export async function POST(
       })
       .eq("id", id);
 
-    // Fetch characters from database
-    let charData: CharacterInput[] | null = null;
-    const { data: data1, error: error1 } = await supabase
-      .from("characters")
-      .select("id, name, character_type, pet_type, age, generated_image_url, identity_profile, identity_confirmed")
-      .in("id", config.characterIds);
+    // Use characters snapshot if available (resilient to deleted characters)
+    // Otherwise fall back to fetching from database
+    let characters: CharacterInput[] = [];
 
-    if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {
-      // Some columns don't exist, try minimal query
-      const { data: data2 } = await supabase
-        .from("characters")
-        .select("id, name, character_type, pet_type, generated_image_url")
-        .in("id", config.characterIds);
-      charData = data2;
+    if (book.characters_snapshot && Array.isArray(book.characters_snapshot) && book.characters_snapshot.length > 0) {
+      // Use the stored snapshot - characters are preserved even if deleted
+      console.log(`Using characters snapshot (${book.characters_snapshot.length} characters)`);
+      characters = book.characters_snapshot as CharacterInput[];
     } else {
-      charData = data1;
-    }
+      // Fall back to fetching from database
+      console.log("No characters snapshot, fetching from database");
+      let charData: CharacterInput[] | null = null;
+      const { data: data1, error: error1 } = await supabase
+        .from("characters")
+        .select("id, name, character_type, pet_type, age, generated_image_url, identity_profile, identity_confirmed")
+        .in("id", config.characterIds);
 
-    const characters: CharacterInput[] = charData || [];
+      if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {
+        // Some columns don't exist, try minimal query
+        const { data: data2 } = await supabase
+          .from("characters")
+          .select("id, name, character_type, pet_type, generated_image_url")
+          .in("id", config.characterIds);
+        charData = data2;
+      } else {
+        charData = data1;
+      }
+
+      characters = charData || [];
+    }
 
     // Validate all characters have generated images
     const missingImages = characters.filter((c) => !c.generated_image_url);

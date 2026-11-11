@@ -92,6 +92,30 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-11 PM)
+- [x] **Characters Snapshot for Resilient Generation**
+  - New database migration `010_characters_snapshot.sql` adds `characters_snapshot` JSONB column
+  - Book generation now stores character data at preview time
+  - Full book generation uses snapshot data - works even if characters are deleted after preview
+  - `CharacterSnapshot` type added to `lib/types.ts`
+
+- [x] **Separate Books Pages for Previews vs Completed**
+  - `/books` page redesigned with two sections:
+    - "Works in Progress" - drafts, previews, generating (shows "Continue" button)
+    - "Completed Books" - finished books (shows "View Book" button)
+  - Book cards show character avatars from snapshot
+  - "Continue" button links to `/create?book=ID` to resume
+
+- [x] **Book Resume from URL**
+  - Create wizard now accepts `?book=ID` query parameter
+  - Fetches book data and restores wizard state (characters, story, style, preview)
+  - Jumps to appropriate step based on book status
+  - Wrapped in Suspense for proper prerendering
+
+- [x] **Bug Fixes**
+  - Fixed Generate Full Book button not working (reset `isStartedRef` when no interior pages)
+  - Added interior pages to Dragon of Castle Valley blueprint for testing
+
 ### Recent Changes (2026-11-11)
 - [x] **Step 5: Full Book Generation** - Users can approve cover and generate all interior pages
   - New database migration `009_book_pages.sql` adds `page_statuses` and `generation_config` columns

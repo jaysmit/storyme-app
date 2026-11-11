@@ -132,6 +132,126 @@
         "maskStatus": "not_annotated; position descriptions are qualitative; draw masks or boxes in editor",
         "reviewStatus": "provisional_visual_analysis_needs_owner_confirmation"
       }
+    },
+    {
+      "pageId": "page-1",
+      "pageNumber": 1,
+      "pageType": "interior",
+      "originalImage": "the-dragon-of-castle-valley.jpg",
+      "scene": {
+        "description": "The children discover an ancient map in the wizard's tower, showing the path to Castle Valley where the dragon sleeps.",
+        "visualStyle": "Highly saturated cinematic 3D fantasy animation; warm candlelight in stone tower"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": { "width": 1536, "height": 1024 }
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "centre-left",
+          "poseAction": "pointing excitedly at the magical map",
+          "wardrobe": "adventurer's tunic and cape"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "centre-right",
+          "poseAction": "holding a glowing lantern, peering at map",
+          "wardrobe": "green ranger outfit"
+        }
+      ],
+      "protectedElements": ["tower interior", "magical map", "candles"],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement",
+        "preserveBackground": true,
+        "preserveBookCharacters": true
+      }
+    },
+    {
+      "pageId": "page-2",
+      "pageNumber": 2,
+      "pageType": "interior",
+      "originalImage": "the-dragon-of-castle-valley.jpg",
+      "scene": {
+        "description": "Crossing the enchanted bridge towards the valley, the children encounter friendly forest creatures.",
+        "visualStyle": "Highly saturated cinematic 3D fantasy animation; misty forest bridge with sunbeams"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": { "width": 1536, "height": 1024 }
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "left foreground",
+          "poseAction": "walking confidently across bridge",
+          "wardrobe": "leather armour, cape"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "behind girl",
+          "poseAction": "looking around at forest creatures",
+          "wardrobe": "green ranger outfit"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "beside boy",
+          "poseAction": "trotting along happily",
+          "wardrobe": "blue fantasy harness"
+        }
+      ],
+      "protectedElements": ["bridge", "forest", "magical creatures"],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement",
+        "preserveBackground": true,
+        "preserveBookCharacters": true
+      }
+    },
+    {
+      "pageId": "page-3",
+      "pageNumber": 3,
+      "pageType": "interior",
+      "originalImage": "the-dragon-of-castle-valley.jpg",
+      "scene": {
+        "description": "The children finally befriend the dragon, who turns out to be lonely and just wanted friends to play with.",
+        "visualStyle": "Highly saturated cinematic 3D fantasy animation; joyful scene with dragon and children"
+      },
+      "composition": {
+        "aspectRatio": 1.5,
+        "dimensions": { "width": 1536, "height": 1024 }
+      },
+      "characterPlacements": [
+        {
+          "slotId": "crew_girl",
+          "position": "centre",
+          "poseAction": "hugging dragon's snout",
+          "wardrobe": "leather armour, red cape"
+        },
+        {
+          "slotId": "crew_boy",
+          "position": "beside girl",
+          "poseAction": "laughing and petting dragon",
+          "wardrobe": "green ranger outfit"
+        },
+        {
+          "slotId": "crew_grandmother",
+          "position": "background",
+          "poseAction": "watching proudly with wand lowered",
+          "wardrobe": "purple wizard cloak"
+        },
+        {
+          "slotId": "crew_dog",
+          "position": "foreground",
+          "poseAction": "wagging tail excitedly",
+          "wardrobe": "blue fantasy harness"
+        }
+      ],
+      "protectedElements": ["dragon (friendly expression)", "castle valley background"],
+      "generationInstructions": {
+        "editStrategy": "reference-guided targeted replacement",
+        "preserveBackground": true,
+        "preserveBookCharacters": false
+      }
     }
   ],
   "metadata": {

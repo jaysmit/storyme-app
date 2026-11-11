@@ -643,6 +643,20 @@ export async function POST(
     ];
 
     // ============================================
+    // Store characters snapshot for resilient generation
+    // ============================================
+    const charactersSnapshot = characters.map((c) => ({
+      id: c.id,
+      name: c.name,
+      character_type: c.character_type,
+      pet_type: c.pet_type,
+      age: c.age,
+      generated_image_url: c.generated_image_url,
+      identity_profile: c.identity_profile,
+      identity_confirmed: c.identity_confirmed,
+    }));
+
+    // ============================================
     // Update book with generation metadata
     // ============================================
     const { data: updatedBook, error: updateError } = await supabase
@@ -650,11 +664,13 @@ export async function POST(
       .update({
         preview_pages: generatedPages,
         status: "preview_ready",
+        characters_snapshot: charactersSnapshot,
         metadata: {
           ...book.metadata,
           bookId,
           blueprintVersion: blueprint.blueprintVersion,
           characterCount: characters.length,
+          characterIds,
           crewAssignments,
           outputSize,
           masterImageUrl: masterImagePath,

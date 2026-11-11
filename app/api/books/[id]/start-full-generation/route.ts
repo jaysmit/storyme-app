@@ -50,8 +50,14 @@ export async function POST(
       );
     }
 
-    // Get character IDs from metadata
-    const characterIds: string[] = book.metadata?.characterIds || [];
+    // Get character IDs from metadata or snapshot
+    let characterIds: string[] = book.metadata?.characterIds || [];
+
+    // If we have a characters snapshot, use those IDs
+    if (book.characters_snapshot && Array.isArray(book.characters_snapshot)) {
+      characterIds = book.characters_snapshot.map((c: { id: string }) => c.id);
+    }
+
     if (characterIds.length === 0) {
       return NextResponse.json(
         { error: "Book has no characters selected" },

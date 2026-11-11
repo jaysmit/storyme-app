@@ -133,6 +133,18 @@ export interface ArtStyle {
   ages: string | null;
 }
 
+// Character snapshot stored with book for resilient generation
+export interface CharacterSnapshot {
+  id: string;
+  name: string;
+  character_type?: string;
+  pet_type?: string;
+  age?: number | null;
+  generated_image_url?: string;
+  identity_profile?: IdentityProfile | null;
+  identity_confirmed?: boolean;
+}
+
 export interface Book {
   id: string;
   user_id: string;
@@ -143,6 +155,7 @@ export interface Book {
   preview_pages: { url: string; page_number: number; title?: string }[];
   page_statuses?: PageStatus[];
   generation_config?: GenerationConfig;
+  characters_snapshot?: CharacterSnapshot[];
   metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
