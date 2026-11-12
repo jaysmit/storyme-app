@@ -6,14 +6,22 @@
 import { getOpenAI } from "@/lib/openai";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
-  loadBlueprint,
+  loadBlueprintWithFormat,
   loadBlueprintPage,
   buildPromptFromBlueprint,
+  buildPromptFromV2Blueprint,
   getOriginalImagePath,
+  getV2OriginalImagePath,
+  getV2Page,
+  assignCharactersToV2Slots,
   resolveBookId,
   type CrewAssignment,
   type BookBlueprint,
   type BlueprintPage,
+  type V2Blueprint,
+  type V2Page,
+  type V2Assignment,
+  type NameMapping,
 } from "@/lib/book-blueprints";
 import {
   downloadImage,
@@ -185,19 +193,37 @@ export interface GeneratePageResult {
 
 /**
  * Generate a single page (cover or interior) using the blueprint system
+ * Supports both V1 and V2 blueprint formats
  */
 export async function generateSinglePage(
   bookDbId: string,
   userId: string,
   pageId: string,
   blueprintBookId: string,
-  characters: CharacterInput[]
+  characters: CharacterInput[],
+  existingNameMapping?: NameMapping
 ): Promise<GeneratePageResult> {
   const resolvedBookId = resolveBookId(blueprintBookId);
 
   try {
-    // Load blueprint and page
-    const blueprint = await loadBlueprint(resolvedBookId);
+    // Load blueprint with format detection
+    const { blueprint: rawBlueprint, format, basePath } = await loadBlueprintWithFormat(resolvedBookId);
+
+    // Handle V2 format
+    if (format === "v2") {
+      return await generateV2Page(
+        rawBlueprint as V2Blueprint,
+        resolvedBookId,
+        bookDbId,
+        userId,
+        pageId,
+        characters,
+        existingNameMapping
+      );
+    }
+
+    // V1 format
+    const blueprint = rawBlueprint as BookBlueprint;
     const page = await loadBlueprintPage(resolvedBookId, pageId);
 
     // Check for original image
@@ -353,17 +379,209 @@ export async function generateSinglePage(
 }
 
 /**
+ * Generate a single V2 page
+ */
+async function generateV2Page(
+  blueprint: V2Blueprint,
+  bookId: string,
+  bookDbId: string,
+  userId: string,
+  pageId: string,
+  characters: CharacterInput[],
+  existingNameMapping?: NameMapping
+): Promise<GeneratePageResult> {
+  // V2 pageId format: "page-N" where N is the page number
+  const pageNumber = parseInt(pageId.replace("page-", ""), 10);
+  if (isNaN(pageNumber)) {
+    return {
+      success: false,
+      pageId,
+      pageNumber: 0,
+      error: `Invalid V2 page ID format: ${pageId}. Expected "page-N".`,
+    };
+  }
+
+  const page = getV2Page(blueprint, pageNumber);
+  if (!page) {
+    return {
+      success: false,
+      pageId,
+      pageNumber,
+      error: `V2 page ${pageNumber} not found in blueprint`,
+    };
+  }
+
+  // Check for master image
+  if (!page.master_image_filename) {
+    return {
+      success: false,
+      pageId,
+      pageNumber,
+      error: `V2 page ${pageNumber} has no master_image_filename`,
+    };
+  }
+
+  // Assign characters to slots for this page
+  const { assignments, debugLog, nameMapping } = assignCharactersToV2Slots(
+    characters,
+    blueprint,
+    page
+  );
+
+  // Use existing name mapping if provided (for consistency across pages)
+  const finalNameMapping = existingNameMapping || nameMapping;
+
+  console.log(`\n=== V2 PAGE ${pageNumber} GENERATION ===`);
+  console.log(debugLog.join("\n"));
+
+  // Load master page image
+  const masterImagePath = getV2OriginalImagePath(bookId, page);
+  let masterPage: ProcessedImage;
+  try {
+    masterPage = await loadLocalImage(masterImagePath, `V2 Master page ${pageNumber}`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return {
+      success: false,
+      pageId,
+      pageNumber,
+      error: `V2 Master image not found: ${msg}`,
+    };
+  }
+
+  // Download character images for characters on this page
+  const characterImages: ProcessedImage[] = [];
+  for (const assignment of assignments) {
+    const character = characters.find((c) => c.id === assignment.characterId);
+    if (character?.generated_image_url) {
+      const image = await downloadImage(
+        character.generated_image_url,
+        `Character "${character.name}"`
+      );
+      characterImages.push(image);
+    }
+  }
+
+  // Build V2 prompt
+  const prompt = buildPromptFromV2Blueprint(blueprint, page, assignments);
+  console.log(`V2 Prompt length: ${prompt.length} characters`);
+
+  const openai = getOpenAI();
+
+  // Build image array
+  const allImageFiles: File[] = [];
+
+  // IMAGE 1: Master page
+  const masterBlob = new Blob([new Uint8Array(masterPage.buffer)], {
+    type: "image/png",
+  });
+  const masterFile = new File([masterBlob], "1-master-page.png", {
+    type: "image/png",
+  });
+  allImageFiles.push(masterFile);
+
+  // IMAGES 2+: Character references
+  characterImages.forEach((image, index) => {
+    const assignment = assignments[index];
+    const imageNum = index + 2;
+    const blob = new Blob([new Uint8Array(image.buffer)], { type: "image/png" });
+    const charName = assignment.characterName.replace(/[^a-zA-Z0-9]/g, "-");
+    const file = new File([blob], `${imageNum}-char-${charName}.png`, {
+      type: "image/png",
+    });
+    allImageFiles.push(file);
+  });
+
+  // Determine output size
+  const outputSize = selectOutputSize(masterPage.dimensions);
+
+  // Call OpenAI
+  console.log(`Calling OpenAI images.edit for V2 page ${pageNumber}...`);
+  const startTime = Date.now();
+
+  const response = await openai.images.edit({
+    model: "gpt-image-2.5-sunburst",
+    image: allImageFiles,
+    prompt,
+    n: 1,
+    size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+    quality: "high",
+    output_format: "jpeg",
+  });
+
+  const elapsedTime = Date.now() - startTime;
+  console.log(`V2 OpenAI response in ${elapsedTime}ms for page ${pageNumber}`);
+
+  const imageData = response.data?.[0];
+  let outputBuffer: Buffer | null = null;
+
+  if (imageData?.b64_json) {
+    outputBuffer = Buffer.from(imageData.b64_json, "base64");
+  } else if (imageData?.url) {
+    const imgResponse = await fetch(imageData.url);
+    if (!imgResponse.ok) {
+      throw new Error(`Failed to download generated image: ${imgResponse.status}`);
+    }
+    outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
+  }
+
+  if (!outputBuffer) {
+    throw new Error("OpenAI returned no image data for V2 page");
+  }
+
+  // Upload to storage
+  const serviceClient = createServiceClient();
+  const fileName = `${userId}/${bookDbId}/${pageId}.jpg`;
+  const { error: uploadError } = await serviceClient.storage
+    .from("previews")
+    .upload(fileName, outputBuffer, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`V2 Storage upload failed: ${uploadError.message}`);
+  }
+
+  const { data: { publicUrl } } = serviceClient.storage
+    .from("previews")
+    .getPublicUrl(fileName);
+
+  console.log(`V2 Page ${pageNumber} uploaded: ${publicUrl}`);
+
+  return {
+    success: true,
+    pageId,
+    pageNumber,
+    url: publicUrl,
+  };
+}
+
+/**
  * Get list of pages that can be generated for a book
  * Only returns pages that have originalImage defined
+ * Supports both V1 and V2 blueprint formats
  */
 export async function getGeneratablePages(
   blueprintBookId: string
-): Promise<{ pageId: string; pageNumber: number; hasImage: boolean }[]> {
+): Promise<{ pageId: string; pageNumber: number; hasImage: boolean; title?: string }[]> {
   const resolvedBookId = resolveBookId(blueprintBookId);
 
   try {
-    const blueprint = await loadBlueprint(resolvedBookId);
+    const { blueprint: rawBlueprint, format } = await loadBlueprintWithFormat(resolvedBookId);
 
+    if (format === "v2") {
+      const blueprint = rawBlueprint as V2Blueprint;
+      return blueprint.pages.map((page) => ({
+        pageId: `page-${page.page_number}`,
+        pageNumber: page.page_number,
+        hasImage: !!page.master_image_filename,
+        title: page.title,
+      }));
+    }
+
+    // V1 format
+    const blueprint = rawBlueprint as BookBlueprint;
     return blueprint.pages.map((page) => ({
       pageId: page.pageId,
       pageNumber: page.pageNumber,

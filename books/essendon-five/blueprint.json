@@ -1,0 +1,976 @@
+{
+  "schema_version": "1.0",
+  "title": "The Essendon Five",
+  "page_count": 11,
+  "visual_style": "Premium cinematic 3D animated caricature, expressive faces, sunny MCG, black Essendon guernsey with diagonal red sash. Match master image exactly.",
+  "characters": {
+    "leon": {
+      "name": "Leon",
+      "age": 5,
+      "features": "youngest and shortest child; short tousled light brown hair; blue-grey eyes",
+      "slot_id": "leon",
+      "swappable": true,
+      "reference_key": "leon",
+      "features_note": "Original placeholder cues only; customer reference overrides appearance."
+    },
+    "eden": {
+      "name": "Eden",
+      "age": 9,
+      "features": "older girl, slightly taller than Ruby; blonde hair; blue-grey eyes",
+      "slot_id": "eden",
+      "swappable": true,
+      "reference_key": "eden",
+      "features_note": "Original placeholder cues only; customer reference overrides appearance."
+    },
+    "ruby": {
+      "name": "Ruby",
+      "age": 7,
+      "features": "younger girl; long wavy brown hair; brown eyes",
+      "slot_id": "ruby",
+      "swappable": true,
+      "reference_key": "ruby",
+      "features_note": "Original placeholder cues only; customer reference overrides appearance."
+    },
+    "mum": {
+      "name": "Mum",
+      "features": "adult woman; shoulder-length straight blonde hair; blue-grey eyes",
+      "slot_id": "mum",
+      "swappable": true,
+      "reference_key": "mum",
+      "features_note": "Original placeholder cues only; customer reference overrides appearance."
+    },
+    "dad": {
+      "name": "Dad",
+      "features": "adult man; short dark brown hair; dark eyebrows; brown eyes",
+      "slot_id": "dad",
+      "swappable": true,
+      "reference_key": "dad",
+      "features_note": "Original placeholder cues only; customer reference overrides appearance."
+    }
+  },
+  "generation_rules": {
+    "image_input_order": "Master page first, then only visible customer character references in the order of page.characters. Explicitly map each image index to slot_id.",
+    "edit_instruction": "Replace only listed family instances using their assigned customer references. Preserve pose, action, gaze, expression intent, scale, perspective, occlusion, depth, uniform, lighting and all other scene elements. Do not add absent characters. Do not change non-swappable people, ball, signs or composition. Priority controls identity fidelity, not size or position.",
+    "text_instruction": "Do not render story text during image edit. After editing, typeset resolved story_text separately in a dedicated panel below the image; preserve full image aspect ratio. Existing signage stays in image.",
+    "text_personalisation": "Replace original character names using story_text_template and supplied display names; preserve punctuation and grammar. Mum and Dad may remain role labels.",
+    "missing_reference": "Stop and report missing required reference; never substitute another character.",
+    "anchor_note": "Approximate normalized head centers (x,y), origin top-left; not segmentation masks. Use visual description and reference together."
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "title": "Game Day!",
+      "master_image_filename": "1.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Family posing outside stadium, left foreground; stadium right.",
+      "story_text": "Leon couldn't wait to watch his beloved Bombers! Mum, Dad, Eden and Ruby were just as excited. Little did they know, today would be extraordinary.",
+      "story_text_template": "{{leon}} couldn't wait to watch his beloved Bombers! {{mum}}, {{dad}}, {{eden}} and {{ruby}} were just as excited. Little did they know, today would be extraordinary.",
+      "word_count": 25,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.32,
+            "y": 0.54
+          },
+          "depth": "foreground",
+          "action_and_location": "holding red football, cheering",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.13,
+            "y": 0.49
+          },
+          "depth": "foreground",
+          "action_and_location": "blonde girl cheering",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.53,
+            "y": 0.59
+          },
+          "depth": "foreground",
+          "action_and_location": "brown-haired girl cheering",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.25,
+            "y": 0.19
+          },
+          "depth": "behind children",
+          "action_and_location": "raised fist",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.43,
+            "y": 0.29
+          },
+          "depth": "behind children",
+          "action_and_location": "smiling",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "pedestrians",
+        "stadium and MCG sign",
+        "football"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 2,
+      "title": "Trouble at the MCG",
+      "master_image_filename": "2.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Family shocked in stands; announcement screen upper right.",
+      "story_text": "Suddenly, a message flashed across the giant screen. The Essendon team bus had broken down! Five players were missing. How could the Bombers possibly win?",
+      "story_text_template": "Suddenly, a message flashed across the giant screen. The Essendon team bus had broken down! Five players were missing. How could the Bombers possibly win?",
+      "word_count": 25,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.33,
+            "y": 0.58
+          },
+          "depth": "foreground",
+          "action_and_location": "looking up in shock",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.14,
+            "y": 0.6
+          },
+          "depth": "foreground",
+          "action_and_location": "looking up in shock",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.58,
+            "y": 0.6
+          },
+          "depth": "foreground",
+          "action_and_location": "looking up in shock",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.34,
+            "y": 0.26
+          },
+          "depth": "behind children",
+          "action_and_location": "hand on Leon’s shoulder",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.15,
+            "y": 0.18
+          },
+          "depth": "behind children",
+          "action_and_location": "looking at screen",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "crowd",
+        "announcement screen and all existing lettering",
+        "railing"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 3,
+      "title": "The Chosen Five",
+      "master_image_filename": "3.png",
+      "master_image_size": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene_description": "Coach points from lower left toward family in upper-right stands.",
+      "story_text": "The Essendon coach spotted Leon and his family in the crowd. ‘You five! We need your help!’ Leon couldn't believe it. His biggest dream was coming true!",
+      "story_text_template": "The Essendon coach spotted {{leon}} and his family in the crowd. ‘You five! We need your help!’ {{leon}} couldn't believe it. His biggest dream was coming true!",
+      "word_count": 27,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.79,
+            "y": 0.38
+          },
+          "depth": "distant stands",
+          "action_and_location": "cheering between sisters",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.75,
+            "y": 0.35
+          },
+          "depth": "distant stands",
+          "action_and_location": "blonde girl cheering",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.83,
+            "y": 0.37
+          },
+          "depth": "distant stands",
+          "action_and_location": "brown-haired girl cheering",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.78,
+            "y": 0.26
+          },
+          "depth": "distant stands",
+          "action_and_location": "raised fists",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.84,
+            "y": 0.29
+          },
+          "depth": "distant stands",
+          "action_and_location": "cheering",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "coach (dominant foreground subject, not Dad)",
+        "all other players and spectators",
+        "stadium signage"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 4,
+      "title": "Here Come the Bombers!",
+      "master_image_filename": "4.png",
+      "master_image_size": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene_description": "Family running out of tunnel onto oval.",
+      "story_text": "Wearing their official Essendon guernseys, the family raced onto the mighty MCG. Thousands of fans cheered as Leon led his family onto the field.",
+      "story_text_template": "Wearing their official Essendon guernseys, the family raced onto the mighty MCG. Thousands of fans cheered as {{leon}} led his family onto the field.",
+      "word_count": 24,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.49,
+            "y": 0.49
+          },
+          "depth": "foreground",
+          "action_and_location": "leading run",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.35,
+            "y": 0.5
+          },
+          "depth": "midground",
+          "action_and_location": "blonde girl running",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.66,
+            "y": 0.5
+          },
+          "depth": "midground",
+          "action_and_location": "brown-haired girl running",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.38,
+            "y": 0.32
+          },
+          "depth": "behind children",
+          "action_and_location": "running",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.57,
+            "y": 0.38
+          },
+          "depth": "behind children",
+          "action_and_location": "running",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "crowd",
+        "tunnel",
+        "smoke",
+        "signage"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 5,
+      "title": "Eden Takes Flight",
+      "master_image_filename": "5.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Opening ball-up; Eden taps toward Mum.",
+      "story_text": "The umpire threw the ball high into the air. Eden leapt above her opponent and tapped it straight towards Mum. What an incredible start!",
+      "story_text_template": "The umpire threw the ball high into the air. {{eden}} leapt above her opponent and tapped it straight towards {{mum}}. What an incredible start!",
+      "word_count": 24,
+      "characters": [
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.4,
+            "y": 0.29
+          },
+          "depth": "foreground",
+          "action_and_location": "jumping and tapping ball",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.86,
+            "y": 0.5
+          },
+          "depth": "midground",
+          "action_and_location": "running to receive tap",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.72,
+            "y": 0.6
+          },
+          "depth": "background",
+          "action_and_location": "running",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.045,
+            "y": 0.64
+          },
+          "depth": "background",
+          "action_and_location": "running at far left",
+          "reference_image_index": 5
+        }
+      ],
+      "absent_character_ids": [
+        "dad"
+      ],
+      "protected_non_swappable_elements": [
+        "opposing ruck player left",
+        "yellow umpire lower left",
+        "ball and trajectory",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 6,
+      "title": "Ruby’s Mighty Tackle",
+      "master_image_filename": "6.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Ruby tackles opponent in close-up.",
+      "story_text": "A Cats player grabbed the footy, but Ruby charged towards him. She wrapped him up in a mighty tackle. ‘BALL!’ roared the excited crowd.",
+      "story_text_template": "A Cats player grabbed the footy, but {{ruby}} charged towards him. She wrapped him up in a mighty tackle. ‘BALL!’ roared the excited crowd.",
+      "word_count": 24,
+      "characters": [
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.45,
+            "y": 0.34
+          },
+          "depth": "foreground",
+          "action_and_location": "tackling ball carrier",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.12,
+            "y": 0.41
+          },
+          "depth": "background",
+          "action_and_location": "running from left",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.92,
+            "y": 0.33
+          },
+          "depth": "background",
+          "action_and_location": "running from right",
+          "reference_image_index": 4
+        }
+      ],
+      "absent_character_ids": [
+        "eden",
+        "mum"
+      ],
+      "protected_non_swappable_elements": [
+        "opposing ball carrier",
+        "football",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 7,
+      "title": "Dad to the Rescue",
+      "master_image_filename": "7.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Dad shepherds opponent while Leon runs with ball.",
+      "story_text": "Leon scooped up the footy and raced away. A huge defender charged towards him, but Dad delivered a brilliant shepherd. ‘Keep running, Leon!’ he shouted.",
+      "story_text_template": "{{leon}} scooped up the footy and raced away. A huge defender charged towards him, but {{dad}} delivered a brilliant shepherd. ‘Keep running, {{leon}}!’ he shouted.",
+      "word_count": 25,
+      "characters": [
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.53,
+            "y": 0.31
+          },
+          "depth": "foreground",
+          "action_and_location": "blocking defender with arm",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.12,
+            "y": 0.47
+          },
+          "depth": "midground",
+          "action_and_location": "running with football",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.28,
+            "y": 0.35
+          },
+          "depth": "background",
+          "action_and_location": "running",
+          "reference_image_index": 4
+        }
+      ],
+      "absent_character_ids": [
+        "eden",
+        "ruby"
+      ],
+      "protected_non_swappable_elements": [
+        "opposing defender at right",
+        "football",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 8,
+      "title": "Mum’s Super Kick",
+      "master_image_filename": "8.png",
+      "master_image_size": {
+        "width": 1536,
+        "height": 1024
+      },
+      "scene_description": "Mum kicks while opponent dives to smother.",
+      "story_text": "Leon handballed to Mum, who launched an enormous kick downfield. A Cats player dived desperately to smother it, but the footy sailed straight past him!",
+      "story_text_template": "{{leon}} handballed to {{mum}}, who launched an enormous kick downfield. A Cats player dived desperately to smother it, but the footy sailed straight past him!",
+      "word_count": 25,
+      "characters": [
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.26,
+            "y": 0.17
+          },
+          "depth": "foreground",
+          "action_and_location": "kicking football",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.1,
+            "y": 0.4
+          },
+          "depth": "background",
+          "action_and_location": "blonde girl running",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.18,
+            "y": 0.49
+          },
+          "depth": "background",
+          "action_and_location": "brown-haired girl running",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.23,
+            "y": 0.59
+          },
+          "depth": "background",
+          "action_and_location": "small boy running",
+          "reference_image_index": 5
+        }
+      ],
+      "absent_character_ids": [
+        "dad"
+      ],
+      "protected_non_swappable_elements": [
+        "diving opponent right",
+        "football",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 9,
+      "title": "Leon’s Spectacular Specky",
+      "master_image_filename": "9.png",
+      "master_image_size": {
+        "width": 1671,
+        "height": 941
+      },
+      "scene_description": "Leon takes a high mark over opponent.",
+      "story_text": "Leon sprinted towards the falling ball, leapt onto a defender's shoulders and soared into the sky. He grabbed the footy! ‘WHAT A SPECKY!’ screamed the commentator.",
+      "story_text_template": "{{leon}} sprinted towards the falling ball, leapt onto a defender's shoulders and soared into the sky. He grabbed the footy! ‘WHAT A SPECKY!’ screamed the commentator.",
+      "word_count": 26,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.46,
+            "y": 0.26
+          },
+          "depth": "foreground",
+          "action_and_location": "catching ball above defender, knees at shoulders",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.7,
+            "y": 0.58
+          },
+          "depth": "background",
+          "action_and_location": "cheering with fist raised",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.79,
+            "y": 0.65
+          },
+          "depth": "background",
+          "action_and_location": "blonde girl running",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.89,
+            "y": 0.67
+          },
+          "depth": "background",
+          "action_and_location": "brown-haired girl running",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "background",
+          "head_anchor": {
+            "x": 0.62,
+            "y": 0.63
+          },
+          "depth": "distant background",
+          "action_and_location": "running behind Mum",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "central opposing defender",
+        "three opposing players left",
+        "football",
+        "goalposts",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 10,
+      "title": "The Winning Goal",
+      "master_image_filename": "10.png",
+      "master_image_size": {
+        "width": 1672,
+        "height": 941
+      },
+      "scene_description": "Rear view of Leon kicking winning goal.",
+      "story_text": "Five points behind, with seconds remaining, Leon lined up his kick. The footy sailed between the big sticks. The siren sounded. THE BOMBERS HAD WON!",
+      "story_text_template": "Five points behind, with seconds remaining, {{leon}} lined up his kick. The footy sailed between the big sticks. The siren sounded. THE BOMBERS HAD WON!",
+      "word_count": 25,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.34,
+            "y": 0.55
+          },
+          "depth": "foreground",
+          "action_and_location": "back to camera, kicking, number 5",
+          "reference_image_index": 2
+        }
+      ],
+      "absent_character_ids": [
+        "eden",
+        "ruby",
+        "mum",
+        "dad"
+      ],
+      "protected_non_swappable_elements": [
+        "opposing player in front of goals",
+        "four goalposts",
+        "football between central posts",
+        "crowd"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    },
+    {
+      "page_number": 11,
+      "title": "A Family of Superstars",
+      "master_image_filename": "11.png",
+      "master_image_size": {
+        "width": 1670,
+        "height": 941
+      },
+      "scene_description": "Family lifted on shoulders by cheering supporters.",
+      "story_text": "Fans flooded the field, lifting Leon and his family onto their shoulders. The entire stadium celebrated their new heroes. It was the greatest footy day ever!",
+      "story_text_template": "Fans flooded the field, lifting {{leon}} and his family onto their shoulders. The entire stadium celebrated their new heroes. It was the greatest footy day ever!",
+      "word_count": 26,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": {
+            "x": 0.27,
+            "y": 0.3
+          },
+          "depth": "elevated foreground",
+          "action_and_location": "leftmost lifted child, both fists raised",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.52,
+            "y": 0.38
+          },
+          "depth": "elevated foreground",
+          "action_and_location": "central lifted adult man",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.64,
+            "y": 0.34
+          },
+          "depth": "elevated foreground",
+          "action_and_location": "lifted blonde adult woman",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.75,
+            "y": 0.39
+          },
+          "depth": "elevated foreground",
+          "action_and_location": "rightmost lifted blonde girl",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": {
+            "x": 0.38,
+            "y": 0.38
+          },
+          "depth": "elevated foreground",
+          "action_and_location": "lifted brown-haired girl",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": [
+        "five men carrying family (none are Dad)",
+        "all other supporters including foreground crowd",
+        "confetti",
+        "flags",
+        "goalposts"
+      ],
+      "text_layout": {
+        "mode": "separate_panel_below_image",
+        "alignment": "center",
+        "background": "#FFFFFF",
+        "color": "#171717",
+        "render_title": false
+      }
+    }
+  ]
+}

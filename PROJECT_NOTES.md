@@ -92,6 +92,38 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-12)
+- [x] **V2 Blueprint Format Support** - Essendon Five style books with enhanced features
+  - New `books/` folder for V2 format books (each book has its own folder with blueprint.json + images)
+  - V1 blueprints remain in `book-blueprints/` for backwards compatibility
+  - Auto-detection of blueprint format via `loadBlueprintWithFormat()`
+  - V2 features:
+    - Named character slots (leon, eden, ruby, mum, dad) instead of generic types
+    - Head anchor coordinates (x, y) for precise character positioning
+    - Priority ranking per character per page (1 = highest identity fidelity)
+    - Story text templates with `{{name}}` placeholders
+    - Absent character tracking per page
+    - Per-page character visibility (not all characters appear on every page)
+  - New TypeScript types: `V2Blueprint`, `V2Page`, `V2CharacterPlacement`, `HeadAnchor`, etc.
+  - New functions:
+    - `assignCharactersToV2Slots()` - Age-based matching (children → child slots, adults → adult slots)
+    - `buildPromptFromV2Blueprint()` - Enhanced prompts with head anchors and priorities
+  - Story text personalization:
+    - New `lib/story-text.ts` with `personalizeStoryText()`, `personalizeAllPages()`
+    - Replaces `{{leon}}` with customer character names
+    - Pre-computed personalized pages stored in book record
+  - Database migration `011_name_mapping.sql`:
+    - `name_mapping` JSONB - maps slot IDs to customer display names
+    - `personalized_pages` JSONB - pre-computed story text per page
+    - `blueprint_format` TEXT - tracks v1 or v2 format
+  - API updates:
+    - `POST /api/books/[id]/generate` - detects format, uses V2 handler for V2 books
+    - `POST /api/books/[id]/generate-page` - supports V2 interior page generation
+    - `GET /api/books/[id]/story-text` - returns personalized story text for V2 books
+  - First V2 book: "The Essendon Five" (AFL-themed family story, 11 pages)
+    - Assets in `books/essendon-five/`
+    - 5 named character slots: leon (5yo), eden (9yo), ruby (7yo), mum, dad
+
 ### Recent Changes (2026-11-11 PM)
 - [x] **Characters Snapshot for Resilient Generation**
   - New database migration `010_characters_snapshot.sql` adds `characters_snapshot` JSONB column

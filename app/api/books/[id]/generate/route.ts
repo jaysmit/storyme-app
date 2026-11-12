@@ -4,14 +4,20 @@ import { getOpenAI } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
 import {
-  loadBlueprint,
+  loadBlueprintWithFormat,
   loadBlueprintCover,
   buildPromptFromBlueprint,
+  buildPromptFromV2Blueprint,
   getOriginalImagePath,
+  getV2OriginalImagePath,
+  getV2CoverPage,
+  assignCharactersToV2Slots,
   resolveBookId,
   type CrewAssignment,
   type BookBlueprint,
   type BlueprintPage,
+  type V2Blueprint,
+  type V2Page,
 } from "@/lib/book-blueprints";
 import {
   downloadImage,
@@ -19,6 +25,7 @@ import {
   selectOutputSize,
   type ProcessedImage,
 } from "@/lib/image-processing";
+import { personalizeAllPages } from "@/lib/story-text";
 
 // Character from database
 interface CharacterInput {
@@ -263,6 +270,293 @@ function assignCharactersToSlots(
   return { assignments, debugLog };
 }
 
+// ============================================
+// V2 Generation Handler (Essendon Five style)
+// ============================================
+async function handleV2Generation(
+  blueprint: V2Blueprint,
+  bookId: string,
+  basePath: string,
+  characters: CharacterInput[],
+  characterIds: string[],
+  user: { id: string },
+  id: string,
+  book: { metadata?: Record<string, unknown> },
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
+  const serviceClient = createServiceClient();
+  const openai = getOpenAI();
+
+  // Get cover page (page 1 in V2)
+  const coverPage = getV2CoverPage(blueprint);
+  if (!coverPage) {
+    return NextResponse.json(
+      {
+        error: "COVER_NOT_FOUND",
+        message: `V2 Book "${blueprint.title}" has no first page defined.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Validate cover has master image
+  if (!coverPage.master_image_filename) {
+    return NextResponse.json(
+      {
+        error: "MASTER_IMAGE_REQUIRED",
+        message: `V2 Book "${blueprint.title}" page 1 has no master_image_filename.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // ============================================
+  // V2 Character Assignment
+  // ============================================
+  const { assignments, debugLog, nameMapping } = assignCharactersToV2Slots(
+    characters,
+    blueprint,
+    coverPage
+  );
+
+  console.log("\n" + debugLog.join("\n") + "\n");
+
+  console.log("=== V2 BOOK COVER GENERATION ===");
+  console.log(`Book: ${blueprint.title} (${bookId})`);
+  console.log(`Visual Style: ${blueprint.visual_style.substring(0, 100)}...`);
+  console.log(`Master Image: ${coverPage.master_image_filename}`);
+  console.log(`Page dimensions: ${coverPage.master_image_size?.width || 1536}x${coverPage.master_image_size?.height || 1024}`);
+  console.log(`Characters provided: ${characters.length}`);
+  console.log(`V2 Slots on page: ${coverPage.characters.length}`);
+  console.log(`Assignments made: ${assignments.length}`);
+  console.log(`Name mapping:`, nameMapping);
+
+  // ============================================
+  // Load master page from books folder
+  // ============================================
+  const masterImagePath = getV2OriginalImagePath(bookId, coverPage);
+  let masterPage: ProcessedImage;
+
+  try {
+    masterPage = await loadLocalImage(masterImagePath, "V2 Master page (cover)");
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    if (msg.includes("MASTER_IMAGE_MISSING")) {
+      await supabase.from("books").update({ status: "failed" }).eq("id", id);
+      return NextResponse.json(
+        {
+          error: "MASTER_IMAGE_NOT_FOUND",
+          message: `V2 master illustration not found: ${masterImagePath}`,
+        },
+        { status: 500 }
+      );
+    }
+    throw error;
+  }
+
+  // Download customer character images
+  const characterImages: ProcessedImage[] = [];
+  for (const assignment of assignments) {
+    const character = characters.find((c) => c.id === assignment.characterId);
+    if (character?.generated_image_url) {
+      const image = await downloadImage(
+        character.generated_image_url,
+        `Character "${character.name}"`
+      );
+      characterImages.push(image);
+    }
+  }
+
+  // ============================================
+  // Build V2 prompt
+  // ============================================
+  const prompt = buildPromptFromV2Blueprint(blueprint, coverPage, assignments);
+
+  console.log("\n=== V2 FULL PROMPT SENT TO OPENAI ===");
+  console.log("Prompt length:", prompt.length, "characters");
+  console.log("-".repeat(80));
+  console.log(prompt);
+  console.log("-".repeat(80));
+  console.log("=== END V2 FULL PROMPT ===\n");
+
+  // ============================================
+  // Build image array: IMAGE 1 = master, IMAGES 2+ = characters
+  // ============================================
+  const allImageFiles: File[] = [];
+
+  // IMAGE 1: Master page
+  const masterBlob = new Blob([new Uint8Array(masterPage.buffer)], {
+    type: "image/png",
+  });
+  const masterFile = new File([masterBlob], "1-master-page.png", {
+    type: "image/png",
+  });
+  allImageFiles.push(masterFile);
+  console.log(
+    `IMAGE 1: Master page (${masterPage.dimensions.width}x${masterPage.dimensions.height})`
+  );
+
+  // IMAGES 2+: Customer character references
+  characterImages.forEach((image, index) => {
+    const assignment = assignments[index];
+    const imageNum = index + 2;
+    const blob = new Blob([new Uint8Array(image.buffer)], { type: "image/png" });
+    const charName = assignment.characterName.replace(/[^a-zA-Z0-9]/g, "-");
+    const file = new File([blob], `${imageNum}-char-${charName}.png`, {
+      type: "image/png",
+    });
+    allImageFiles.push(file);
+    console.log(
+      `IMAGE ${imageNum}: "${assignment.characterName}" -> ${assignment.slotId}`
+    );
+  });
+
+  // ============================================
+  // Determine output size
+  // ============================================
+  const outputSize = selectOutputSize(masterPage.dimensions);
+  console.log(
+    `\nOutput size: ${outputSize} (original: ${masterPage.dimensions.orientation})`
+  );
+
+  // ============================================
+  // Call OpenAI images.edit
+  // ============================================
+  console.log("\nCalling OpenAI images.edit (V2)...");
+  const startTime = Date.now();
+
+  const response = await openai.images.edit({
+    model: "gpt-image-2.5-sunburst",
+    image: allImageFiles,
+    prompt,
+    n: 1,
+    size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+    quality: "high",
+    output_format: "jpeg",
+  });
+
+  const elapsedTime = Date.now() - startTime;
+  console.log(`V2 OpenAI response in: ${elapsedTime}ms`);
+
+  const imageData = response.data?.[0];
+  let outputBuffer: Buffer | null = null;
+
+  if (imageData?.b64_json) {
+    outputBuffer = Buffer.from(imageData.b64_json, "base64");
+  } else if (imageData?.url) {
+    const imgResponse = await fetch(imageData.url);
+    if (!imgResponse.ok) {
+      throw new Error(`Failed to download generated image: ${imgResponse.status}`);
+    }
+    outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
+  }
+
+  if (!outputBuffer) {
+    throw new Error("OpenAI returned no image data");
+  }
+
+  console.log(`V2 Image buffer size: ${outputBuffer.length} bytes`);
+
+  // Upload to storage
+  const fileName = `${user.id}/${id}/cover.jpg`;
+  const { error: uploadError } = await serviceClient.storage
+    .from("previews")
+    .upload(fileName, outputBuffer, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(`Storage upload failed: ${uploadError.message}`);
+  }
+
+  const { data: { publicUrl } } = serviceClient.storage
+    .from("previews")
+    .getPublicUrl(fileName);
+
+  console.log("V2 Cover uploaded:", publicUrl);
+
+  const generatedPages = [
+    {
+      page_number: 0,
+      url: publicUrl,
+      title: coverPage.title,
+    },
+  ];
+
+  // ============================================
+  // Generate personalized story pages
+  // ============================================
+  const personalizedPages = personalizeAllPages(blueprint, nameMapping);
+
+  // ============================================
+  // Store characters snapshot for resilient generation
+  // ============================================
+  const charactersSnapshot = characters.map((c) => ({
+    id: c.id,
+    name: c.name,
+    character_type: c.character_type,
+    pet_type: c.pet_type,
+    age: c.age,
+    generated_image_url: c.generated_image_url,
+    identity_profile: c.identity_profile,
+    identity_confirmed: c.identity_confirmed,
+  }));
+
+  // ============================================
+  // Update book with V2 metadata
+  // ============================================
+  const { data: updatedBook, error: updateError } = await supabase
+    .from("books")
+    .update({
+      preview_pages: generatedPages,
+      status: "preview_ready",
+      characters_snapshot: charactersSnapshot,
+      name_mapping: nameMapping,
+      personalized_pages: personalizedPages,
+      blueprint_format: "v2",
+      metadata: {
+        ...book.metadata,
+        bookId,
+        blueprintFormat: "v2",
+        characterCount: characters.length,
+        characterIds,
+        pageCount: blueprint.page_count,
+        outputSize,
+        masterImagePath,
+        generatedAt: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (updateError) {
+    throw new Error(`V2 Book update failed: ${updateError.message}`);
+  }
+
+  // Deduct tokens
+  const tokenCost = TOKEN_COSTS.BOOK_COVER;
+  const deductResult = await deductTokens(
+    supabase,
+    user.id,
+    tokenCost,
+    "book_cover",
+    id,
+    `V2 Cover: "${blueprint.title}" (${characters.length} characters)`
+  );
+
+  return NextResponse.json({
+    book: updatedBook,
+    pages: generatedPages,
+    personalizedPages,
+    nameMapping,
+    tokensUsed: tokenCost,
+    tokensRemaining: deductResult.newBalance,
+  });
+}
+
 // POST /api/books/[id]/generate - Generate cover page using blueprint system
 export async function POST(
   request: NextRequest,
@@ -348,40 +642,8 @@ export async function POST(
     }
 
     // ============================================
-    // Load book blueprint
+    // Fetch characters from database (needed for both V1 and V2)
     // ============================================
-    let blueprint: BookBlueprint;
-    let coverPage: BlueprintPage;
-
-    try {
-      blueprint = await loadBlueprint(bookId);
-      coverPage = await loadBlueprintCover(bookId);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      if (msg.includes("BLUEPRINT_NOT_FOUND")) {
-        return NextResponse.json(
-          {
-            error: "BLUEPRINT_NOT_FOUND",
-            message: `No blueprint found for book "${bookId}". Please ensure the book blueprint JSON exists.`,
-          },
-          { status: 400 }
-        );
-      }
-      throw error;
-    }
-
-    // Validate cover has original image
-    if (!coverPage.originalImage) {
-      return NextResponse.json(
-        {
-          error: "MASTER_IMAGE_REQUIRED",
-          message: `Book "${blueprint.title}" cover page has no original image configured.`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Fetch characters from database
     let charData: CharacterInput[] | null = null;
     let charError: { message: string } | null = null;
 
@@ -421,6 +683,76 @@ export async function POST(
         {
           error: `Character illustrations required: ${names}`,
           missingCharacters: missingImages.map((c) => ({ id: c.id, name: c.name })),
+        },
+        { status: 400 }
+      );
+    }
+
+    // ============================================
+    // Load book blueprint with format detection
+    // ============================================
+    let blueprintResult;
+
+    try {
+      blueprintResult = await loadBlueprintWithFormat(bookId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      if (msg.includes("BLUEPRINT_NOT_FOUND")) {
+        return NextResponse.json(
+          {
+            error: "BLUEPRINT_NOT_FOUND",
+            message: `No blueprint found for book "${bookId}". Please ensure the book blueprint JSON exists.`,
+          },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    const { blueprint: rawBlueprint, format: blueprintFormat, basePath } = blueprintResult;
+    console.log(`Blueprint format: ${blueprintFormat}, basePath: ${basePath}`);
+
+    // Handle V2 format (Essendon Five style)
+    if (blueprintFormat === "v2") {
+      return await handleV2Generation(
+        rawBlueprint as V2Blueprint,
+        bookId,
+        basePath,
+        characters,
+        characterIds,
+        user,
+        id,
+        book,
+        supabase
+      );
+    }
+
+    // V1 format (original blueprint system)
+    const blueprint = rawBlueprint as BookBlueprint;
+    let coverPage: BlueprintPage;
+
+    try {
+      coverPage = await loadBlueprintCover(bookId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      if (msg.includes("PAGE_NOT_FOUND")) {
+        return NextResponse.json(
+          {
+            error: "COVER_NOT_FOUND",
+            message: `Book "${blueprint.title}" has no cover page defined.`,
+          },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    // Validate cover has original image
+    if (!coverPage.originalImage) {
+      return NextResponse.json(
+        {
+          error: "MASTER_IMAGE_REQUIRED",
+          message: `Book "${blueprint.title}" cover page has no original image configured.`,
         },
         { status: 400 }
       );
