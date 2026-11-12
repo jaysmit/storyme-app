@@ -9,6 +9,7 @@ import BookViewer from "@/components/BookViewer";
 import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
 import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
+import StoryPreviewModal from "@/components/ui/StoryPreviewModal";
 import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import type { Character, IdentityProfile, PageStatus } from "@/lib/types";
@@ -57,6 +58,7 @@ const storyImages: Record<string, string> = {
   "captain-of-the-cloud-ship": "/images/captain-of-the-cloud-ship.jpg",
   "the-super-squad-and-the-sorceress": "/images/the-super-squad-and-the-sorceress.jpg",
   "the-great-galaxy-road-trip": "/images/the-great-galaxy-road-trip.jpg",
+  "essendon-five": "/books/essendon-five/cover.png",
 };
 
 interface Story {
@@ -322,8 +324,20 @@ function CreatePageInner() {
 
   // Stories from API
   const [stories, setStories] = useState<Story[]>([]);
+  const [blueprints, setBlueprints] = useState<Array<{
+    bookId: string;
+    title: string;
+    coverImage: string | null;
+    format: string;
+    pageCount: number;
+  }>>([]);
   const [loadingStories, setLoadingStories] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [previewStory, setPreviewStory] = useState<Story | null>(null);
+  const [isStoryFilterSticky, setIsStoryFilterSticky] = useState(false);
+  const storyFilterRef = useRef<HTMLDivElement>(null);
+  const storyFilterPlaceholderRef = useRef<HTMLDivElement>(null);
 
   // Auth state
   const [user, setUser] = useState<User | null>(null);
@@ -416,15 +430,24 @@ function CreatePageInner() {
     setCurrentStep("characters"); // Go back to characters step
   };
 
-  // Fetch stories
+  // Fetch stories and blueprints
   useEffect(() => {
     async function fetchStories() {
       setLoadingStories(true);
       try {
-        const res = await fetch("/api/stories");
-        if (res.ok) {
-          const data = await res.json();
+        const [storiesRes, blueprintsRes] = await Promise.all([
+          fetch("/api/stories"),
+          fetch("/api/blueprints"),
+        ]);
+
+        if (storiesRes.ok) {
+          const data = await storiesRes.json();
           setStories(data.stories || []);
+        }
+
+        if (blueprintsRes.ok) {
+          const data = await blueprintsRes.json();
+          setBlueprints(data.books || []);
         }
       } catch (error) {
         console.error("Failed to fetch stories:", error);
@@ -433,6 +456,19 @@ function CreatePageInner() {
     }
     fetchStories();
   }, []);
+
+  // Handle sticky filter for story selection
+  useEffect(() => {
+    if (currentStep !== "story") return;
+    const handleScroll = () => {
+      if (storyFilterPlaceholderRef.current) {
+        const rect = storyFilterPlaceholderRef.current.getBoundingClientRect();
+        setIsStoryFilterSticky(rect.top <= 72);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [currentStep]);
 
   // Fetch user and characters on mount
   useEffect(() => {
@@ -1603,194 +1639,317 @@ function CreatePageInner() {
                 </p>
               </div>
 
-              {/* Category filter */}
+              {/* Filter placeholder (maintains layout when filter becomes sticky) */}
+              <div ref={storyFilterPlaceholderRef} className={isStoryFilterSticky ? "h-14" : ""} />
+
+              {/* Category filter dropdown - sticky */}
               {(() => {
-                const categories = [...new Set(stories.map((s) => s.category).filter(Boolean))];
+                // Combine stories and blueprints
+                const prioritySlugs = ["essendon-five"];
+                const allStories: (Story & { format?: string })[] = [
+                  // Add V2 blueprints as stories
+                  ...blueprints
+                    .filter((b) => !stories.some((s) => s.slug === b.bookId))
+                    .map((b) => ({
+                      id: b.bookId,
+                      slug: b.bookId,
+                      title: b.title,
+                      tagline: `A premium ${b.format.toUpperCase()} adventure with ${b.pageCount} pages`,
+                      category: b.bookId === "essendon-five" ? "sports" : "fantasy",
+                      page_count: b.pageCount,
+                      cover_image_url: b.coverImage,
+                      is_featured: true,
+                      format: b.format,
+                    } as Story & { format?: string })),
+                  ...stories,
+                ].sort((a, b) => {
+                  const aIsPriority = prioritySlugs.includes(a.slug);
+                  const bIsPriority = prioritySlugs.includes(b.slug);
+                  if (aIsPriority && !bIsPriority) return -1;
+                  if (!aIsPriority && bIsPriority) return 1;
+                  if (a.is_featured && !b.is_featured) return -1;
+                  if (!a.is_featured && b.is_featured) return 1;
+                  return 0;
+                });
+
+                const categories = [...new Set(allStories.map((s) => s.category).filter(Boolean))];
+                const filteredStories = selectedCategory
+                  ? allStories.filter((s) => s.category === selectedCategory)
+                  : allStories;
+                const featuredStories = filteredStories.filter((s) => s.is_featured);
+                const otherStories = filteredStories.filter((s) => !s.is_featured);
+
+                const selectedCategoryLabel = selectedCategory
+                  ? `${categoryIcons[selectedCategory] || "📖"} ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}`
+                  : "All worlds";
+
                 return (
-                  <div className="flex flex-wrap justify-center gap-3 mb-10">
-                    <button
-                      onClick={() => setSelectedCategory(null)}
-                      className={`px-5 py-2 rounded-full font-bold transition-all ${
-                        selectedCategory === null
-                          ? "bg-accent-gold text-brand-dark"
-                          : "bg-brand-purple-light text-text-muted hover:text-white border border-brand-purple-muted"
-                      }`}
+                  <>
+                    <div
+                      ref={storyFilterRef}
+                      className={`${
+                        isStoryFilterSticky
+                          ? "fixed top-[72px] left-0 right-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-brand-purple-muted py-3 px-6"
+                          : "mb-10"
+                      } transition-all`}
                     >
-                      All worlds
-                    </button>
-                    {categories.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
-                        className={`px-5 py-2 rounded-full font-bold transition-all flex items-center gap-2 ${
-                          selectedCategory === cat
-                            ? "bg-accent-gold text-brand-dark"
-                            : "bg-brand-purple-light text-text-muted hover:text-white border border-brand-purple-muted"
-                        }`}
-                      >
-                        <span>{categoryIcons[cat] || "📖"}</span>
-                        <span className="capitalize">{cat}</span>
-                      </button>
-                    ))}
-                  </div>
+                      <div className={isStoryFilterSticky ? "max-w-5xl mx-auto" : ""}>
+                        <div className="relative inline-block">
+                          <button
+                            onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                            className="flex items-center gap-3 px-5 py-3 bg-brand-purple-light text-white font-bold rounded-full border border-brand-purple-muted hover:border-accent-gold transition-colors"
+                          >
+                            <span>{selectedCategoryLabel}</span>
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              className={`transition-transform ${categoryDropdownOpen ? "rotate-180" : ""}`}
+                            >
+                              <path d="M6 9l6 6 6-6" />
+                            </svg>
+                          </button>
+
+                          {/* Dropdown menu */}
+                          {categoryDropdownOpen && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => setCategoryDropdownOpen(false)}
+                              />
+                              <div className="absolute top-full left-0 mt-2 z-50 bg-brand-purple-light border border-brand-purple-muted rounded-2xl shadow-xl overflow-hidden min-w-[200px]">
+                                <button
+                                  onClick={() => {
+                                    setSelectedCategory(null);
+                                    setCategoryDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-5 py-3 font-bold transition-colors flex items-center gap-2 ${
+                                    selectedCategory === null
+                                      ? "bg-accent-gold text-brand-dark"
+                                      : "text-white hover:bg-brand-purple"
+                                  }`}
+                                >
+                                  All worlds
+                                </button>
+                                {categories.map((cat) => (
+                                  <button
+                                    key={cat}
+                                    onClick={() => {
+                                      setSelectedCategory(cat === selectedCategory ? null : cat!);
+                                      setCategoryDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-5 py-3 font-bold transition-colors flex items-center gap-2 ${
+                                      selectedCategory === cat
+                                        ? "bg-accent-gold text-brand-dark"
+                                        : "text-white hover:bg-brand-purple"
+                                    }`}
+                                  >
+                                    <span>{categoryIcons[cat!] || "📖"}</span>
+                                    <span className="capitalize">{cat}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Show count */}
+                        <span className="ml-4 text-text-muted text-sm">
+                          {filteredStories.length} {filteredStories.length === 1 ? "story" : "stories"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {loadingStories ? (
+                      <div className="text-center py-20">
+                        <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-text-muted">Loading story worlds...</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Featured stories */}
+                        {featuredStories.length > 0 && (
+                          <div className="mb-10">
+                            <h2 className="text-xl font-black text-white mb-5 flex items-center gap-2">
+                              <span className="text-accent-gold">★</span> Featured Adventures
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {featuredStories.map((story) => {
+                                const isSelected = selectedStory === story.slug;
+                                const gradient = categoryColors[story.category || ""] || "from-purple-600 to-indigo-800";
+                                const icon = categoryIcons[story.category || ""] || "📖";
+                                const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
+
+                                return (
+                                  <div key={story.slug} className="group relative">
+                                    <button
+                                      onClick={() => setSelectedStory(story.slug)}
+                                      className={`block w-full text-left transition-all ${
+                                        isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
+                                      }`}
+                                    >
+                                      <div className="relative rounded-3xl overflow-hidden ring-2 ring-accent-gold">
+                                        <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
+                                          {imageUrl ? (
+                                            <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                              <span className="text-8xl opacity-50">{icon}</span>
+                                            </div>
+                                          )}
+                                          <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                                            <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
+                                              {isSelected ? "✓ Selected" : "Select this world"}
+                                            </span>
+                                          </div>
+                                          <div className="absolute top-4 right-14 bg-accent-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">
+                                            {story.format === "v2" ? "★ Premium" : "★ Featured"}
+                                          </div>
+                                          <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
+                                            <span>{icon}</span>
+                                            {story.category}
+                                          </div>
+                                        </div>
+                                        <div className="bg-brand-purple-light p-5">
+                                          <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
+                                            {story.title}
+                                          </h3>
+                                          <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
+                                          <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
+                                            <span>{story.page_count} pages</span>
+                                            <span className="flex items-center gap-1">
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                              </svg>
+                                              Ages 4-10
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                    {/* Maximize button - separate from select */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPreviewStory(story);
+                                      }}
+                                      className="absolute top-4 right-4 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors z-10"
+                                      aria-label="Preview story"
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Other stories */}
+                        {otherStories.length > 0 && (
+                          <div>
+                            <h2 className="text-xl font-black text-white mb-5">
+                              {featuredStories.length > 0 ? "More Adventures" : "All Adventures"}
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {otherStories.map((story) => {
+                                const isSelected = selectedStory === story.slug;
+                                const gradient = categoryColors[story.category || ""] || "from-purple-600 to-indigo-800";
+                                const icon = categoryIcons[story.category || ""] || "📖";
+                                const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
+
+                                return (
+                                  <div key={story.slug} className="group relative">
+                                    <button
+                                      onClick={() => setSelectedStory(story.slug)}
+                                      className={`block w-full text-left transition-all ${
+                                        isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
+                                      }`}
+                                    >
+                                      <div className="relative rounded-3xl overflow-hidden">
+                                        <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
+                                          {imageUrl ? (
+                                            <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                              <span className="text-8xl opacity-50">{icon}</span>
+                                            </div>
+                                          )}
+                                          <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                                            <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
+                                              {isSelected ? "✓ Selected" : "Select this world"}
+                                            </span>
+                                          </div>
+                                          <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
+                                            <span>{icon}</span>
+                                            {story.category}
+                                          </div>
+                                        </div>
+                                        <div className="bg-brand-purple-light p-5">
+                                          <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
+                                            {story.title}
+                                          </h3>
+                                          <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
+                                          <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
+                                            <span>{story.page_count} pages</span>
+                                            <span className="flex items-center gap-1">
+                                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                              </svg>
+                                              Ages 4-10
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                    {/* Maximize button - separate from select */}
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPreviewStory(story);
+                                      }}
+                                      className="absolute top-4 right-4 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors z-10"
+                                      aria-label="Preview story"
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {filteredStories.length === 0 && (
+                          <div className="text-center py-20">
+                            <p className="text-text-muted text-lg">
+                              No stories found in this category.
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
                 );
               })()}
 
-              {loadingStories ? (
-                <div className="text-center py-20">
-                  <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-text-muted">Loading story worlds...</p>
-                </div>
-              ) : (
-                (() => {
-                  const filteredStories = selectedCategory
-                    ? stories.filter((s) => s.category === selectedCategory)
-                    : stories;
-                  const featuredStories = filteredStories.filter((s) => s.is_featured);
-                  const otherStories = filteredStories.filter((s) => !s.is_featured);
-
-                  return (
-                    <>
-                      {/* Featured stories */}
-                      {featuredStories.length > 0 && (
-                        <div className="mb-10">
-                          <h2 className="text-xl font-black text-white mb-5 flex items-center gap-2">
-                            <span className="text-accent-gold">★</span> Featured Adventures
-                          </h2>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {featuredStories.map((story) => {
-                              const isSelected = selectedStory === story.slug;
-                              const gradient = categoryColors[story.category] || "from-purple-600 to-indigo-800";
-                              const icon = categoryIcons[story.category] || "📖";
-                              const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
-
-                              return (
-                                <button
-                                  key={story.slug}
-                                  onClick={() => setSelectedStory(story.slug)}
-                                  className={`group block text-left transition-all ${
-                                    isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
-                                  }`}
-                                >
-                                  <div className="relative rounded-3xl overflow-hidden ring-2 ring-accent-gold">
-                                    <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
-                                      {imageUrl ? (
-                                        <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <span className="text-8xl opacity-50">{icon}</span>
-                                        </div>
-                                      )}
-                                      <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-                                        <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
-                                          {isSelected ? "✓ Selected" : "Select this world"}
-                                        </span>
-                                      </div>
-                                      <div className="absolute top-4 right-4 bg-accent-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">
-                                        ★ Featured
-                                      </div>
-                                      <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
-                                        <span>{icon}</span>
-                                        {story.category}
-                                      </div>
-                                    </div>
-                                    <div className="bg-brand-purple-light p-5">
-                                      <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
-                                        {story.title}
-                                      </h3>
-                                      <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
-                                      <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
-                                        <span>{story.page_count} pages</span>
-                                        <span className="flex items-center gap-1">
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                                          </svg>
-                                          Ages 4-10
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Other stories */}
-                      {otherStories.length > 0 && (
-                        <div>
-                          <h2 className="text-xl font-black text-white mb-5">
-                            {featuredStories.length > 0 ? "More Adventures" : "All Adventures"}
-                          </h2>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {otherStories.map((story) => {
-                              const isSelected = selectedStory === story.slug;
-                              const gradient = categoryColors[story.category] || "from-purple-600 to-indigo-800";
-                              const icon = categoryIcons[story.category] || "📖";
-                              const imageUrl = story.cover_image_url || storyImages[story.slug] || null;
-
-                              return (
-                                <button
-                                  key={story.slug}
-                                  onClick={() => setSelectedStory(story.slug)}
-                                  className={`group block text-left transition-all ${
-                                    isSelected ? "ring-4 ring-accent-gold rounded-3xl" : ""
-                                  }`}
-                                >
-                                  <div className="relative rounded-3xl overflow-hidden">
-                                    <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
-                                      {imageUrl ? (
-                                        <img src={imageUrl} alt={story.title} className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <span className="text-8xl opacity-50">{icon}</span>
-                                        </div>
-                                      )}
-                                      <div className={`absolute inset-0 bg-black/40 transition-opacity flex items-center justify-center ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-                                        <span className={`bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform transition-transform ${isSelected ? "scale-100" : "scale-90 group-hover:scale-100"}`}>
-                                          {isSelected ? "✓ Selected" : "Select this world"}
-                                        </span>
-                                      </div>
-                                      <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full capitalize flex items-center gap-1">
-                                        <span>{icon}</span>
-                                        {story.category}
-                                      </div>
-                                    </div>
-                                    <div className="bg-brand-purple-light p-5">
-                                      <h3 className={`text-lg font-black mb-1 transition-colors ${isSelected ? "text-accent-gold" : "text-white group-hover:text-accent-gold"}`}>
-                                        {story.title}
-                                      </h3>
-                                      <p className="text-text-muted text-sm line-clamp-2">{story.tagline}</p>
-                                      <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
-                                        <span>{story.page_count} pages</span>
-                                        <span className="flex items-center gap-1">
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                                          </svg>
-                                          Ages 4-10
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {filteredStories.length === 0 && (
-                        <div className="text-center py-20">
-                          <p className="text-text-muted text-lg">
-                            No stories found in this category.
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()
-              )}
+              {/* Story Preview Modal */}
+              <StoryPreviewModal
+                story={previewStory}
+                isOpen={!!previewStory}
+                onClose={() => setPreviewStory(null)}
+                onSelect={(slug) => setSelectedStory(slug)}
+                showSelectButton={true}
+              />
             </div>
           )}
 
