@@ -101,6 +101,7 @@ export default function CharactersPage() {
             petType: "",
             customType: "",
             age: null,
+            height_cm: null,
             saving: false,
           },
           ...prev,
@@ -155,6 +156,7 @@ export default function CharactersPage() {
           characterType: pending.characterType,
           petType: petTypeToSave,
           age: pending.age,
+          height_cm: pending.height_cm,
         }),
       });
 
@@ -549,6 +551,8 @@ export default function CharactersPage() {
                               <h3 className="text-white font-bold truncate">{char.name}</h3>
                               <p className="text-xs text-text-muted capitalize">
                                 {char.pet_type || char.character_type}
+                                {char.age && ` • ${char.age}yo`}
+                                {char.height_cm && ` • ${char.height_cm}cm`}
                               </p>
                             </>
                           )}

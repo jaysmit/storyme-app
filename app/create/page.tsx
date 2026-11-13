@@ -939,6 +939,7 @@ function CreatePageInner() {
             petType: "",
             customType: "",
             age: null,
+            height_cm: null,
             saving: false,
           },
         ]);
@@ -975,6 +976,7 @@ function CreatePageInner() {
               petType: "",
               customType: "",
               age: null,
+              height_cm: null,
               saving: false,
             },
           ]);

@@ -14,6 +14,29 @@ const PET_TYPES = [
   "Horse",
 ];
 
+// Helper to get default height from age
+function getDefaultHeight(age: number | null): number | null {
+  if (age === null) return null;
+  if (age < 1) return 70;
+  if (age < 2) return 85;
+  if (age < 3) return 95;
+  if (age < 4) return 100;
+  if (age < 5) return 107;
+  if (age < 6) return 115;
+  if (age < 7) return 120;
+  if (age < 8) return 127;
+  if (age < 9) return 132;
+  if (age < 10) return 137;
+  if (age < 11) return 142;
+  if (age < 12) return 150;
+  if (age < 13) return 156;
+  if (age < 14) return 163;
+  if (age < 15) return 168;
+  if (age < 16) return 172;
+  if (age < 18) return 175;
+  return 170; // Adult default
+}
+
 export interface PendingCharacter {
   id: string;
   name: string;
@@ -22,6 +45,7 @@ export interface PendingCharacter {
   petType: string;
   customType: string;
   age: number | null; // Age in years for proportionate sizing
+  height_cm: number | null; // Height in centimeters
   saving: boolean;
 }
 
@@ -45,6 +69,7 @@ export default function CharacterFormModal({
   const [localPetType, setLocalPetType] = useState("");
   const [localCustomType, setLocalCustomType] = useState("");
   const [localAge, setLocalAge] = useState<number | null>(null);
+  const [localHeight, setLocalHeight] = useState<number | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
   // Sync local state when pendingCharacter changes
@@ -55,9 +80,21 @@ export default function CharacterFormModal({
       setLocalPetType(pendingCharacter.petType);
       setLocalCustomType(pendingCharacter.customType);
       setLocalAge(pendingCharacter.age);
+      setLocalHeight(pendingCharacter.height_cm);
       setShowConfirmClose(false);
     }
   }, [pendingCharacter?.id]);
+
+  // Auto-update height when age changes (if height not manually set)
+  const handleAgeChange = (newAge: number | null) => {
+    setLocalAge(newAge);
+    // Auto-set height based on age if not already set or if it matches the old default
+    const oldDefault = getDefaultHeight(localAge);
+    const newDefault = getDefaultHeight(newAge);
+    if (localHeight === null || localHeight === oldDefault) {
+      setLocalHeight(newDefault);
+    }
+  };
 
   // Attempt to close - show confirmation
   const attemptClose = useCallback(() => {
@@ -97,6 +134,7 @@ export default function CharacterFormModal({
       petType: localPetType,
       customType: localCustomType,
       age: localAge,
+      height_cm: localHeight,
     };
     onSave(updated);
   };
@@ -208,33 +246,56 @@ export default function CharacterFormModal({
             />
           </div>
 
-          {/* Age input - only for people */}
+          {/* Age and Height inputs - only for people */}
           {localType === "person" && (
-            <div>
-              <label className="block text-sm font-bold text-white mb-1.5">Age (optional)</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={localAge ?? ""}
-                  onChange={(e) => setLocalAge(e.target.value ? parseInt(e.target.value) : null)}
-                  placeholder="Enter age..."
-                  disabled={pendingCharacter.saving}
-                  className="flex-1 px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
-                />
-                <span className="text-text-muted text-sm">
-                  {localAge !== null && localAge > 0 && (
-                    localAge <= 3 ? "👶 Toddler" :
-                    localAge <= 12 ? "🧒 Child" :
-                    localAge <= 17 ? "🧑 Teen" :
-                    localAge <= 64 ? "🧑 Adult" :
-                    "👴 Senior"
-                  )}
-                </span>
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-bold text-white mb-1.5">Age</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={localAge ?? ""}
+                      onChange={(e) => handleAgeChange(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="Years"
+                      disabled={pendingCharacter.saving}
+                      className="w-full px-4 py-3 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-white mb-1.5">Height</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="50"
+                      max="220"
+                      value={localHeight ?? ""}
+                      onChange={(e) => setLocalHeight(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="cm"
+                      disabled={pendingCharacter.saving}
+                      className="w-full px-4 py-3 pr-12 rounded-xl bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold disabled:opacity-50"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted text-sm">cm</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-text-muted mt-1">Helps with proportionate sizing in illustrations</p>
-            </div>
+              <p className="text-xs text-text-muted -mt-2">
+                {localAge !== null && localAge > 0 && (
+                  <>
+                    {localAge <= 3 ? "👶 Toddler" :
+                     localAge <= 12 ? "🧒 Child" :
+                     localAge <= 17 ? "🧑 Teen" :
+                     localAge <= 64 ? "🧑 Adult" :
+                     "👴 Senior"}
+                    {" • "}
+                  </>
+                )}
+                Age and height help create accurate proportions in illustrations
+              </p>
+            </>
           )}
 
           {/* Character type toggle */}

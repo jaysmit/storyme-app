@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     let characterType: string;
     let petType: string | null;
     let age: number | null;
+    let height_cm: number | null;
     let ageGroup: string | null;
     let fileBuffer: Buffer;
     let fileExt: string;
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       characterType = body.characterType || "person";
       petType = body.petType || null;
       age = body.age ? parseInt(body.age) : null;
+      height_cm = body.height_cm ? parseInt(body.height_cm) : null;
       ageGroup = body.ageGroup || deriveAgeGroup(age);
 
       if (!body.photoBase64 || !name) {
@@ -97,6 +99,8 @@ export async function POST(request: NextRequest) {
       petType = formData.get("petType") as string | null;
       const ageStr = formData.get("age") as string | null;
       age = ageStr ? parseInt(ageStr) : null;
+      const heightStr = formData.get("height_cm") as string | null;
+      height_cm = heightStr ? parseInt(heightStr) : null;
       ageGroup = (formData.get("ageGroup") as string | null) || deriveAgeGroup(age);
 
       if (!file || !name) {
@@ -144,9 +148,12 @@ export async function POST(request: NextRequest) {
       generation_status: "pending",
     };
 
-    // Add age if provided (column may not exist yet)
+    // Add age and height if provided
     if (age !== null) {
       baseData.age = age;
+    }
+    if (height_cm !== null) {
+      baseData.height_cm = height_cm;
     }
 
     let character;

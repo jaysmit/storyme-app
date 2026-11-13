@@ -54,11 +54,13 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { status, preview_pages } = body;
+    const { status, preview_pages, text_overlays, personalized_pages } = body;
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (status) updateData.status = status;
     if (preview_pages) updateData.preview_pages = preview_pages;
+    if (text_overlays !== undefined) updateData.text_overlays = text_overlays;
+    if (personalized_pages !== undefined) updateData.personalized_pages = personalized_pages;
 
     const { data: book, error } = await supabase
       .from("books")

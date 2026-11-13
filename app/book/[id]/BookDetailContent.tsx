@@ -142,21 +142,25 @@ export default function BookDetailContent({ bookId }: Props) {
             <>
               <BookViewer pages={book.preview_pages} title={storyTitle} />
 
-              {/* Call to action */}
-              <div className="mt-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 text-center">
-                <h3 className="text-2xl font-black text-white mb-2">
-                  Love your preview?
-                </h3>
-                <p className="text-text-muted mb-6">
-                  Order the full 24-page printed storybook with all your characters.
-                </p>
+              {/* Actions */}
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  href={`/book/${bookId}/edit`}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-purple border border-brand-purple-muted text-white font-bold rounded-full hover:bg-brand-purple-light transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit Text Overlays
+                </Link>
                 <button className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors">
                   Order Printed Book — $49.95
                 </button>
-                <p className="text-xs text-text-muted mt-4">
-                  Includes hardcover book + digital PDF download
-                </p>
               </div>
+              <p className="text-xs text-text-muted mt-4 text-center">
+                Edit text position and styling before ordering • Includes hardcover book + digital PDF
+              </p>
             </>
           ) : (
             <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8 text-center">
