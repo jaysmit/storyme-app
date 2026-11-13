@@ -21,6 +21,7 @@ import {
   type V2Blueprint,
   type V2Page,
   type V2Assignment,
+  type V2SlotRemoval,
   type NameMapping,
 } from "@/lib/book-blueprints";
 import {
@@ -38,6 +39,7 @@ export interface CharacterInput {
   character_type?: string;
   pet_type?: string;
   age?: number | null;
+  height_cm?: number | null;  // Height in centimeters
   generated_image_url?: string;
   identity_profile?: {
     hair: { color: string; style: string; length?: string };
@@ -422,7 +424,7 @@ async function generateV2Page(
   }
 
   // Assign characters to slots for this page
-  const { assignments, debugLog, nameMapping } = assignCharactersToV2Slots(
+  const { assignments, removals, debugLog, nameMapping } = assignCharactersToV2Slots(
     characters,
     blueprint,
     page
@@ -433,6 +435,10 @@ async function generateV2Page(
 
   console.log(`\n=== V2 PAGE ${pageNumber} GENERATION ===`);
   console.log(debugLog.join("\n"));
+
+  if (removals.length > 0) {
+    console.log(`Characters to REMOVE: ${removals.map(r => r.slotId).join(", ")}`);
+  }
 
   // Load master page image
   const masterImagePath = getV2OriginalImagePath(bookId, page);
@@ -462,8 +468,8 @@ async function generateV2Page(
     }
   }
 
-  // Build V2 prompt
-  const prompt = buildPromptFromV2Blueprint(blueprint, page, assignments);
+  // Build V2 prompt (pass removals for characters to be deleted from scene)
+  const prompt = buildPromptFromV2Blueprint(blueprint, page, assignments, removals);
   console.log(`V2 Prompt length: ${prompt.length} characters`);
 
   const openai = getOpenAI();

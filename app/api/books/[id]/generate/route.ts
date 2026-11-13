@@ -18,6 +18,7 @@ import {
   type BlueprintPage,
   type V2Blueprint,
   type V2Page,
+  type V2SlotRemoval,
 } from "@/lib/book-blueprints";
 import {
   downloadImage,
@@ -313,13 +314,17 @@ async function handleV2Generation(
   // ============================================
   // V2 Character Assignment
   // ============================================
-  const { assignments, debugLog, nameMapping } = assignCharactersToV2Slots(
+  const { assignments, removals, debugLog, nameMapping } = assignCharactersToV2Slots(
     characters,
     blueprint,
     coverPage
   );
 
   console.log("\n" + debugLog.join("\n") + "\n");
+
+  if (removals.length > 0) {
+    console.log(`Characters to REMOVE from cover: ${removals.map(r => r.slotId).join(", ")}`);
+  }
 
   console.log("=== V2 BOOK COVER GENERATION ===");
   console.log(`Book: ${blueprint.title} (${bookId})`);
@@ -368,9 +373,9 @@ async function handleV2Generation(
   }
 
   // ============================================
-  // Build V2 prompt
+  // Build V2 prompt (pass removals for characters to be deleted from scene)
   // ============================================
-  const prompt = buildPromptFromV2Blueprint(blueprint, coverPage, assignments);
+  const prompt = buildPromptFromV2Blueprint(blueprint, coverPage, assignments, removals);
 
   console.log("\n=== V2 FULL PROMPT SENT TO OPENAI ===");
   console.log("Prompt length:", prompt.length, "characters");
@@ -649,7 +654,7 @@ export async function POST(
 
     const { data: data1, error: error1 } = await supabase
       .from("characters")
-      .select("id, name, character_type, pet_type, age, generated_image_url, identity_profile, identity_confirmed")
+      .select("id, name, character_type, pet_type, age, height_cm, generated_image_url, identity_profile, identity_confirmed")
       .in("id", characterIds);
 
     if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {

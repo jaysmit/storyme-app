@@ -122,7 +122,7 @@ export async function POST(
       let charData: CharacterInput[] | null = null;
       const { data: data1, error: error1 } = await supabase
         .from("characters")
-        .select("id, name, character_type, pet_type, age, generated_image_url, identity_profile, identity_confirmed")
+        .select("id, name, character_type, pet_type, age, height_cm, generated_image_url, identity_profile, identity_confirmed")
         .in("id", config.characterIds);
 
       if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {

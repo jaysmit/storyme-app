@@ -84,6 +84,7 @@ export interface Character {
   pet_type: string | null;
   age_group: "child" | "adult" | "senior" | null;
   age?: number | null;
+  height_cm?: number | null;  // Height in centimeters (defaults based on age)
   physical_description: string | null; // AI-generated description from photo for story scenes
   identity_profile?: IdentityProfile | null;
   identity_confirmed?: boolean;
@@ -140,6 +141,7 @@ export interface CharacterSnapshot {
   character_type?: string;
   pet_type?: string;
   age?: number | null;
+  height_cm?: number | null;
   generated_image_url?: string;
   identity_profile?: IdentityProfile | null;
   identity_confirmed?: boolean;

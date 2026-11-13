@@ -782,15 +782,20 @@ export interface V2Assignment {
   characterId: string;
   characterName: string;         // Customer's character name
   imageIndex: number;            // Reference image index in API call (2+)
+
+  // Blueprint slot info (POSITION/POSE to use)
   priority_rank: number;
   head_anchor: HeadAnchor;
   depth: string;
   action_and_location: string;
   importance: "primary" | "secondary" | "background";
-  // Blueprint character info (for reference/debugging)
   blueprintCharacterName?: string;
   blueprintCharacterFeatures?: string;
-  // Customer's identity profile (if confirmed)
+
+  // Customer crew info (APPEARANCE to use)
+  crewAge?: number | null;
+  crewHeight?: number | null;    // Height in cm
+  crewHeightDescription?: string; // "small child (110cm)" etc.
   identityProfile?: {
     hair: { color: string; style: string; length?: string };
     eyes: { color: string };
@@ -799,12 +804,21 @@ export interface V2Assignment {
   };
 }
 
+// Slots that should be removed from the scene (no crew assigned)
+export interface V2SlotRemoval {
+  slotId: string;
+  head_anchor: HeadAnchor;
+  action_and_location: string;
+  reason: string;
+}
+
 interface V2CharacterInput {
   id: string;
   name: string;
   character_type?: string;
   pet_type?: string;
   age?: number | null;
+  height_cm?: number | null;  // Height in centimeters
   generated_image_url?: string;
   identity_profile?: {
     hair: { color: string; style: string; length?: string };
@@ -816,125 +830,236 @@ interface V2CharacterInput {
 }
 
 /**
- * Categorize character by age for V2 slot matching
+ * Get height description based on age
  */
-function categorizeByAge(character: V2CharacterInput): "child" | "adult" | "unknown" {
-  const { character_type, age } = character;
-
-  // Pets are handled separately
-  if (character_type === "pet") return "unknown";
-
-  if (age !== null && age !== undefined) {
-    return age < 18 ? "child" : "adult";
+function getHeightDescription(age: number | null | undefined, height_cm: number | null | undefined): string {
+  // Use provided height if available
+  if (height_cm) {
+    if (height_cm < 100) return `toddler height (${height_cm}cm)`;
+    if (height_cm < 120) return `small child height (${height_cm}cm)`;
+    if (height_cm < 140) return `child height (${height_cm}cm)`;
+    if (height_cm < 160) return `teen height (${height_cm}cm)`;
+    if (height_cm < 175) return `average adult height (${height_cm}cm)`;
+    return `tall adult height (${height_cm}cm)`;
   }
 
-  return "unknown";
+  // Estimate from age
+  if (age === null || age === undefined) return "adult height";
+  if (age < 3) return "toddler height (~90cm)";
+  if (age < 6) return "small child height (~110cm)";
+  if (age < 10) return "child height (~130cm)";
+  if (age < 14) return "tween height (~150cm)";
+  if (age < 18) return "teen height (~165cm)";
+  return "adult height (~170cm)";
 }
 
 /**
- * Assign customer characters to V2 slots based on age matching
- * Characters are assigned in the order provided by the customer
+ * Get default height from age in centimeters
  */
+export function getDefaultHeightFromAge(age: number | null | undefined): number {
+  if (age === null || age === undefined) return 170;
+  if (age < 1) return 70;
+  if (age < 2) return 85;
+  if (age < 3) return 95;
+  if (age < 4) return 100;
+  if (age < 5) return 107;
+  if (age < 6) return 115;
+  if (age < 7) return 120;
+  if (age < 8) return 127;
+  if (age < 9) return 132;
+  if (age < 10) return 137;
+  if (age < 11) return 142;
+  if (age < 12) return 150;
+  if (age < 13) return 156;
+  if (age < 14) return 163;
+  if (age < 15) return 168;
+  if (age < 16) return 172;
+  if (age < 18) return 175;
+  return 170; // Adult default
+}
+
 /**
- * Assign customer characters to V2 blueprint slots using PRIORITY ORDER.
+ * Assign customer characters to V2 blueprint slots.
  *
- * The blueprint defines slots with priority_rank (1 = most important).
- * Customer characters are assigned to slots in priority order:
- * - Customer character 1 → highest priority slot (priority_rank 1)
- * - Customer character 2 → second highest priority slot (priority_rank 2)
- * - etc.
+ * SLOT MAPPING RULES:
+ * - Slots are ordered by the blueprint's slot order (leon=1, eden=2, ruby=3, mum=4, dad=5)
+ * - Crew are assigned to slots in order: Crew 1 → Slot 1, Crew 2 → Slot 2, etc.
+ * - Slots without a mapped crew are REMOVED from the scene
+ * - Exception: If a slot with no mapping is the PRIMARY focus on a page,
+ *   use an available crew member (rotating for even distribution)
  *
- * Slots without assigned characters will be marked for removal.
- * This ensures ALL customer characters get included in the image.
+ * This ensures:
+ * 1. Consistent character appearance across pages (same crew always in same role)
+ * 2. Proper deletion of unmapped characters
+ * 3. All crew appear in pages where their slot is present
  */
 export function assignCharactersToV2Slots(
   characters: V2CharacterInput[],
   blueprint: V2Blueprint,
-  page: V2Page
-): { assignments: V2Assignment[]; debugLog: string[]; nameMapping: NameMapping } {
+  page: V2Page,
+  // Optional: track usage across pages for even distribution
+  crewUsageCount?: Map<string, number>
+): {
+  assignments: V2Assignment[];
+  removals: V2SlotRemoval[];
+  debugLog: string[];
+  nameMapping: NameMapping;
+} {
   const assignments: V2Assignment[] = [];
+  const removals: V2SlotRemoval[] = [];
   const debugLog: string[] = [];
   const nameMapping: NameMapping = {};
 
-  debugLog.push("=== V2 CHARACTER ASSIGNMENT (Priority-Based) ===");
+  debugLog.push("=== V2 CHARACTER ASSIGNMENT (Slot-Based Mapping) ===");
   debugLog.push(`Page ${page.page_number}: "${page.title}"`);
   debugLog.push(`Slots on page: ${page.characters.length}`);
-  debugLog.push(`Customer characters: ${characters.length}`);
+  debugLog.push(`Customer crew: ${characters.length}`);
   debugLog.push(`Blueprint absent: ${page.absent_character_ids.join(", ") || "(none)"}`);
 
-  // Sort page slots by priority_rank (1 = highest priority = assigned first)
-  const slotsByPriority = [...page.characters].sort(
+  // Get ordered list of ALL blueprint slots (not just this page)
+  const allSlotIds = Object.keys(blueprint.characters);
+  debugLog.push(`Blueprint slot order: ${allSlotIds.join(", ")}`);
+  debugLog.push(`Crew order: ${characters.map(c => c.name).join(", ")}`);
+
+  // Create static slot-to-crew mapping based on order
+  // Crew 1 → Slot 1, Crew 2 → Slot 2, etc.
+  const slotToCrewMap = new Map<string, V2CharacterInput>();
+  for (let i = 0; i < Math.min(characters.length, allSlotIds.length); i++) {
+    slotToCrewMap.set(allSlotIds[i], characters[i]);
+  }
+
+  debugLog.push("--- SLOT TO CREW MAPPING ---");
+  for (const [slotId, crew] of slotToCrewMap) {
+    debugLog.push(`  ${slotId} → "${crew.name}"`);
+  }
+  const unmappedSlots = allSlotIds.filter(id => !slotToCrewMap.has(id));
+  if (unmappedSlots.length > 0) {
+    debugLog.push(`  UNMAPPED (will be removed): ${unmappedSlots.join(", ")}`);
+  }
+
+  // Sort page slots by priority for processing
+  const pageSlotsByPriority = [...page.characters].sort(
     (a, b) => a.priority_rank - b.priority_rank
   );
 
-  debugLog.push(`Slots by priority: ${slotsByPriority.map(s => `${s.slot_id}(${s.priority_rank})`).join(", ")}`);
-  debugLog.push(`Customer order: ${characters.map(c => c.name).join(", ")}`);
+  // Track which crew are used on this page (for primary focus fallback)
+  const usedCrewIds = new Set<string>();
+  let imageIndex = 2; // IMAGE 1 is master page
 
-  // Helper to create assignment with all blueprint data
-  const createAssignment = (
-    character: V2CharacterInput,
-    placement: V2CharacterPlacement,
-    imageIndex: number
-  ): V2Assignment => {
+  // Process each slot on this page
+  for (const placement of pageSlotsByPriority) {
+    const mappedCrew = slotToCrewMap.get(placement.slot_id);
     const blueprintChar = blueprint.characters[placement.slot_id];
 
-    const assignment: V2Assignment = {
-      slotId: placement.slot_id,
-      characterId: character.id,
-      characterName: character.name,
-      imageIndex,
-      priority_rank: placement.priority_rank,
-      head_anchor: placement.head_anchor,
-      depth: placement.depth,
-      action_and_location: placement.action_and_location,
-      importance: placement.importance,
-      // Include blueprint character info for reference
-      blueprintCharacterName: blueprintChar?.name,
-      blueprintCharacterFeatures: blueprintChar?.features,
-    };
+    if (mappedCrew) {
+      // Slot has a mapped crew member - create assignment
+      const assignment: V2Assignment = {
+        slotId: placement.slot_id,
+        characterId: mappedCrew.id,
+        characterName: mappedCrew.name,
+        imageIndex,
+        priority_rank: placement.priority_rank,
+        head_anchor: placement.head_anchor,
+        depth: placement.depth,
+        action_and_location: placement.action_and_location,
+        importance: placement.importance,
+        blueprintCharacterName: blueprintChar?.name,
+        blueprintCharacterFeatures: blueprintChar?.features,
+        crewAge: mappedCrew.age,
+        crewHeight: mappedCrew.height_cm,
+        crewHeightDescription: getHeightDescription(mappedCrew.age, mappedCrew.height_cm),
+      };
 
-    // Add identity profile if confirmed
-    if (character.identity_profile && character.identity_confirmed) {
-      assignment.identityProfile = character.identity_profile;
+      if (mappedCrew.identity_profile && mappedCrew.identity_confirmed) {
+        assignment.identityProfile = mappedCrew.identity_profile;
+      }
+
+      assignments.push(assignment);
+      nameMapping[placement.slot_id] = mappedCrew.name;
+      usedCrewIds.add(mappedCrew.id);
+
+      debugLog.push(
+        `IMAGE ${imageIndex}: "${mappedCrew.name}" → ${placement.slot_id} ` +
+        `(priority ${placement.priority_rank}, replaces "${blueprintChar?.name || 'unknown'}")`
+      );
+      imageIndex++;
+    } else {
+      // Slot has NO mapped crew
+      if (placement.importance === "primary") {
+        // PRIMARY focus slot without mapping - use available crew (rotating)
+        // Pick the crew member with lowest usage (for even distribution)
+        const availableCrew = characters.filter(c => !usedCrewIds.has(c.id));
+
+        if (availableCrew.length > 0) {
+          // Find crew with lowest usage count
+          let selectedCrew = availableCrew[0];
+          if (crewUsageCount) {
+            let minUsage = crewUsageCount.get(availableCrew[0].id) || 0;
+            for (const crew of availableCrew) {
+              const usage = crewUsageCount.get(crew.id) || 0;
+              if (usage < minUsage) {
+                minUsage = usage;
+                selectedCrew = crew;
+              }
+            }
+          }
+
+          const assignment: V2Assignment = {
+            slotId: placement.slot_id,
+            characterId: selectedCrew.id,
+            characterName: selectedCrew.name,
+            imageIndex,
+            priority_rank: placement.priority_rank,
+            head_anchor: placement.head_anchor,
+            depth: placement.depth,
+            action_and_location: placement.action_and_location,
+            importance: placement.importance,
+            blueprintCharacterName: blueprintChar?.name,
+            blueprintCharacterFeatures: blueprintChar?.features,
+            crewAge: selectedCrew.age,
+            crewHeight: selectedCrew.height_cm,
+            crewHeightDescription: getHeightDescription(selectedCrew.age, selectedCrew.height_cm),
+          };
+
+          if (selectedCrew.identity_profile && selectedCrew.identity_confirmed) {
+            assignment.identityProfile = selectedCrew.identity_profile;
+          }
+
+          assignments.push(assignment);
+          nameMapping[placement.slot_id] = selectedCrew.name;
+          usedCrewIds.add(selectedCrew.id);
+
+          debugLog.push(
+            `IMAGE ${imageIndex}: "${selectedCrew.name}" → ${placement.slot_id} ` +
+            `(PRIMARY FOCUS fallback, replaces "${blueprintChar?.name || 'unknown'}")`
+          );
+          imageIndex++;
+        } else {
+          // No available crew - must remove even though primary
+          removals.push({
+            slotId: placement.slot_id,
+            head_anchor: placement.head_anchor,
+            action_and_location: placement.action_and_location,
+            reason: "No crew available (all already used on this page)",
+          });
+          debugLog.push(
+            `REMOVE: ${placement.slot_id} - no available crew for primary focus`
+          );
+        }
+      } else {
+        // Non-primary slot without mapping - REMOVE from scene
+        removals.push({
+          slotId: placement.slot_id,
+          head_anchor: placement.head_anchor,
+          action_and_location: placement.action_and_location,
+          reason: `No crew mapped to slot ${placement.slot_id}`,
+        });
+        debugLog.push(
+          `REMOVE: ${placement.slot_id} at (${placement.head_anchor.x.toFixed(2)}, ` +
+          `${placement.head_anchor.y.toFixed(2)}) - no crew mapping`
+        );
+      }
     }
-
-    return assignment;
-  };
-
-  // Assign customer characters to slots in PRIORITY ORDER
-  // Customer 1 → Priority 1 slot, Customer 2 → Priority 2 slot, etc.
-  let imageIndex = 2; // IMAGE 1 is master page, character refs start at IMAGE 2
-
-  const numAssignments = Math.min(characters.length, slotsByPriority.length);
-
-  for (let i = 0; i < numAssignments; i++) {
-    const character = characters[i];
-    const slot = slotsByPriority[i];
-
-    assignments.push(createAssignment(character, slot, imageIndex));
-    nameMapping[slot.slot_id] = character.name;
-
-    const blueprintChar = blueprint.characters[slot.slot_id];
-    debugLog.push(
-      `IMAGE ${imageIndex}: "${character.name}" -> ${slot.slot_id} ` +
-      `(priority ${slot.priority_rank}, replaces "${blueprintChar?.name || 'unknown'}")`
-    );
-    imageIndex++;
-  }
-
-  // Log unassigned slots (will be removed from image)
-  const assignedSlotIds = new Set(assignments.map(a => a.slotId));
-  const unassignedSlots = slotsByPriority.filter(s => !assignedSlotIds.has(s.slot_id));
-
-  if (unassignedSlots.length > 0) {
-    debugLog.push(`Unassigned slots (to remove): ${unassignedSlots.map(s => s.slot_id).join(", ")}`);
-  }
-
-  // Log any extra customer characters that couldn't be assigned
-  if (characters.length > slotsByPriority.length) {
-    const unassignedChars = characters.slice(slotsByPriority.length);
-    debugLog.push(`WARNING: ${unassignedChars.length} customer characters could not be assigned (not enough slots)`);
-    debugLog.push(`Unassigned: ${unassignedChars.map(c => c.name).join(", ")}`);
   }
 
   // Sort assignments by priority_rank for the prompt
@@ -942,10 +1067,16 @@ export function assignCharactersToV2Slots(
 
   debugLog.push("--- FINAL ASSIGNMENTS ---");
   for (const a of assignments) {
-    debugLog.push(`  IMAGE ${a.imageIndex}: "${a.characterName}" -> ${a.slotId} (priority ${a.priority_rank})`);
+    debugLog.push(`  IMAGE ${a.imageIndex}: "${a.characterName}" → ${a.slotId} (${a.crewHeightDescription})`);
+  }
+  if (removals.length > 0) {
+    debugLog.push("--- REMOVALS ---");
+    for (const r of removals) {
+      debugLog.push(`  ${r.slotId}: ${r.reason}`);
+    }
   }
 
-  return { assignments, debugLog, nameMapping };
+  return { assignments, removals, debugLog, nameMapping };
 }
 
 // ============================================
@@ -954,69 +1085,96 @@ export function assignCharactersToV2Slots(
 
 /**
  * Build the OpenAI image editing prompt from a V2 blueprint page
- * Includes enhanced details: head anchors, priority ranking, absent characters
+ *
+ * CRITICAL SEPARATION:
+ * - FROM BLUEPRINT: Position, pose, action, scale, depth, interaction with scene
+ * - FROM CREW: Face, hair, eyes, skin, body shape, HEIGHT, all physical appearance
+ *
+ * The crew member's reference image and identity profile define their appearance.
+ * The blueprint slot defines WHERE and HOW they are positioned.
  */
 export function buildPromptFromV2Blueprint(
   blueprint: V2Blueprint,
   page: V2Page,
-  assignments: V2Assignment[]
+  assignments: V2Assignment[],
+  removals: V2SlotRemoval[] = []
 ): string {
   // Sort by priority_rank for prompt order (1 = most important first)
   const sortedAssignments = [...assignments].sort((a, b) => a.priority_rank - b.priority_rank);
 
-  // Build character replacement section with enhanced details
+  // Build character replacement section with CLEAR separation of position vs appearance
   const charReplacements = sortedAssignments
     .map((a) => {
-      let identitySection = "";
+      // Build appearance section from crew reference
+      let appearanceSection = `  **CREW APPEARANCE (from IMAGE ${a.imageIndex}):**
+  - Use "${a.characterName}" reference image for face, hair, eyes, skin, body
+  - Height: ${a.crewHeightDescription || "adult height"}`;
+
       if (a.identityProfile) {
         const p = a.identityProfile;
-        identitySection = `
-  **LOCKED IDENTITY:**
-  - Hair: ${p.hair.color}, ${p.hair.style}
-  - Eyes: ${p.eyes.color}
-  - Skin: ${p.skinTone}${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
-  - Features: ${p.distinctiveFeatures.join(", ")}` : ""}`;
+        appearanceSection += `
+  - Hair: ${p.hair.color}, ${p.hair.style} — LOCKED
+  - Eyes: ${p.eyes.color} — LOCKED
+  - Skin: ${p.skinTone} — LOCKED${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
+  - Features: ${p.distinctiveFeatures.join(", ")} — LOCKED` : ""}`;
       }
 
-      return `**${a.slotId.toUpperCase()} (Priority ${a.priority_rank})**
-- Replace with: **IMAGE ${a.imageIndex} "${a.characterName}"**
-- Head anchor: (${a.head_anchor.x.toFixed(2)}, ${a.head_anchor.y.toFixed(2)})
-- Depth: ${a.depth}
-- Action: ${a.action_and_location}
-- Importance: ${a.importance}${identitySection}`;
+      return `**${a.slotId.toUpperCase()} → "${a.characterName}" (IMAGE ${a.imageIndex})**
+
+  **POSITION/POSE (from blueprint "${a.blueprintCharacterName || a.slotId}"):**
+  - Head position: (${a.head_anchor.x.toFixed(2)}, ${a.head_anchor.y.toFixed(2)})
+  - Depth in scene: ${a.depth}
+  - Action/pose: ${a.action_and_location}
+  - Importance: ${a.importance} (priority ${a.priority_rank})
+  - KEEP: exact position, pose, body orientation, gestures, interaction with objects
+
+${appearanceSection}
+  - IGNORE: "${a.blueprintCharacterName || a.slotId}" placeholder appearance completely
+  - The crew member takes over this position with THEIR OWN appearance`;
     })
     .join("\n\n");
 
-  // Build identity locking section
-  const charactersWithIdentity = sortedAssignments.filter((a) => a.identityProfile);
-  let identityLockingSection = "";
-  if (charactersWithIdentity.length > 0) {
-    const identityDetails = charactersWithIdentity
-      .map((a) => {
-        const p = a.identityProfile!;
-        return `**${a.characterName} (IMAGE ${a.imageIndex})**
-- Hair: ${p.hair.color}, ${p.hair.style}
-- Eyes: ${p.eyes.color}
-- Skin: ${p.skinTone}${p.distinctiveFeatures && p.distinctiveFeatures.length > 0 ? `
-- Features: ${p.distinctiveFeatures.join(", ")}` : ""}`;
-      })
-      .join("\n\n");
+  // Build comprehensive identity section
+  let identitySection = `
+## CREW IDENTITY — CRITICAL
 
-    identityLockingSection = `
-## LOCKED CHARACTER IDENTITY — CRITICAL
+**WHAT TO USE FROM EACH IMAGE:**
 
-Each customer character has an approved identity profile with locked physical attributes.
+`;
 
-**CHARACTER IDENTITY DATA**
+  for (const a of sortedAssignments) {
+    identitySection += `**IMAGE ${a.imageIndex}: "${a.characterName}"**
+- Face shape, facial features → FROM crew reference
+- Hair color, style, texture → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.hair.color}, ${a.identityProfile.hair.style})` : ""}
+- Eye color, shape → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.eyes.color})` : ""}
+- Skin tone → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.skinTone})` : ""}
+- Body proportions, height → FROM crew (${a.crewHeightDescription || "adult"})
+- IGNORE the blueprint placeholder character's appearance entirely
 
-${identityDetails}
+`;
+  }
 
-**HAIR COLOUR — LOCKED:** Reproduce exactly. No substitutions.
-**EYE COLOUR — LOCKED:** Reproduce exactly. Do not match placeholder.
-**SKIN TONE — LOCKED:** Maintain while allowing natural lighting.
-**DISTINCTIVE FEATURES — LOCKED:** Preserve all listed features.
+  identitySection += `**AGE AND HEIGHT ARE CRITICAL:**
+The crew member's age determines their height. Do NOT make adults look like children or children look like adults.
+- Children (under 12): Should be noticeably shorter than adults
+- Teens (12-17): Between child and adult height
+- Adults (18+): Full adult height
 
-When references conflict, prioritize the identity profile over placeholder appearance.
+Each crew member must maintain their age-appropriate body proportions regardless of the placeholder they replace.
+`;
+
+  // Build removals section
+  let removalsSection = "";
+  if (removals.length > 0) {
+    removalsSection = `
+## CHARACTERS TO REMOVE
+
+The following placeholder characters have NO crew assigned and must be REMOVED from the scene:
+
+${removals.map((r) => `- **${r.slotId}** at (${r.head_anchor.x.toFixed(2)}, ${r.head_anchor.y.toFixed(2)}): ${r.action_and_location}
+  Reason: ${r.reason}`).join("\n")}
+
+Remove these characters completely. Fill their space with appropriate background/scenery that matches the surrounding area.
 `;
   }
 
@@ -1026,10 +1184,10 @@ When references conflict, prioritize the identity profile over placeholder appea
     absentSection = `
 ## ABSENT CHARACTERS — DO NOT ADD
 
-The following characters do NOT appear in this scene:
+These characters do NOT appear in this scene:
 ${page.absent_character_ids.map((id) => `- ${id}`).join("\n")}
 
-Do not add these characters to the image. They are intentionally absent from this page.
+Do not add these characters. They are intentionally absent.
 `;
   }
 
@@ -1038,104 +1196,65 @@ Do not add these characters to the image. They are intentionally absent from thi
     ? page.protected_non_swappable_elements.map((el) => `- ${el}`).join("\n")
     : "- Standard background and scenery";
 
-  // Build unassigned slots section
-  const assignedSlotIds = new Set(assignments.map((a) => a.slotId));
-  const unassignedSlots = page.characters.filter(
-    (c) => !assignedSlotIds.has(c.slot_id) && c.swappable
-  );
-  const unassignedSection = unassignedSlots.length > 0
-    ? unassignedSlots
-        .map((slot) => `- ${slot.slot_id} at (${slot.head_anchor.x.toFixed(2)}, ${slot.head_anchor.y.toFixed(2)}): ${slot.action_and_location}`)
-        .join("\n")
-    : "- None. All swappable positions have been assigned.";
-
   // Get page dimensions
   const dimensions = page.master_image_size || { width: 1536, height: 1024 };
 
-  return `# STORYME V2 — PRECISION CHARACTER REPLACEMENT
+  return `# STORYME V2 — CHARACTER REPLACEMENT
 
-You are editing an existing children's storybook illustration, NOT creating a new illustration.
+You are editing an existing children's storybook illustration.
 
 ## IMAGE INPUTS
 
-- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" page ${page.page_number} illustration.
-- **IMAGES 2+ — CUSTOMER CHARACTERS:** The personalised character references that must replace designated placeholder characters.
+- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" page ${page.page_number}.
+- **IMAGES 2+ — CREW REFERENCES:** Customer character illustrations to use for appearance.
 
 ## VISUAL STYLE
 
 ${blueprint.visual_style}
 
-Match all replacements to this exact visual style. The customer characters should look like they belong in this artwork.
-
-## SCENE DESCRIPTION
+## SCENE
 
 ${page.scene_description}
 
-## PRIMARY OBJECTIVE
+## CRITICAL INSTRUCTION
 
-Produce a minimally modified version of IMAGE 1.
+For each replacement:
+1. **POSITION/POSE** comes from the BLUEPRINT placeholder (where they stand, what they're doing)
+2. **APPEARANCE** comes from the CREW reference image (face, hair, eyes, skin, body, height)
 
-Change ONLY the designated swappable characters. Preserve everything else as closely as possible.
+The crew member "takes over" the placeholder's position but keeps their OWN physical appearance.
 
-The finished illustration must look like the original page was carefully edited, not regenerated.
-
-## CHARACTER REPLACEMENTS (by priority)
+## CHARACTER REPLACEMENTS
 
 ${charReplacements}
-
-**HEAD ANCHOR REFERENCE:** The (x, y) coordinates indicate the approximate normalized head center position (0-1 range, origin top-left). Use this to locate and replace the correct character.
-
-**PRIORITY GUIDANCE:** Priority 1 characters require the highest identity fidelity. Lower priority characters may have slightly more flexibility but must still preserve key features.
-
-For every assigned character:
-
-- Replace the placeholder character with the corresponding customer character reference.
-- Preserve the customer's recognisable facial identity, hairstyle, eye colour, skin tone and distinctive features.
-- Preserve the original character's position, scale, pose, action, body orientation and interaction with objects.
-- Adapt the customer to the original page's illustration style, lighting and perspective.
-- Do not duplicate characters or create additional versions of them.
-${identityLockingSection}${absentSection}
-## REMOVE UNASSIGNED POSITIONS
-
-${unassignedSection}
-
-Remove every placeholder character that is not assigned to a customer character.
-
-Reconstruct the original scenery naturally behind removed characters.
-
-## PROTECTED SCENE ELEMENTS
+${identitySection}${removalsSection}${absentSection}
+## PROTECTED ELEMENTS
 
 ${protectedSection}
 
-Do not modify, remove or redesign any of these elements.
+Do not modify these.
 
-## LOCKED MASTER COMPOSITION
+## COMPOSITION
 
-Treat IMAGE 1 as the authoritative visual reference.
+Preserve from IMAGE 1:
+- Canvas: ${dimensions.width}x${dimensions.height}
+- Camera angle, framing, perspective
+- Background, scenery, lighting
+- All non-swappable elements
 
-Preserve:
+## PRIORITY ORDER
 
-- Original canvas dimensions (${dimensions.width}x${dimensions.height})
-- Aspect ratio (${(dimensions.width / dimensions.height).toFixed(2)})
-- Camera angle, framing and perspective
-- Background, scenery, architecture and landscape
-- Props, uniforms, and environmental details
-- Lighting, shadows, colours and textures
-- Original illustration style and rendering technique
-- All non-swappable people and objects
+1. Crew appearance must match their reference images (face, hair, eyes, skin, height)
+2. Position/pose must match the blueprint slot
+3. Remove any unassigned placeholder characters
+4. Preserve scene composition
 
-Do not redesign, reimagine, enhance, crop, zoom or rearrange the page.
+## OUTPUT
 
-## EDITING PRIORITY
+Nearly identical to IMAGE 1, except:
+- Designated placeholders replaced with crew members
+- Unassigned placeholders removed
+- Background reconstructed where characters removed
 
-1. Correct customer character identities matching their reference images (priority 1 first).
-2. Correct replacement of assigned placeholder positions.
-3. Complete removal of unassigned placeholder characters.
-4. Preservation of protected elements and composition.
-
-## FINAL REQUIREMENT
-
-The result should appear nearly identical to IMAGE 1, except for the designated character replacements, removal of unassigned characters and necessary reconstruction of the areas they occupied.
-
-Make the smallest possible visual changes needed to complete the task.`;
+Make minimal changes. This is an edit, not a recreation.`;
 }
