@@ -24,7 +24,7 @@ interface PreviewPage {
   title: string;
 }
 
-type Step = "characters" | "story" | "style" | "preview" | "generate";
+type Step = "characters" | "story" | "preview" | "generate";
 
 // Category icons/emojis
 const categoryIcons: Record<string, string> = {
@@ -572,7 +572,8 @@ function CreatePageInner() {
         } else if (book.status === "preview_ready") {
           setCurrentStep("preview");
         } else if (book.metadata?.storySlug || book.metadata?.bookId) {
-          setCurrentStep("style");
+          // Story selected, go to preview step (style step removed)
+          setCurrentStep("preview");
         }
 
         setResumingBook(false);
@@ -588,9 +589,8 @@ function CreatePageInner() {
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "characters", label: "Add characters", number: 1 },
     { key: "story", label: "Choose adventure", number: 2 },
-    { key: "style", label: "Pick enchantment", number: 3 },
-    { key: "preview", label: "Preview cover", number: 4 },
-    { key: "generate", label: "Generate book", number: 5 },
+    { key: "preview", label: "Preview cover", number: 3 },
+    { key: "generate", label: "Generate book", number: 4 },
   ];
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
@@ -1199,8 +1199,6 @@ function CreatePageInner() {
         return selectedCharacterIds.size > 0;
       case "story":
         return selectedStory !== null;
-      case "style":
-        return selectedStyle !== null;
       case "preview":
         return true;
       default:
@@ -1953,76 +1951,7 @@ function CreatePageInner() {
             </div>
           )}
 
-          {/* Step 3: Pick Art Style */}
-          {currentStep === "style" && (
-            <div>
-              <h1 className="text-4xl font-black text-white mb-2">
-                Pick an enchantment
-              </h1>
-              <p className="text-lg text-text-muted mb-8">
-                Choose the art style for your storybook.
-              </p>
-
-              {/* Large preview */}
-              <div className="mb-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden">
-                <div className="h-64 md:h-80 bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] overflow-hidden">
-                  <img
-                    src={artStyles.find((s) => s.slug === selectedStyle)?.image}
-                    alt={artStyles.find((s) => s.slug === selectedStyle)?.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-2xl font-black text-white">
-                    {artStyles.find((s) => s.slug === selectedStyle)?.name}
-                  </h3>
-                  <p className="text-text-muted mt-1">
-                    {artStyles.find((s) => s.slug === selectedStyle)?.desc}
-                  </p>
-                </div>
-              </div>
-
-              {/* Style selector */}
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                {artStyles.map((style) => (
-                  <button
-                    key={style.slug}
-                    onClick={() => setSelectedStyle(style.slug)}
-                    className={`text-left flex flex-col gap-2 transition-opacity ${
-                      selectedStyle === style.slug
-                        ? "opacity-100"
-                        : "opacity-50 hover:opacity-80"
-                    }`}
-                  >
-                    <div
-                      className={`aspect-square rounded-xl bg-brand-dark overflow-hidden ${
-                        selectedStyle === style.slug
-                          ? "ring-3 ring-accent-gold"
-                          : "ring-1 ring-brand-purple-muted"
-                      }`}
-                    >
-                      <img
-                        src={style.image}
-                        alt={style.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <span
-                      className={`text-xs font-bold leading-tight ${
-                        selectedStyle === style.slug
-                          ? "text-white"
-                          : "text-text-muted"
-                      }`}
-                    >
-                      {style.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Preview */}
+          {/* Step 3: Preview */}
           {currentStep === "preview" && (
             <div>
               {showBookViewer && previewPages.length > 0 ? (
