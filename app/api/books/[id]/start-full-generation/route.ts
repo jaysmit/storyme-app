@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getGeneratablePages, initializePageStatuses } from "@/lib/page-generation";
 import { resolveBookId } from "@/lib/book-blueprints";
-import type { GenerationConfig } from "@/lib/types";
+import { checkTokens, deductTokens } from "@/lib/tokens";
+import { TOKEN_COSTS, type GenerationConfig } from "@/lib/types";
 
 // POST /api/books/[id]/start-full-generation - Initialize page statuses for all interior pages
 export async function POST(
@@ -97,6 +98,48 @@ export async function POST(
 
     // Initialize page statuses (cover is already completed)
     const pageStatuses = initializePageStatuses(pagesWithImages, coverUrl);
+
+    // Calculate pages that need to be generated (exclude cover)
+    const pagesToGenerateCount = pageStatuses.filter(
+      (p) => p.status === "pending" && p.pageId !== "cover"
+    ).length;
+
+    // Check if user has enough tokens for ALL pages BEFORE starting
+    const totalTokensNeeded = pagesToGenerateCount * TOKEN_COSTS.BOOK_PAGE;
+
+    if (totalTokensNeeded > 0) {
+      const { hasEnough, balance } = await checkTokens(supabase, user.id, totalTokensNeeded);
+
+      if (!hasEnough) {
+        return NextResponse.json(
+          {
+            error: "Insufficient tokens",
+            required: totalTokensNeeded,
+            balance,
+            message: `You need ${totalTokensNeeded} tokens to generate ${pagesToGenerateCount} pages, but you only have ${balance} tokens.`,
+          },
+          { status: 402 }
+        );
+      }
+
+      // Deduct ALL tokens upfront to prevent mid-generation failure
+      const deducted = await deductTokens(
+        supabase,
+        user.id,
+        totalTokensNeeded,
+        "book_page",
+        id,
+        `Reserved for ${pagesToGenerateCount} interior pages`
+      );
+      if (!deducted.success) {
+        return NextResponse.json(
+          { error: "Failed to reserve tokens for generation" },
+          { status: 500 }
+        );
+      }
+
+      console.log(`Reserved ${totalTokensNeeded} tokens for ${pagesToGenerateCount} pages (balance: ${balance} -> ${deducted.newBalance})`);
+    }
 
     // Create generation config
     const generationConfig: GenerationConfig = {

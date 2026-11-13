@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateSinglePage, type CharacterInput } from "@/lib/page-generation";
-import { checkTokens, deductTokens } from "@/lib/tokens";
-import { TOKEN_COSTS, type PageStatus } from "@/lib/types";
+import { type PageStatus } from "@/lib/types";
 
 // POST /api/books/[id]/generate-page - Generate a single interior page
 export async function POST(
@@ -90,21 +89,8 @@ export async function POST(
       );
     }
 
-    // Check tokens
-    const tokenCost = TOKEN_COSTS.BOOK_PAGE;
-    const { hasEnough, balance } = await checkTokens(supabase, user.id, tokenCost);
-
-    if (!hasEnough) {
-      return NextResponse.json(
-        {
-          error: "Insufficient tokens",
-          required: tokenCost,
-          balance,
-          message: `You need ${tokenCost} token for a book page but only have ${balance}.`,
-        },
-        { status: 402 }
-      );
-    }
+    // Note: Tokens are checked and deducted upfront in start-full-generation
+    // This endpoint assumes tokens were already reserved
 
     // Update page status to generating
     pageStatuses[pageIndex] = {
@@ -228,23 +214,13 @@ export async function POST(
         })
         .eq("id", id);
 
-      // Deduct tokens
-      const deductResult = await deductTokens(
-        supabase,
-        user.id,
-        tokenCost,
-        "book_page",
-        id,
-        `Page: ${pageId}`
-      );
+      // Note: Tokens were already deducted upfront in start-full-generation
 
       return NextResponse.json({
         pageId,
         pageNumber: result.pageNumber,
         status: "completed",
         url: result.url,
-        tokensUsed: tokenCost,
-        tokensRemaining: deductResult.newBalance,
         allCompleted,
       });
     } else {
