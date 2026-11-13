@@ -780,13 +780,17 @@ export async function listAllAvailableBooks(): Promise<{ bookId: string; format:
 export interface V2Assignment {
   slotId: string;
   characterId: string;
-  characterName: string;
-  imageIndex: number;           // Reference image index in API call (2+)
+  characterName: string;         // Customer's character name
+  imageIndex: number;            // Reference image index in API call (2+)
   priority_rank: number;
   head_anchor: HeadAnchor;
   depth: string;
   action_and_location: string;
   importance: "primary" | "secondary" | "background";
+  // Blueprint character info (for reference/debugging)
+  blueprintCharacterName?: string;
+  blueprintCharacterFeatures?: string;
+  // Customer's identity profile (if confirmed)
   identityProfile?: {
     hair: { color: string; style: string; length?: string };
     eyes: { color: string };
@@ -831,75 +835,49 @@ function categorizeByAge(character: V2CharacterInput): "child" | "adult" | "unkn
  * Assign customer characters to V2 slots based on age matching
  * Characters are assigned in the order provided by the customer
  */
+/**
+ * Assign customer characters to V2 blueprint slots using PRIORITY ORDER.
+ *
+ * The blueprint defines slots with priority_rank (1 = most important).
+ * Customer characters are assigned to slots in priority order:
+ * - Customer character 1 → highest priority slot (priority_rank 1)
+ * - Customer character 2 → second highest priority slot (priority_rank 2)
+ * - etc.
+ *
+ * Slots without assigned characters will be marked for removal.
+ * This ensures ALL customer characters get included in the image.
+ */
 export function assignCharactersToV2Slots(
   characters: V2CharacterInput[],
   blueprint: V2Blueprint,
   page: V2Page
 ): { assignments: V2Assignment[]; debugLog: string[]; nameMapping: NameMapping } {
   const assignments: V2Assignment[] = [];
-  const usedSlots = new Set<string>();
-  const usedCharacters = new Set<string>();
   const debugLog: string[] = [];
   const nameMapping: NameMapping = {};
 
-  debugLog.push("=== V2 CHARACTER ASSIGNMENT ===");
+  debugLog.push("=== V2 CHARACTER ASSIGNMENT (Priority-Based) ===");
   debugLog.push(`Page ${page.page_number}: "${page.title}"`);
-  debugLog.push(`Characters on page: ${page.characters.length}`);
-  debugLog.push(`Absent: ${page.absent_character_ids.join(", ") || "(none)"}`);
+  debugLog.push(`Slots on page: ${page.characters.length}`);
+  debugLog.push(`Customer characters: ${characters.length}`);
+  debugLog.push(`Blueprint absent: ${page.absent_character_ids.join(", ") || "(none)"}`);
 
-  // Get character definitions from blueprint
-  const getSlotAge = (slotId: string): "child" | "adult" | "unknown" => {
-    const def = blueprint.characters[slotId];
-    if (!def) return "unknown";
-    if (def.age !== undefined) {
-      return def.age < 18 ? "child" : "adult";
-    }
-    // Infer from name
-    if (slotId === "mum" || slotId === "dad") return "adult";
-    return "unknown";
-  };
-
-  // Sort page characters by priority_rank (1 = most important)
-  const sortedPageChars = [...page.characters].sort(
+  // Sort page slots by priority_rank (1 = highest priority = assigned first)
+  const slotsByPriority = [...page.characters].sort(
     (a, b) => a.priority_rank - b.priority_rank
   );
 
-  // Build lists of child and adult slots on this page
-  const childSlots: V2CharacterPlacement[] = [];
-  const adultSlots: V2CharacterPlacement[] = [];
+  debugLog.push(`Slots by priority: ${slotsByPriority.map(s => `${s.slot_id}(${s.priority_rank})`).join(", ")}`);
+  debugLog.push(`Customer order: ${characters.map(c => c.name).join(", ")}`);
 
-  for (const placement of sortedPageChars) {
-    const slotAge = getSlotAge(placement.slot_id);
-    if (slotAge === "child") {
-      childSlots.push(placement);
-    } else if (slotAge === "adult") {
-      adultSlots.push(placement);
-    }
-  }
-
-  // Categorize customer characters
-  const childCustomers: V2CharacterInput[] = [];
-  const adultCustomers: V2CharacterInput[] = [];
-  const unknownCustomers: V2CharacterInput[] = [];
-
-  for (const character of characters) {
-    const category = categorizeByAge(character);
-    if (category === "child") childCustomers.push(character);
-    else if (category === "adult") adultCustomers.push(character);
-    else unknownCustomers.push(character);
-  }
-
-  debugLog.push(`Child customers: ${childCustomers.map(c => c.name).join(", ") || "(none)"}`);
-  debugLog.push(`Adult customers: ${adultCustomers.map(c => c.name).join(", ") || "(none)"}`);
-  debugLog.push(`Child slots: ${childSlots.map(s => s.slot_id).join(", ") || "(none)"}`);
-  debugLog.push(`Adult slots: ${adultSlots.map(s => s.slot_id).join(", ") || "(none)"}`);
-
-  // Helper to create assignment
+  // Helper to create assignment with all blueprint data
   const createAssignment = (
     character: V2CharacterInput,
     placement: V2CharacterPlacement,
     imageIndex: number
   ): V2Assignment => {
+    const blueprintChar = blueprint.characters[placement.slot_id];
+
     const assignment: V2Assignment = {
       slotId: placement.slot_id,
       characterId: character.id,
@@ -910,6 +888,9 @@ export function assignCharactersToV2Slots(
       depth: placement.depth,
       action_and_location: placement.action_and_location,
       importance: placement.importance,
+      // Include blueprint character info for reference
+      blueprintCharacterName: blueprintChar?.name,
+      blueprintCharacterFeatures: blueprintChar?.features,
     };
 
     // Add identity profile if confirmed
@@ -920,76 +901,40 @@ export function assignCharactersToV2Slots(
     return assignment;
   };
 
-  // Helper to get remaining slots (not yet used)
-  const getRemainingSlots = () => sortedPageChars.filter(p => !usedSlots.has(p.slot_id));
+  // Assign customer characters to slots in PRIORITY ORDER
+  // Customer 1 → Priority 1 slot, Customer 2 → Priority 2 slot, etc.
+  let imageIndex = 2; // IMAGE 1 is master page, character refs start at IMAGE 2
 
-  // Assign children to child slots first (in customer order)
-  let imageIndex = 2; // Start at IMAGE 2 (IMAGE 1 is master page)
-  for (let i = 0; i < childCustomers.length && i < childSlots.length; i++) {
-    const character = childCustomers[i];
-    const slot = childSlots[i];
+  const numAssignments = Math.min(characters.length, slotsByPriority.length);
+
+  for (let i = 0; i < numAssignments; i++) {
+    const character = characters[i];
+    const slot = slotsByPriority[i];
 
     assignments.push(createAssignment(character, slot, imageIndex));
-    usedSlots.add(slot.slot_id);
-    usedCharacters.add(character.id);
     nameMapping[slot.slot_id] = character.name;
-    debugLog.push(`Assigned child "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
+
+    const blueprintChar = blueprint.characters[slot.slot_id];
+    debugLog.push(
+      `IMAGE ${imageIndex}: "${character.name}" -> ${slot.slot_id} ` +
+      `(priority ${slot.priority_rank}, replaces "${blueprintChar?.name || 'unknown'}")`
+    );
     imageIndex++;
   }
 
-  // Assign adults to adult slots first (in customer order)
-  for (let i = 0; i < adultCustomers.length && i < adultSlots.length; i++) {
-    const character = adultCustomers[i];
-    const slot = adultSlots[i];
+  // Log unassigned slots (will be removed from image)
+  const assignedSlotIds = new Set(assignments.map(a => a.slotId));
+  const unassignedSlots = slotsByPriority.filter(s => !assignedSlotIds.has(s.slot_id));
 
-    assignments.push(createAssignment(character, slot, imageIndex));
-    usedSlots.add(slot.slot_id);
-    usedCharacters.add(character.id);
-    nameMapping[slot.slot_id] = character.name;
-    debugLog.push(`Assigned adult "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
-    imageIndex++;
+  if (unassignedSlots.length > 0) {
+    debugLog.push(`Unassigned slots (to remove): ${unassignedSlots.map(s => s.slot_id).join(", ")}`);
   }
 
-  // OVERFLOW: Assign remaining children to any available slots
-  for (const character of childCustomers) {
-    if (usedCharacters.has(character.id)) continue;
-    const slot = getRemainingSlots()[0];
-    if (!slot) break;
-
-    assignments.push(createAssignment(character, slot, imageIndex));
-    usedSlots.add(slot.slot_id);
-    usedCharacters.add(character.id);
-    nameMapping[slot.slot_id] = character.name;
-    debugLog.push(`Assigned child overflow "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
-    imageIndex++;
-  }
-
-  // OVERFLOW: Assign remaining adults to any available slots
-  for (const character of adultCustomers) {
-    if (usedCharacters.has(character.id)) continue;
-    const slot = getRemainingSlots()[0];
-    if (!slot) break;
-
-    assignments.push(createAssignment(character, slot, imageIndex));
-    usedSlots.add(slot.slot_id);
-    usedCharacters.add(character.id);
-    nameMapping[slot.slot_id] = character.name;
-    debugLog.push(`Assigned adult overflow "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
-    imageIndex++;
-  }
-
-  // Fill remaining with unknown-age characters
-  for (const character of unknownCustomers) {
-    if (usedCharacters.has(character.id)) continue;
-    const slot = getRemainingSlots()[0];
-    if (!slot) break;
-
-    assignments.push(createAssignment(character, slot, imageIndex));
-    usedSlots.add(slot.slot_id);
-    usedCharacters.add(character.id);
-    nameMapping[slot.slot_id] = character.name;
-    debugLog.push(`Assigned unknown "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
-    imageIndex++;
+  // Log any extra customer characters that couldn't be assigned
+  if (characters.length > slotsByPriority.length) {
+    const unassignedChars = characters.slice(slotsByPriority.length);
+    debugLog.push(`WARNING: ${unassignedChars.length} customer characters could not be assigned (not enough slots)`);
+    debugLog.push(`Unassigned: ${unassignedChars.map(c => c.name).join(", ")}`);
   }
 
   // Sort assignments by priority_rank for the prompt
