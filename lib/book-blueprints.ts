@@ -920,7 +920,10 @@ export function assignCharactersToV2Slots(
     return assignment;
   };
 
-  // Assign children to child slots (in customer order)
+  // Helper to get remaining slots (not yet used)
+  const getRemainingSlots = () => sortedPageChars.filter(p => !usedSlots.has(p.slot_id));
+
+  // Assign children to child slots first (in customer order)
   let imageIndex = 2; // Start at IMAGE 2 (IMAGE 1 is master page)
   for (let i = 0; i < childCustomers.length && i < childSlots.length; i++) {
     const character = childCustomers[i];
@@ -934,7 +937,7 @@ export function assignCharactersToV2Slots(
     imageIndex++;
   }
 
-  // Assign adults to adult slots (in customer order)
+  // Assign adults to adult slots first (in customer order)
   for (let i = 0; i < adultCustomers.length && i < adultSlots.length; i++) {
     const character = adultCustomers[i];
     const slot = adultSlots[i];
@@ -947,11 +950,38 @@ export function assignCharactersToV2Slots(
     imageIndex++;
   }
 
+  // OVERFLOW: Assign remaining children to any available slots
+  for (const character of childCustomers) {
+    if (usedCharacters.has(character.id)) continue;
+    const slot = getRemainingSlots()[0];
+    if (!slot) break;
+
+    assignments.push(createAssignment(character, slot, imageIndex));
+    usedSlots.add(slot.slot_id);
+    usedCharacters.add(character.id);
+    nameMapping[slot.slot_id] = character.name;
+    debugLog.push(`Assigned child overflow "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
+    imageIndex++;
+  }
+
+  // OVERFLOW: Assign remaining adults to any available slots
+  for (const character of adultCustomers) {
+    if (usedCharacters.has(character.id)) continue;
+    const slot = getRemainingSlots()[0];
+    if (!slot) break;
+
+    assignments.push(createAssignment(character, slot, imageIndex));
+    usedSlots.add(slot.slot_id);
+    usedCharacters.add(character.id);
+    nameMapping[slot.slot_id] = character.name;
+    debugLog.push(`Assigned adult overflow "${character.name}" -> ${slot.slot_id} (IMAGE ${imageIndex})`);
+    imageIndex++;
+  }
+
   // Fill remaining with unknown-age characters
-  const remainingSlots = sortedPageChars.filter(p => !usedSlots.has(p.slot_id));
   for (const character of unknownCustomers) {
     if (usedCharacters.has(character.id)) continue;
-    const slot = remainingSlots.find(s => !usedSlots.has(s.slot_id));
+    const slot = getRemainingSlots()[0];
     if (!slot) break;
 
     assignments.push(createAssignment(character, slot, imageIndex));
