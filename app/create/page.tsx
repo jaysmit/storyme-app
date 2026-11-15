@@ -290,6 +290,7 @@ function CreatePageInner() {
   // Existing characters from database
   const [existingCharacters, setExistingCharacters] = useState<Character[]>([]);
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
+  const [orderedCharacterIds, setOrderedCharacterIds] = useState<string[]>([]); // Maintains crew order for priority
   const [loadingCharacters, setLoadingCharacters] = useState(true);
 
   // Editing existing characters
@@ -489,6 +490,7 @@ function CreatePageInner() {
       } else {
         setExistingCharacters([]);
         setSelectedCharacterIds(new Set());
+        setOrderedCharacterIds([]);
         setTokenBalance(0);
       }
     });
@@ -519,12 +521,15 @@ function CreatePageInner() {
         // Set book ID
         setCurrentBookId(book.id);
 
-        // Set selected characters from snapshot or metadata
+        // Set selected characters from snapshot or metadata (preserve order)
         if (book.characters_snapshot && Array.isArray(book.characters_snapshot)) {
-          const charIds = new Set<string>(book.characters_snapshot.map((c: { id: string }) => c.id));
-          setSelectedCharacterIds(charIds);
+          const charIdArray = book.characters_snapshot.map((c: { id: string }) => c.id);
+          setSelectedCharacterIds(new Set<string>(charIdArray));
+          setOrderedCharacterIds(charIdArray);
         } else if (book.metadata?.characterIds && Array.isArray(book.metadata.characterIds)) {
-          setSelectedCharacterIds(new Set<string>(book.metadata.characterIds as string[]));
+          const charIdArray = book.metadata.characterIds as string[];
+          setSelectedCharacterIds(new Set<string>(charIdArray));
+          setOrderedCharacterIds(charIdArray);
         }
 
         // Set story selection
@@ -585,14 +590,40 @@ function CreatePageInner() {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
+        // Also remove from ordered list
+        setOrderedCharacterIds((order) => order.filter((cid) => cid !== id));
       } else {
         // Max 5 characters per book
         if (next.size >= 5) {
           return prev;
         }
         next.add(id);
+        // Add to end of ordered list
+        setOrderedCharacterIds((order) => [...order, id]);
       }
       return next;
+    });
+  };
+
+  // Reorder characters - move up in priority
+  const moveCharacterUp = (id: string) => {
+    setOrderedCharacterIds((order) => {
+      const idx = order.indexOf(id);
+      if (idx <= 0) return order;
+      const newOrder = [...order];
+      [newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]];
+      return newOrder;
+    });
+  };
+
+  // Reorder characters - move down in priority
+  const moveCharacterDown = (id: string) => {
+    setOrderedCharacterIds((order) => {
+      const idx = order.indexOf(id);
+      if (idx < 0 || idx >= order.length - 1) return order;
+      const newOrder = [...order];
+      [newOrder[idx], newOrder[idx + 1]] = [newOrder[idx + 1], newOrder[idx]];
+      return newOrder;
     });
   };
 
@@ -881,6 +912,7 @@ function CreatePageInner() {
         // Add to existing characters and auto-select
         setExistingCharacters((prev) => [newChar, ...prev]);
         setSelectedCharacterIds((prev) => new Set([...prev, newChar.id]));
+        setOrderedCharacterIds((prev) => [...prev, newChar.id]); // Add to ordered list
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
 
         // Immediately start generation (no analysis step)
@@ -898,10 +930,10 @@ function CreatePageInner() {
     }
   }
 
-  // Get selected characters for the story
-  const selectedCharacters = existingCharacters.filter((c) =>
-    selectedCharacterIds.has(c.id)
-  );
+  // Get selected characters for the story - maintain order from orderedCharacterIds
+  const selectedCharacters = orderedCharacterIds
+    .map((id) => existingCharacters.find((c) => c.id === id))
+    .filter((c): c is Character => c !== undefined && selectedCharacterIds.has(c.id));
 
   // Helper to generate placeholder image URL
   const getPlaceholderUrl = (text: string) => {
@@ -2066,26 +2098,70 @@ function CreatePageInner() {
                         {artStyles.find((s) => s.slug === selectedStyle)?.name} style
                       </p>
 
-                      {/* Character preview row */}
-                      <div className="flex justify-center gap-2 mb-6">
-                        {selectedCharacters.slice(0, 5).map((char) => (
-                          <div
-                            key={char.id}
-                            className="w-12 h-12 rounded-full overflow-hidden bg-brand-dark border-2 border-accent-gold"
-                            title={char.name}
-                          >
-                            <img
-                              src={char.generated_image_url || char.original_photo_url}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                        {selectedCharacters.length > 5 && (
-                          <div className="w-12 h-12 rounded-full bg-brand-purple-muted flex items-center justify-center text-text-muted text-sm font-bold">
-                            +{selectedCharacters.length - 5}
-                          </div>
-                        )}
+                      {/* Crew order - reorderable */}
+                      <div className="mb-6">
+                        <p className="text-xs text-text-muted mb-3 text-center">
+                          Drag or use arrows to set character priority (first = main character)
+                        </p>
+                        <div className="space-y-2">
+                          {selectedCharacters.map((char, idx) => (
+                            <div
+                              key={char.id}
+                              className="flex items-center gap-3 bg-brand-dark rounded-xl p-2"
+                            >
+                              {/* Priority number */}
+                              <div className="w-6 h-6 rounded-full bg-accent-gold text-brand-dark font-bold text-sm flex items-center justify-center shrink-0">
+                                {idx + 1}
+                              </div>
+
+                              {/* Avatar */}
+                              <div className="w-10 h-10 rounded-full overflow-hidden bg-brand-purple-muted shrink-0">
+                                <img
+                                  src={char.generated_image_url || char.original_photo_url}
+                                  alt={char.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+
+                              {/* Name */}
+                              <span className="text-white font-medium flex-1 truncate text-sm">
+                                {char.name}
+                              </span>
+
+                              {/* Reorder buttons */}
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  onClick={() => moveCharacterUp(char.id)}
+                                  disabled={idx === 0}
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                                    idx === 0
+                                      ? "bg-brand-purple-muted/30 text-text-muted/30 cursor-not-allowed"
+                                      : "bg-brand-purple-muted text-white hover:bg-accent-gold hover:text-brand-dark"
+                                  }`}
+                                  title="Move up"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M18 15l-6-6-6 6" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => moveCharacterDown(char.id)}
+                                  disabled={idx === selectedCharacters.length - 1}
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                                    idx === selectedCharacters.length - 1
+                                      ? "bg-brand-purple-muted/30 text-text-muted/30 cursor-not-allowed"
+                                      : "bg-brand-purple-muted text-white hover:bg-accent-gold hover:text-brand-dark"
+                                  }`}
+                                  title="Move down"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M6 9l6 6 6-6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
                       {bookError && (
