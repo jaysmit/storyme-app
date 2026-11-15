@@ -4,11 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
-import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
-import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
+import CaricatureResultModal from "@/components/ui/CaricatureResultModal";
 import type { Character, IdentityProfile } from "@/lib/types";
-import { TOKEN_COSTS } from "@/lib/types";
 
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -24,19 +22,11 @@ export default function CharactersPage() {
 
   // Token state
   const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [showTokenConfirm, setShowTokenConfirm] = useState(false);
-  const [pendingCharacterForGen, setPendingCharacterForGen] = useState<Character | null>(null);
 
-  // Regeneration feedback state
-  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
-  const [regenerateFeedback, setRegenerateFeedback] = useState("");
-  const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
-
-  // Identity confirmation state
-  const [showIdentityConfirmModal, setShowIdentityConfirmModal] = useState(false);
-  const [characterForIdentityConfirm, setCharacterForIdentityConfirm] = useState<Character | null>(null);
-  const [extractedIdentityProfile, setExtractedIdentityProfile] = useState<IdentityProfile | null>(null);
-  const [analyzingCharacterId, setAnalyzingCharacterId] = useState<string | null>(null);
+  // Caricature result modal state
+  const [showCaricatureResult, setShowCaricatureResult] = useState(false);
+  const [caricatureResultCharacter, setCaricatureResultCharacter] = useState<Character | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     fetchCharacters();
@@ -131,7 +121,7 @@ export default function CharactersPage() {
   const currentPendingCharacter = pendingCharacters.length > 0 ? pendingCharacters[0] : null;
   const remainingPendingCount = pendingCharacters.length > 1 ? pendingCharacters.length - 1 : 0;
 
-  // Save pending character and auto-trigger generation
+  // Save pending character and immediately start generation
   async function savePendingCharacter(pending: PendingCharacter) {
     // Mark as saving
     setPendingCharacters((prev) =>
@@ -166,8 +156,8 @@ export default function CharactersPage() {
         setCharacters((prev) => [newChar, ...prev]);
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
 
-        // Trigger identity analysis then generation flow
-        analyzeAndGenerate(newChar);
+        // Immediately start generation (no analysis step)
+        generateIllustration(newChar);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -217,24 +207,8 @@ export default function CharactersPage() {
     setEditName("");
   }
 
-  // Open regenerate modal with feedback input
-  function openRegenerateModal(char: Character) {
-    if (generatingId) return;
-    setCharacterToRegenerate(char);
-    setRegenerateFeedback("");
-    setShowRegenerateModal(true);
-  }
-
-  // Submit regeneration with feedback
-  function submitRegenerate() {
-    if (!characterToRegenerate) return;
-    setShowRegenerateModal(false);
-    setPendingCharacterForGen(characterToRegenerate);
-    setShowTokenConfirm(true);
-  }
-
-  // Actually generate illustration after confirmation
-  async function generateIllustration(char: Character, feedback?: string) {
+  // Generate illustration (called immediately after save, or for regeneration)
+  async function generateIllustration(char: Character, profile?: IdentityProfile) {
     setGeneratingId(char.id);
 
     setCharacters((prev) =>
@@ -242,12 +216,23 @@ export default function CharactersPage() {
     );
 
     try {
+      // If we have a profile, save it first
+      if (profile) {
+        await fetch(`/api/characters/${char.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            identity_profile: profile,
+            identity_confirmed: true,
+          }),
+        });
+      }
+
       const res = await fetch(`/api/characters/${char.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           artStyle: "glow",
-          feedback: feedback || undefined,
         }),
       });
 
@@ -257,6 +242,10 @@ export default function CharactersPage() {
           prev.map((c) => (c.id === char.id ? updatedChar : c))
         );
         setTokenBalance(tokensRemaining);
+
+        // Show result modal
+        setCaricatureResultCharacter(updatedChar);
+        setShowCaricatureResult(true);
       } else {
         const error = await res.json();
         alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
@@ -273,103 +262,34 @@ export default function CharactersPage() {
     }
 
     setGeneratingId(null);
-    setCharacterToRegenerate(null);
-    setRegenerateFeedback("");
+    setIsRegenerating(false);
   }
 
-  // Analyze photo for identity profile, then show confirmation modal
-  async function analyzeAndGenerate(char: Character) {
-    // Start identity analysis
-    setAnalyzingCharacterId(char.id);
-    setCharacterForIdentityConfirm(char);
-    setShowIdentityConfirmModal(true);
-
-    try {
-      const res = await fetch(`/api/characters/${char.id}/analyze`, {
-        method: "POST",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setExtractedIdentityProfile(data.identityProfile);
-        // Update character in list with new identity data
-        if (data.character) {
-          setCharacters((prev) =>
-            prev.map((c) => (c.id === char.id ? data.character : c))
-          );
-        }
-      } else {
-        // Analysis failed - still show modal but with no profile
-        console.error("Identity analysis failed");
-        setExtractedIdentityProfile(null);
-      }
-    } catch (error) {
-      console.error("Identity analysis error:", error);
-      setExtractedIdentityProfile(null);
-    }
-
-    setAnalyzingCharacterId(null);
+  // Handle confirm from caricature result modal (no changes)
+  function handleCaricatureConfirm() {
+    setShowCaricatureResult(false);
+    setCaricatureResultCharacter(null);
   }
 
-  // Handle identity profile confirmation
-  async function handleIdentityConfirm(profile: IdentityProfile) {
-    if (!characterForIdentityConfirm) return;
-
-    // Save confirmed profile
-    try {
-      await fetch(`/api/characters/${characterForIdentityConfirm.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identity_profile: profile,
-          identity_confirmed: true,
-        }),
-      });
-
-      // Update local state
-      setCharacters((prev) =>
-        prev.map((c) =>
-          c.id === characterForIdentityConfirm.id
-            ? { ...c, identity_profile: profile, identity_confirmed: true }
-            : c
-        )
-      );
-    } catch (error) {
-      console.error("Failed to save identity profile:", error);
-    }
-
-    // Close modal and trigger generation
-    setShowIdentityConfirmModal(false);
-    setPendingCharacterForGen(characterForIdentityConfirm);
-    setShowTokenConfirm(true);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
+  // Handle regenerate from caricature result modal (with changes)
+  async function handleCaricatureRegenerate(profile: IdentityProfile) {
+    if (!caricatureResultCharacter) return;
+    setIsRegenerating(true);
+    await generateIllustration(caricatureResultCharacter, profile);
   }
 
-  // Handle identity skip (proceed without confirmed profile)
-  function handleIdentitySkip() {
-    if (!characterForIdentityConfirm) return;
-    setShowIdentityConfirmModal(false);
-    setPendingCharacterForGen(characterForIdentityConfirm);
-    setShowTokenConfirm(true);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
+  // Handle close of caricature result modal
+  function handleCaricatureClose() {
+    if (isRegenerating) return; // Don't close while regenerating
+    setShowCaricatureResult(false);
+    setCaricatureResultCharacter(null);
   }
 
-  // Close identity modal without proceeding
-  function handleIdentityClose() {
-    setShowIdentityConfirmModal(false);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
-    setAnalyzingCharacterId(null);
-  }
-
-  // Handle token confirmation
-  async function handleConfirmGeneration() {
-    if (!pendingCharacterForGen) return;
-    setShowTokenConfirm(false);
-    await generateIllustration(pendingCharacterForGen, regenerateFeedback || undefined);
-    setPendingCharacterForGen(null);
+  // Open caricature result modal for an existing character
+  function openCaricatureResult(char: Character) {
+    if (generatingId || !char.generated_image_url) return;
+    setCaricatureResultCharacter(char);
+    setShowCaricatureResult(true);
   }
 
   return (
@@ -461,7 +381,8 @@ export default function CharactersPage() {
                           <img
                             src={isFlipped ? char.original_photo_url : char.generated_image_url!}
                             alt={`${char.name} - ${isFlipped ? "Original" : "Illustrated"}`}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => openCaricatureResult(char)}
                           />
 
                           {/* Flip button */}
@@ -483,16 +404,16 @@ export default function CharactersPage() {
                             {isFlipped ? "Original" : "Illustrated"}
                           </div>
 
-                          {/* Regenerate button */}
+                          {/* Edit button */}
                           <button
-                            onClick={() => openRegenerateModal(char)}
+                            onClick={() => openCaricatureResult(char)}
                             disabled={!!generatingId}
                             className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors disabled:opacity-50"
-                            title="Regenerate with changes"
+                            title="Edit features"
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 4v6h6M23 20v-6h-6" />
-                              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
                         </>
@@ -508,9 +429,13 @@ export default function CharactersPage() {
                             <p className="text-white font-bold text-center px-4">
                               Illustration pending
                             </p>
-                            <p className="text-text-muted text-sm mt-1">
-                              Generation will start automatically
-                            </p>
+                            <button
+                              onClick={() => generateIllustration(char)}
+                              disabled={!!generatingId}
+                              className="mt-3 px-4 py-2 bg-accent-gold text-brand-dark font-bold rounded-full text-sm hover:bg-accent-gold-light disabled:opacity-50"
+                            >
+                              Generate now
+                            </button>
                           </div>
                         </>
                       )}
@@ -640,66 +565,6 @@ export default function CharactersPage() {
         </div>
       </main>
 
-      {/* Regenerate Feedback Modal */}
-      {showRegenerateModal && characterToRegenerate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowRegenerateModal(false)}
-          />
-          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-brand-purple-muted">
-            <h3 className="text-lg font-bold text-white mb-2">
-              Regenerate {characterToRegenerate.name}&apos;s illustration
-            </h3>
-            <p className="text-text-muted text-sm mb-4">
-              Describe any changes you&apos;d like to see in the new illustration:
-            </p>
-
-            <textarea
-              value={regenerateFeedback}
-              onChange={(e) => setRegenerateFeedback(e.target.value)}
-              placeholder="e.g., Make the eyes bigger, add a bigger smile, make the hair curlier..."
-              className="w-full h-24 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none"
-              autoFocus
-            />
-
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => setShowRegenerateModal(false)}
-                className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitRegenerate}
-                className="flex-1 py-3 rounded-full bg-accent-gold text-brand-dark font-bold hover:bg-accent-gold/90 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 4v6h6M23 20v-6h-6" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                </svg>
-                Regenerate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Token Confirm Modal */}
-      <TokenConfirmModal
-        isOpen={showTokenConfirm}
-        onClose={() => {
-          setShowTokenConfirm(false);
-          setPendingCharacterForGen(null);
-          setRegenerateFeedback("");
-        }}
-        onConfirm={handleConfirmGeneration}
-        actionName={`generate illustration for ${pendingCharacterForGen?.name || "character"}`}
-        tokenCost={TOKEN_COSTS.CHARACTER_ILLUSTRATION}
-        currentBalance={tokenBalance}
-        loading={!!generatingId}
-      />
-
       {/* Character Form Modal - shows when photos are uploaded */}
       <CharacterFormModal
         pendingCharacter={currentPendingCharacter}
@@ -709,15 +574,15 @@ export default function CharactersPage() {
         remainingCount={remainingPendingCount}
       />
 
-      {/* Identity Confirmation Modal - shows after photo analysis */}
-      <IdentityConfirmModal
-        isOpen={showIdentityConfirmModal}
-        character={characterForIdentityConfirm}
-        identityProfile={extractedIdentityProfile}
-        onConfirm={handleIdentityConfirm}
-        onSkip={handleIdentitySkip}
-        onClose={handleIdentityClose}
-        isAnalyzing={!!analyzingCharacterId}
+      {/* Caricature Result Modal - shows after generation completes */}
+      <CaricatureResultModal
+        isOpen={showCaricatureResult}
+        character={caricatureResultCharacter}
+        onConfirm={handleCaricatureConfirm}
+        onRegenerate={handleCaricatureRegenerate}
+        onClose={handleCaricatureClose}
+        tokenBalance={tokenBalance}
+        isRegenerating={isRegenerating}
       />
 
       <Footer />

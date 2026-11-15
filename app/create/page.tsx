@@ -6,11 +6,9 @@ import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import BookViewer from "@/components/BookViewer";
-import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
-import IdentityConfirmModal from "@/components/ui/IdentityConfirmModal";
+import CaricatureResultModal from "@/components/ui/CaricatureResultModal";
 import StoryPreviewModal from "@/components/ui/StoryPreviewModal";
-import { TOKEN_COSTS } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import type { Character, IdentityProfile, PageStatus } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -346,29 +344,15 @@ function CreatePageInner() {
 
   // Token state
   const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [showTokenConfirm, setShowTokenConfirm] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{
-    type: "character" | "book";
-    characterId?: string;
-    characterObj?: Character;
-  } | null>(null);
 
   // Flip state - tracks which cards show the original photo
   const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
 
-  // Regeneration feedback state
-  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
-  const [regenerateFeedback, setRegenerateFeedback] = useState("");
-  const [characterToRegenerate, setCharacterToRegenerate] = useState<Character | null>(null);
-  const [regenHairColor, setRegenHairColor] = useState("");
-  const [regenEyeColor, setRegenEyeColor] = useState("");
-  const [regenSkinTone, setRegenSkinTone] = useState("");
 
-  // Identity confirmation state
-  const [showIdentityConfirmModal, setShowIdentityConfirmModal] = useState(false);
-  const [characterForIdentityConfirm, setCharacterForIdentityConfirm] = useState<Character | null>(null);
-  const [extractedIdentityProfile, setExtractedIdentityProfile] = useState<IdentityProfile | null>(null);
-  const [analyzingCharacterId, setAnalyzingCharacterId] = useState<string | null>(null);
+  // Caricature result modal state
+  const [showCaricatureResult, setShowCaricatureResult] = useState(false);
+  const [caricatureResultCharacter, setCaricatureResultCharacter] = useState<Character | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Step 5: Full book generation state
   const [currentBookId, setCurrentBookId] = useState<string | null>(null);
@@ -689,93 +673,16 @@ function CreatePageInner() {
     });
   };
 
-  // Open regenerate modal with feedback input
-  const openRegenerateModal = (char: Character, e: React.MouseEvent) => {
+  // Open caricature result modal for editing
+  const openCaricatureResult = (char: Character, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (generatingCharacterId) return;
-    setCharacterToRegenerate(char);
-    setRegenerateFeedback("");
-    // Pre-fill from identity profile if available
-    const profile = char.identity_profile;
-    setRegenHairColor(profile?.hair?.color || "");
-    setRegenEyeColor(profile?.eyes?.color || "");
-    setRegenSkinTone(profile?.skinTone || "");
-    setShowRegenerateModal(true);
+    if (generatingCharacterId || !char.generated_image_url) return;
+    setCaricatureResultCharacter(char);
+    setShowCaricatureResult(true);
   };
 
-  // Submit regeneration with feedback
-  const submitRegenerate = async () => {
-    if (!characterToRegenerate) return;
-
-    // Build combined feedback from selections and text
-    const feedbackParts: string[] = [];
-    if (regenHairColor) feedbackParts.push(`Hair color: ${regenHairColor}`);
-    if (regenEyeColor) feedbackParts.push(`Eye color: ${regenEyeColor}`);
-    if (regenSkinTone) feedbackParts.push(`Skin tone: ${regenSkinTone}`);
-    if (regenerateFeedback.trim()) feedbackParts.push(regenerateFeedback.trim());
-
-    const combinedFeedback = feedbackParts.join(". ");
-    setRegenerateFeedback(combinedFeedback);
-
-    // Also update the identity profile if attributes were changed
-    if (regenHairColor || regenEyeColor || regenSkinTone) {
-      const currentProfile = characterToRegenerate.identity_profile;
-      const updatedProfile = {
-        version: (currentProfile?.version || 0) + 1,
-        extractedAt: currentProfile?.extractedAt || new Date().toISOString(),
-        confirmedAt: new Date().toISOString(),
-        hair: {
-          color: regenHairColor || currentProfile?.hair?.color || "",
-          style: currentProfile?.hair?.style || "",
-          texture: currentProfile?.hair?.texture,
-          length: currentProfile?.hair?.length,
-        },
-        eyes: {
-          color: regenEyeColor || currentProfile?.eyes?.color || "",
-          shape: currentProfile?.eyes?.shape,
-        },
-        skinTone: regenSkinTone || currentProfile?.skinTone || "",
-        faceShape: currentProfile?.faceShape,
-        distinctiveFeatures: currentProfile?.distinctiveFeatures || [],
-        uncertainAttributes: [],
-      };
-
-      // Save updated profile
-      await fetch(`/api/characters/${characterToRegenerate.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identity_profile: updatedProfile,
-          identity_confirmed: true,
-        }),
-      });
-
-      // Update local state
-      setExistingCharacters((prev) =>
-        prev.map((c) =>
-          c.id === characterToRegenerate.id
-            ? { ...c, identity_profile: updatedProfile, identity_confirmed: true }
-            : c
-        )
-      );
-    }
-
-    setShowRegenerateModal(false);
-    setPendingAction({ type: "character", characterId: characterToRegenerate.id, characterObj: characterToRegenerate });
-    setShowTokenConfirm(true);
-  };
-
-  // Request to generate caricature (shows confirmation first)
-  const requestGenerateCaricature = (char: Character) => {
-    if (generatingCharacterId) return; // Already generating
-
-    // Show confirmation modal
-    setPendingAction({ type: "character", characterId: char.id, characterObj: char });
-    setShowTokenConfirm(true);
-  };
-
-  // Actually generate caricature after confirmation
-  const generateCaricature = async (charId: string, feedback?: string) => {
+  // Actually generate caricature (called immediately after save, or for regeneration)
+  const generateCaricature = async (charId: string, profile?: IdentityProfile) => {
     setGeneratingCharacterId(charId);
 
     // Update local state to show generating
@@ -784,12 +691,23 @@ function CreatePageInner() {
     );
 
     try {
+      // If we have a profile, save it first
+      if (profile) {
+        await fetch(`/api/characters/${charId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            identity_profile: profile,
+            identity_confirmed: true,
+          }),
+        });
+      }
+
       const res = await fetch(`/api/characters/${charId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           artStyle: selectedStyle,
-          feedback: feedback || undefined,
         }),
       });
 
@@ -799,6 +717,10 @@ function CreatePageInner() {
           prev.map((c) => (c.id === charId ? updatedChar : c))
         );
         setTokenBalance(tokensRemaining);
+
+        // Show caricature result modal
+        setCaricatureResultCharacter(updatedChar);
+        setShowCaricatureResult(true);
       } else {
         const error = await res.json();
         alert(`Failed to generate: ${error.error || error.message || "Unknown error"}`);
@@ -815,108 +737,27 @@ function CreatePageInner() {
     }
 
     setGeneratingCharacterId(null);
-    setCharacterToRegenerate(null);
-    setRegenerateFeedback("");
+    setIsRegenerating(false);
   };
 
-  // Analyze photo for identity profile, then show confirmation modal
-  const analyzeAndGenerate = async (char: Character) => {
-    // Start identity analysis
-    setAnalyzingCharacterId(char.id);
-    setCharacterForIdentityConfirm(char);
-    setShowIdentityConfirmModal(true);
-
-    try {
-      const res = await fetch(`/api/characters/${char.id}/analyze`, {
-        method: "POST",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setExtractedIdentityProfile(data.identityProfile);
-        // Update character in list with new identity data
-        if (data.character) {
-          setExistingCharacters((prev) =>
-            prev.map((c) => (c.id === char.id ? data.character : c))
-          );
-        }
-      } else {
-        // Analysis failed - still show modal but with no profile
-        console.error("Identity analysis failed");
-        setExtractedIdentityProfile(null);
-      }
-    } catch (error) {
-      console.error("Identity analysis error:", error);
-      setExtractedIdentityProfile(null);
-    }
-
-    setAnalyzingCharacterId(null);
+  // Handle caricature result modal confirm (no changes)
+  const handleCaricatureConfirm = () => {
+    setShowCaricatureResult(false);
+    setCaricatureResultCharacter(null);
   };
 
-  // Handle identity profile confirmation
-  const handleIdentityConfirm = async (profile: IdentityProfile) => {
-    if (!characterForIdentityConfirm) return;
-
-    // Save confirmed profile
-    try {
-      await fetch(`/api/characters/${characterForIdentityConfirm.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          identity_profile: profile,
-          identity_confirmed: true,
-        }),
-      });
-
-      // Update local state
-      setExistingCharacters((prev) =>
-        prev.map((c) =>
-          c.id === characterForIdentityConfirm.id
-            ? { ...c, identity_profile: profile, identity_confirmed: true }
-            : c
-        )
-      );
-    } catch (error) {
-      console.error("Failed to save identity profile:", error);
-    }
-
-    // Close modal and trigger generation
-    setShowIdentityConfirmModal(false);
-    requestGenerateCaricature(characterForIdentityConfirm);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
+  // Handle caricature result modal regenerate (with changes)
+  const handleCaricatureRegenerate = async (profile: IdentityProfile) => {
+    if (!caricatureResultCharacter) return;
+    setIsRegenerating(true);
+    await generateCaricature(caricatureResultCharacter.id, profile);
   };
 
-  // Handle identity skip (proceed without confirmed profile)
-  const handleIdentitySkip = () => {
-    if (!characterForIdentityConfirm) return;
-    setShowIdentityConfirmModal(false);
-    requestGenerateCaricature(characterForIdentityConfirm);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
-  };
-
-  // Close identity modal without proceeding
-  const handleIdentityClose = () => {
-    setShowIdentityConfirmModal(false);
-    setCharacterForIdentityConfirm(null);
-    setExtractedIdentityProfile(null);
-    setAnalyzingCharacterId(null);
-  };
-
-  // Handle confirmation
-  const handleConfirmGeneration = async () => {
-    if (!pendingAction) return;
-
-    setShowTokenConfirm(false);
-
-    if (pendingAction.type === "character" && pendingAction.characterId) {
-      await generateCaricature(pendingAction.characterId, regenerateFeedback || undefined);
-    } else if (pendingAction.type === "book") {
-      await actuallyGenerateBookPreview();
-    }
-
-    setPendingAction(null);
+  // Handle caricature result modal close
+  const handleCaricatureClose = () => {
+    if (isRegenerating) return;
+    setShowCaricatureResult(false);
+    setCaricatureResultCharacter(null);
   };
 
   // Add photo to pending characters
@@ -1042,8 +883,8 @@ function CreatePageInner() {
         setSelectedCharacterIds((prev) => new Set([...prev, newChar.id]));
         setPendingCharacters((prev) => prev.filter((p) => p.id !== pending.id));
 
-        // Trigger identity analysis then generation flow
-        analyzeAndGenerate(newChar);
+        // Immediately start generation (no analysis step)
+        generateCaricature(newChar.id);
       } else {
         setPendingCharacters((prev) =>
           prev.map((p) => (p.id === pending.id ? { ...p, saving: false } : p))
@@ -1077,7 +918,7 @@ function CreatePageInner() {
     "galaxy-road-trip": "The Great Galaxy Road Trip",
   };
 
-  // Request book preview (shows confirmation first)
+  // Request book preview (generates immediately)
   const generateBookPreview = () => {
     if (!selectedStory) return;
 
@@ -1086,9 +927,8 @@ function CreatePageInner() {
       return;
     }
 
-    // Show confirmation modal
-    setPendingAction({ type: "book" });
-    setShowTokenConfirm(true);
+    // Generate immediately (no confirmation needed)
+    actuallyGenerateBookPreview();
   };
 
   // Actually generate book preview after confirmation
@@ -1437,13 +1277,13 @@ function CreatePageInner() {
                           {/* Regenerate button (only when has generated image) */}
                           {hasGeneratedImage && !isGenerating && (
                             <button
-                              onClick={(e) => openRegenerateModal(char, e)}
+                              onClick={(e) => openCaricatureResult(char, e)}
                               className="absolute top-2 right-10 w-7 h-7 rounded-full bg-black/60 text-accent-gold hover:bg-accent-gold hover:text-brand-dark flex items-center justify-center transition-colors z-10"
-                              title="Regenerate with changes"
+                              title="Edit features"
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M1 4v6h6M23 20v-6h-6" />
-                                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                             </button>
                           )}
@@ -2366,148 +2206,6 @@ function CreatePageInner() {
         </div>
       )}
 
-      {/* Regenerate Feedback Modal */}
-      {showRegenerateModal && characterToRegenerate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowRegenerateModal(false)}
-          />
-          <div className="relative bg-brand-purple rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-brand-purple-muted max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold text-white mb-1">
-              Regenerate {characterToRegenerate.name}&apos;s illustration
-            </h3>
-            <p className="text-text-muted text-sm mb-5">
-              Adjust attributes or add custom instructions
-            </p>
-
-            {/* Attribute dropdowns */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <div>
-                <label className="block text-xs font-bold text-white mb-1.5">Hair color</label>
-                <select
-                  value={regenHairColor}
-                  onChange={(e) => setRegenHairColor(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
-                >
-                  <option value="">Keep current</option>
-                  <option value="black">Black</option>
-                  <option value="dark brown">Dark brown</option>
-                  <option value="light brown">Light brown</option>
-                  <option value="blonde">Blonde</option>
-                  <option value="sandy blonde">Sandy blonde</option>
-                  <option value="auburn">Auburn</option>
-                  <option value="red">Red</option>
-                  <option value="ginger">Ginger</option>
-                  <option value="gray">Gray</option>
-                  <option value="white">White</option>
-                  <option value="silver">Silver</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-white mb-1.5">Eye color</label>
-                <select
-                  value={regenEyeColor}
-                  onChange={(e) => setRegenEyeColor(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
-                >
-                  <option value="">Keep current</option>
-                  <option value="blue">Blue</option>
-                  <option value="bright blue">Bright blue</option>
-                  <option value="light blue">Light blue</option>
-                  <option value="green">Green</option>
-                  <option value="hazel">Hazel</option>
-                  <option value="brown">Brown</option>
-                  <option value="dark brown">Dark brown</option>
-                  <option value="amber">Amber</option>
-                  <option value="gray">Gray</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-white mb-1.5">Skin tone</label>
-                <select
-                  value={regenSkinTone}
-                  onChange={(e) => setRegenSkinTone(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg bg-brand-dark border border-brand-purple-muted text-white focus:outline-none focus:ring-2 focus:ring-accent-gold text-sm"
-                >
-                  <option value="">Keep current</option>
-                  <option value="fair">Fair</option>
-                  <option value="light">Light</option>
-                  <option value="medium">Medium</option>
-                  <option value="olive">Olive</option>
-                  <option value="tan">Tan</option>
-                  <option value="brown">Brown</option>
-                  <option value="dark brown">Dark brown</option>
-                  <option value="deep brown">Deep brown</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Current values hint */}
-            {characterToRegenerate.identity_profile && (
-              <p className="text-xs text-text-muted mb-4">
-                Current: {characterToRegenerate.identity_profile.hair?.color || "?"} hair, {characterToRegenerate.identity_profile.eyes?.color || "?"} eyes, {characterToRegenerate.identity_profile.skinTone || "?"} skin
-              </p>
-            )}
-
-            {/* Custom instructions */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-white mb-1.5">Additional instructions (optional)</label>
-              <textarea
-                value={regenerateFeedback}
-                onChange={(e) => setRegenerateFeedback(e.target.value)}
-                placeholder="e.g., Make the smile bigger, add glasses, make hair curlier..."
-                className="w-full h-20 px-3 py-2 rounded-lg bg-brand-dark border border-brand-purple-muted text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-gold resize-none text-sm"
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRegenerateModal(false)}
-                className="flex-1 py-3 rounded-full border border-brand-purple-muted text-white font-bold hover:bg-brand-purple-muted/50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitRegenerate}
-                className="flex-1 py-3 rounded-full bg-accent-gold text-brand-dark font-bold hover:bg-accent-gold/90 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 4v6h6M23 20v-6h-6" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                </svg>
-                Regenerate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Token Confirm Modal */}
-      <TokenConfirmModal
-        isOpen={showTokenConfirm}
-        onClose={() => {
-          setShowTokenConfirm(false);
-          setPendingAction(null);
-          setRegenerateFeedback("");
-        }}
-        onConfirm={handleConfirmGeneration}
-        actionName={
-          pendingAction?.type === "character"
-            ? `generate illustration for ${pendingAction.characterObj?.name || "character"}`
-            : "generate book cover"
-        }
-        tokenCost={
-          pendingAction?.type === "character"
-            ? TOKEN_COSTS.CHARACTER_ILLUSTRATION
-            : TOKEN_COSTS.BOOK_COVER
-        }
-        currentBalance={tokenBalance}
-        loading={pendingAction?.type === "character" ? !!generatingCharacterId : generatingBook}
-      />
-
       {/* Character Form Modal - shows when photos are uploaded */}
       <CharacterFormModal
         pendingCharacter={currentPendingCharacter}
@@ -2517,15 +2215,15 @@ function CreatePageInner() {
         remainingCount={remainingPendingCount}
       />
 
-      {/* Identity Confirmation Modal - shows after photo analysis */}
-      <IdentityConfirmModal
-        isOpen={showIdentityConfirmModal}
-        character={characterForIdentityConfirm}
-        identityProfile={extractedIdentityProfile}
-        onConfirm={handleIdentityConfirm}
-        onSkip={handleIdentitySkip}
-        onClose={handleIdentityClose}
-        isAnalyzing={!!analyzingCharacterId}
+      {/* Caricature Result Modal - shows after generation completes */}
+      <CaricatureResultModal
+        isOpen={showCaricatureResult}
+        character={caricatureResultCharacter}
+        onConfirm={handleCaricatureConfirm}
+        onRegenerate={handleCaricatureRegenerate}
+        onClose={handleCaricatureClose}
+        tokenBalance={tokenBalance}
+        isRegenerating={isRegenerating}
       />
 
       <Footer />
