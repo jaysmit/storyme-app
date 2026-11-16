@@ -48,19 +48,47 @@ const DEFAULT_OVERLAY: Omit<TextOverlay, "pageNumber" | "text"> = {
 };
 
 const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32];
-const COLORS = [
+
+// Expanded font colors with visual swatches
+const FONT_COLORS = [
   { label: "White", value: "#FFFFFF" },
+  { label: "Cream", value: "#FFFDD0" },
+  { label: "Light Gray", value: "#D3D3D3" },
+  { label: "Gray", value: "#808080" },
   { label: "Black", value: "#000000" },
   { label: "Gold", value: "#F4C95D" },
-  { label: "Navy", value: "#14163A" },
+  { label: "Orange", value: "#FF8C00" },
   { label: "Red", value: "#CC0000" },
+  { label: "Pink", value: "#FF69B4" },
+  { label: "Purple", value: "#8B5CF6" },
+  { label: "Navy", value: "#14163A" },
+  { label: "Blue", value: "#3B82F6" },
+  { label: "Teal", value: "#2DD4BF" },
+  { label: "Green", value: "#22C55E" },
+  { label: "Brown", value: "#8B4513" },
 ];
-const BG_COLORS = [
-  { label: "Dark", value: "rgba(0,0,0,0.7)" },
-  { label: "Light", value: "rgba(255,255,255,0.8)" },
-  { label: "None", value: "transparent" },
-  { label: "Gold", value: "rgba(244,201,93,0.9)" },
-  { label: "Navy", value: "rgba(20,22,58,0.9)" },
+
+// Background color options (base colors - opacity controlled separately)
+const BG_BASE_COLORS = [
+  { label: "Black", value: "0,0,0" },
+  { label: "White", value: "255,255,255" },
+  { label: "Gold", value: "244,201,93" },
+  { label: "Navy", value: "20,22,58" },
+  { label: "Purple", value: "139,92,246" },
+  { label: "Teal", value: "45,212,191" },
+];
+
+// Position presets - both vertical and horizontal
+const VERTICAL_POSITIONS = [
+  { y: 10, label: "Top" },
+  { y: 50, label: "Middle" },
+  { y: 85, label: "Bottom" },
+];
+
+const HORIZONTAL_POSITIONS = [
+  { x: 15, label: "Left" },
+  { x: 50, label: "Center" },
+  { x: 85, label: "Right" },
 ];
 
 export default function BookEditContent({ bookId }: Props) {
@@ -72,6 +100,8 @@ export default function BookEditContent({ bookId }: Props) {
   const [overlays, setOverlays] = useState<TextOverlay[]>([]);
   const [storyTexts, setStoryTexts] = useState<Map<number, string>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState(0.7); // Background opacity 0-1
+  const [bgBaseColor, setBgBaseColor] = useState("0,0,0"); // RGB values
 
   // Load book data
   useEffect(() => {
@@ -110,14 +140,15 @@ export default function BookEditContent({ bookId }: Props) {
         });
         setOverlays(initialOverlays);
 
-        // Load story texts
+        // Load story texts from API
         if (data.book.metadata?.bookId) {
           const storyRes = await fetch(`/api/books/${bookId}/story-text`);
           if (storyRes.ok) {
             const storyData = await storyRes.json();
             const textsMap = new Map<number, string>();
-            storyData.pages?.forEach((p: { pageNumber: number; text: string }) => {
-              textsMap.set(p.pageNumber, p.text);
+            // API returns page_number and story_text (snake_case)
+            storyData.pages?.forEach((p: { page_number: number; story_text: string; title?: string }) => {
+              textsMap.set(p.page_number, p.story_text);
             });
             setStoryTexts(textsMap);
 
@@ -159,6 +190,34 @@ export default function BookEditContent({ bookId }: Props) {
     },
     [currentPageData]
   );
+
+  // Parse background color to extract base color and opacity when page changes
+  useEffect(() => {
+    if (currentOverlay?.backgroundColor) {
+      const bg = currentOverlay.backgroundColor;
+      if (bg === "transparent") {
+        setBgOpacity(0);
+        setBgBaseColor("0,0,0");
+      } else if (bg.startsWith("rgba(")) {
+        const match = bg.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/);
+        if (match) {
+          setBgBaseColor(`${match[1]},${match[2]},${match[3]}`);
+          setBgOpacity(parseFloat(match[4]));
+        }
+      }
+    }
+  }, [currentOverlay?.backgroundColor, currentPage]);
+
+  // Update background color when base color or opacity changes
+  const updateBackgroundColor = useCallback((baseColor: string, opacity: number) => {
+    setBgBaseColor(baseColor);
+    setBgOpacity(opacity);
+    if (opacity === 0) {
+      updateOverlay({ backgroundColor: "transparent" });
+    } else {
+      updateOverlay({ backgroundColor: `rgba(${baseColor},${opacity})` });
+    }
+  }, [updateOverlay]);
 
   // Handle drag to position text
   const handleImageClick = useCallback(
@@ -439,24 +498,39 @@ export default function BookEditContent({ bookId }: Props) {
                         : "bg-brand-dark text-text-muted hover:text-white"
                     }`}
                   >
-                    {isDragging ? "Click on image..." : "Move"}
+                    {isDragging ? "Click on image..." : "Custom"}
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { x: 50, y: 10, label: "Top" },
-                    { x: 50, y: 50, label: "Center" },
-                    { x: 50, y: 85, label: "Bottom" },
-                  ].map((pos) => (
+                {/* Vertical position */}
+                <p className="text-xs text-text-muted mb-1">Vertical</p>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {VERTICAL_POSITIONS.map((pos) => (
                     <button
                       key={pos.label}
                       onClick={() =>
-                        updateOverlay({ position: { x: pos.x, y: pos.y } })
+                        updateOverlay({ position: { x: currentOverlay?.position.x || 50, y: pos.y } })
                       }
                       className={`py-2 rounded-lg text-xs font-bold transition-colors ${
-                        Math.abs(
-                          (currentOverlay?.position.y || 0) - pos.y
-                        ) < 10
+                        Math.abs((currentOverlay?.position.y || 0) - pos.y) < 15
+                          ? "bg-accent-gold text-brand-dark"
+                          : "bg-brand-dark text-text-muted hover:text-white"
+                      }`}
+                    >
+                      {pos.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Horizontal position */}
+                <p className="text-xs text-text-muted mb-1">Horizontal</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {HORIZONTAL_POSITIONS.map((pos) => (
+                    <button
+                      key={pos.label}
+                      onClick={() =>
+                        updateOverlay({ position: { x: pos.x, y: currentOverlay?.position.y || 85 } })
+                      }
+                      className={`py-2 rounded-lg text-xs font-bold transition-colors ${
+                        Math.abs((currentOverlay?.position.x || 0) - pos.x) < 15
                           ? "bg-accent-gold text-brand-dark"
                           : "bg-brand-dark text-text-muted hover:text-white"
                       }`}
@@ -494,15 +568,15 @@ export default function BookEditContent({ bookId }: Props) {
                 <label className="block text-sm font-bold text-white mb-2">
                   Text Color
                 </label>
-                <div className="flex gap-2">
-                  {COLORS.map((color) => (
+                <div className="grid grid-cols-5 gap-2">
+                  {FONT_COLORS.map((color) => (
                     <button
                       key={color.value}
                       onClick={() => updateOverlay({ fontColor: color.value })}
                       className={`w-8 h-8 rounded-full border-2 transition-colors ${
                         currentOverlay?.fontColor === color.value
-                          ? "border-accent-gold"
-                          : "border-transparent"
+                          ? "border-accent-gold ring-2 ring-accent-gold ring-offset-2 ring-offset-brand-purple-light"
+                          : "border-white/20 hover:border-white/40"
                       }`}
                       style={{ backgroundColor: color.value }}
                       title={color.label}
@@ -514,24 +588,43 @@ export default function BookEditContent({ bookId }: Props) {
               {/* Background color */}
               <div>
                 <label className="block text-sm font-bold text-white mb-2">
-                  Background
+                  Background Color
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {BG_COLORS.map((color) => (
+                <div className="flex gap-2 mb-3">
+                  {BG_BASE_COLORS.map((color) => (
                     <button
                       key={color.label}
-                      onClick={() =>
-                        updateOverlay({ backgroundColor: color.value })
-                      }
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
-                        currentOverlay?.backgroundColor === color.value
-                          ? "bg-accent-gold text-brand-dark"
-                          : "bg-brand-dark text-text-muted hover:text-white"
+                      onClick={() => updateBackgroundColor(color.value, bgOpacity)}
+                      className={`w-8 h-8 rounded-full border-2 transition-colors ${
+                        bgBaseColor === color.value
+                          ? "border-accent-gold ring-2 ring-accent-gold ring-offset-2 ring-offset-brand-purple-light"
+                          : "border-white/20 hover:border-white/40"
                       }`}
-                    >
-                      {color.label}
-                    </button>
+                      style={{ backgroundColor: `rgb(${color.value})` }}
+                      title={color.label}
+                    />
                   ))}
+                </div>
+
+                {/* Opacity slider */}
+                <label className="block text-sm font-bold text-white mb-2">
+                  Background Transparency
+                </label>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-text-muted w-16">Clear</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={bgOpacity}
+                    onChange={(e) => updateBackgroundColor(bgBaseColor, parseFloat(e.target.value))}
+                    className="flex-1 h-2 bg-brand-dark rounded-lg appearance-none cursor-pointer accent-accent-gold"
+                  />
+                  <span className="text-xs text-text-muted w-16 text-right">Solid</span>
+                </div>
+                <div className="text-center text-xs text-text-muted mt-1">
+                  {Math.round(bgOpacity * 100)}% opacity
                 </div>
               </div>
 
