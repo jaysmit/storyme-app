@@ -240,7 +240,17 @@ export default function BookViewer({
   const getPageOverlay = (pageNum: number, storyText?: string, pageTitle?: string): TextOverlay | null => {
     // First check for saved overlay
     const savedOverlay = textOverlays.find((o) => o.pageNumber === pageNum);
-    if (savedOverlay) return savedOverlay;
+    if (savedOverlay) {
+      // If saved overlay has text, use it; otherwise fall back to story text
+      if (savedOverlay.text) {
+        return savedOverlay;
+      }
+      // Use saved styling but with story text content
+      if (storyText) {
+        return { ...savedOverlay, text: storyText };
+      }
+      return savedOverlay;
+    }
 
     // For cover page (page 0), show the book title
     if (pageNum === 0) {

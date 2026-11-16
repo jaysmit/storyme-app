@@ -28,7 +28,7 @@ interface Book {
   status: string;
   preview_pages: BookPage[];
   text_overlays?: TextOverlay[];
-  personalized_pages?: Array<{ pageNumber: number; text: string }>;
+  personalized_pages?: Array<{ page_number: number; story_text: string; title?: string }>;
   metadata?: {
     bookId?: string;
   };
@@ -127,14 +127,14 @@ export default function BookEditContent({ bookId }: Props) {
           );
           if (existing) return existing;
 
-          // Get personalized text if available
+          // Get personalized text if available (API returns snake_case)
           const personalizedPage = data.book.personalized_pages?.find(
-            (p: { pageNumber: number }) => p.pageNumber === page.page_number
+            (p: { page_number: number }) => p.page_number === page.page_number
           );
 
           return {
             pageNumber: page.page_number,
-            text: personalizedPage?.text || page.title || "",
+            text: personalizedPage?.story_text || page.title || "",
             ...DEFAULT_OVERLAY,
           };
         });
@@ -232,7 +232,7 @@ export default function BookEditContent({ bookId }: Props) {
     [isDragging, updateOverlay]
   );
 
-  // Save overlays
+  // Save overlays and redirect to books page with preview open
   const saveOverlays = async () => {
     if (!book) return;
     setSaving(true);
@@ -242,10 +242,12 @@ export default function BookEditContent({ bookId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text_overlays: overlays }),
       });
+      // Redirect to books page with preview modal open
+      router.push(`/books?preview=${bookId}`);
     } catch (error) {
       console.error("Failed to save:", error);
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   // Navigation
@@ -337,50 +339,74 @@ export default function BookEditContent({ bookId }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main preview */}
             <div className="lg:col-span-2">
-              <div
-                className={`relative aspect-[3/2] bg-brand-purple-light rounded-2xl overflow-hidden ${
-                  isDragging ? "cursor-crosshair" : ""
-                }`}
-                onClick={handleImageClick}
-              >
-                {currentPageData?.url ? (
-                  <img
-                    src={currentPageData.url}
-                    alt={`Page ${currentPage + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-text-muted">
-                    No image
-                  </div>
-                )}
+              <div className="relative">
+                {/* Left navigation arrow */}
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 0}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-12 h-12 rounded-full bg-brand-purple-light border border-brand-purple-muted flex items-center justify-center text-white disabled:opacity-30 hover:bg-brand-purple hover:border-accent-gold transition-colors shadow-lg"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
 
-                {/* Text overlay preview */}
-                {currentOverlay?.visible && currentOverlay?.text && (
-                  <div
-                    className="absolute px-4 py-2 rounded-lg max-w-[80%] transition-all"
-                    style={{
-                      left: `${currentOverlay.position.x}%`,
-                      top: `${currentOverlay.position.y}%`,
-                      transform: "translate(-50%, -50%)",
-                      fontSize: `${currentOverlay.fontSize}px`,
-                      color: currentOverlay.fontColor,
-                      backgroundColor: currentOverlay.backgroundColor,
-                      textAlign: currentOverlay.textAlign,
-                    }}
-                  >
-                    {currentOverlay.text}
-                  </div>
-                )}
+                {/* Right navigation arrow */}
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === pages.length - 1}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-12 h-12 rounded-full bg-brand-purple-light border border-brand-purple-muted flex items-center justify-center text-white disabled:opacity-30 hover:bg-brand-purple hover:border-accent-gold transition-colors shadow-lg"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
 
-                {/* Drag mode indicator */}
-                {isDragging && (
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                    <p className="text-white font-bold bg-black/60 px-4 py-2 rounded-full">
-                      Click to position text
-                    </p>
-                  </div>
-                )}
+                <div
+                  className={`relative aspect-[3/2] bg-brand-purple-light rounded-2xl overflow-hidden ${
+                    isDragging ? "cursor-crosshair" : ""
+                  }`}
+                  onClick={handleImageClick}
+                >
+                  {currentPageData?.url ? (
+                    <img
+                      src={currentPageData.url}
+                      alt={`Page ${currentPage + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-text-muted">
+                      No image
+                    </div>
+                  )}
+
+                  {/* Text overlay preview */}
+                  {currentOverlay?.visible && currentOverlay?.text && (
+                    <div
+                      className="absolute px-4 py-2 rounded-lg max-w-[80%] transition-all"
+                      style={{
+                        left: `${currentOverlay.position.x}%`,
+                        top: `${currentOverlay.position.y}%`,
+                        transform: "translate(-50%, -50%)",
+                        fontSize: `${currentOverlay.fontSize}px`,
+                        color: currentOverlay.fontColor,
+                        backgroundColor: currentOverlay.backgroundColor,
+                        textAlign: currentOverlay.textAlign,
+                      }}
+                    >
+                      {currentOverlay.text}
+                    </div>
+                  )}
+
+                  {/* Drag mode indicator */}
+                  {isDragging && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <p className="text-white font-bold bg-black/60 px-4 py-2 rounded-full">
+                        Click to position text
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Page navigation */}

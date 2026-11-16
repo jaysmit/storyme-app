@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
@@ -205,7 +206,9 @@ function BookCard({
   );
 }
 
-export default function BooksPage() {
+function BooksPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewBook, setPreviewBook] = useState<Book | null>(null);
@@ -214,10 +217,27 @@ export default function BooksPage() {
   const [previewOverlays, setPreviewOverlays] = useState<TextOverlay[]>([]);
   const [missingPages, setMissingPages] = useState<PageStatus[]>([]);
   const [regenerating, setRegenerating] = useState(false);
+  const [autoPreviewHandled, setAutoPreviewHandled] = useState(false);
 
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  // Handle ?preview=bookId URL parameter
+  useEffect(() => {
+    if (loading || autoPreviewHandled || books.length === 0) return;
+
+    const previewId = searchParams.get("preview");
+    if (previewId) {
+      const bookToPreview = books.find((b) => b.id === previewId);
+      if (bookToPreview) {
+        openPreview(bookToPreview);
+        // Clear the URL parameter without triggering navigation
+        router.replace("/books", { scroll: false });
+      }
+      setAutoPreviewHandled(true);
+    }
+  }, [loading, books, searchParams, autoPreviewHandled]);
 
   // When a book is selected for preview, fetch its story text and overlays
   async function openPreview(book: Book) {
@@ -592,5 +612,25 @@ export default function BooksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function BooksPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-brand-dark flex flex-col">
+        <Header theme="dark" />
+        <main className="flex-1 py-12 px-6">
+          <div className="max-w-6xl mx-auto text-center py-20">
+            <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-text-muted">Loading your books...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <BooksPageContent />
+    </Suspense>
   );
 }
