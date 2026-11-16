@@ -597,13 +597,35 @@ When references conflict, prioritize the identity profile over placeholder appea
           .join("\n")
       : "- None. All crew positions have been assigned.";
 
+  // Determine if this is the cover page
+  const isCoverPage = page.pageType === "cover";
+
+  // Cover title section
+  let coverTitleSection = "";
+  if (isCoverPage) {
+    coverTitleSection = `
+## BOOK COVER TITLE — REQUIRED
+
+This is a **BOOK COVER**. It MUST include the title:
+
+**"${blueprint.title}"**
+
+The title should be:
+- Prominently displayed at the TOP of the cover
+- Large, decorative, child-friendly font style
+- Clearly readable against the background
+- Styled to match the illustration's aesthetic
+
+`;
+  }
+
   return `# STORYME — PRECISION CHARACTER REPLACEMENT
 
 You are editing an existing children's storybook illustration, NOT creating a new illustration.
 
 ## IMAGE INPUTS
 
-- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" cover illustration. This is the authoritative reference for the entire composition.
+- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" ${isCoverPage ? "COVER" : "page"} illustration. This is the authoritative reference for the entire composition.
 - **IMAGES 2+ — CUSTOMER CREW:** The personalised character illustrations that must replace designated placeholder characters.
 
 ## VISUAL STYLE
@@ -615,7 +637,7 @@ Match all replacements to this exact visual style. The customer characters shoul
 ## SCENE DESCRIPTION
 
 ${page.scene.description}
-
+${coverTitleSection}
 ## PRIMARY OBJECTIVE
 
 Produce a minimally modified version of IMAGE 1.
@@ -632,7 +654,10 @@ For every assigned crew member:
 
 - Replace the placeholder character with the corresponding customer character.
 - Preserve the customer's recognisable facial identity, hairstyle, eye colour, skin tone and distinctive features.
-- Preserve the original character's position, scale, pose, action, body orientation and interaction with objects.
+- **USE THE CUSTOMER'S ACTUAL HEIGHT AND BODY SIZE** — not the placeholder's.
+- If a child replaces an adult slot, draw them SHORT like a child.
+- If an adult replaces a child slot, draw them TALL like an adult.
+- Preserve the original character's position, pose direction, and interaction with objects.
 - Adapt the customer to the original page's illustration style, lighting and perspective.
 - Use the exact wardrobe and accessories described above.
 - Do not duplicate characters or create additional versions of them.
@@ -1087,8 +1112,8 @@ export function assignCharactersToV2Slots(
  * Build the OpenAI image editing prompt from a V2 blueprint page
  *
  * CRITICAL SEPARATION:
- * - FROM BLUEPRINT: Position, pose, action, scale, depth, interaction with scene
- * - FROM CREW: Face, hair, eyes, skin, body shape, HEIGHT, all physical appearance
+ * - FROM BLUEPRINT: Position, pose, action, depth, interaction with scene
+ * - FROM CREW: Face, hair, eyes, skin, BODY SIZE, HEIGHT, PHYSIQUE - all physical appearance
  *
  * The crew member's reference image and identity profile define their appearance.
  * The blueprint slot defines WHERE and HOW they are positioned.
@@ -1102,13 +1127,33 @@ export function buildPromptFromV2Blueprint(
   // Sort by priority_rank for prompt order (1 = most important first)
   const sortedAssignments = [...assignments].sort((a, b) => a.priority_rank - b.priority_rank);
 
+  // Determine if this is the cover page (page 1)
+  const isCoverPage = page.page_number === 1;
+
   // Build character replacement section with CLEAR separation of position vs appearance
   const charReplacements = sortedAssignments
     .map((a) => {
-      // Build appearance section from crew reference
-      let appearanceSection = `  **CREW APPEARANCE (from IMAGE ${a.imageIndex}):**
-  - Use "${a.characterName}" reference image for face, hair, eyes, skin, body
-  - Height: ${a.crewHeightDescription || "adult height"}`;
+      // Determine age category for more emphatic instructions
+      const ageCategory = a.crewAge !== null && a.crewAge !== undefined
+        ? (a.crewAge < 6 ? "YOUNG CHILD" : a.crewAge < 12 ? "CHILD" : a.crewAge < 18 ? "TEENAGER" : "ADULT")
+        : "ADULT";
+
+      // Build appearance section from crew reference with EMPHATIC height instructions
+      let appearanceSection = `  **CREW PHYSICAL APPEARANCE — USE IMAGE ${a.imageIndex} EXACTLY:**
+  - Face, facial features → FROM "${a.characterName}" reference
+  - Hair color, style, length → FROM "${a.characterName}" reference
+  - Eye color and shape → FROM "${a.characterName}" reference
+  - Skin tone → FROM "${a.characterName}" reference
+  - **HEIGHT AND BODY SIZE → ${a.crewHeightDescription?.toUpperCase() || "ADULT HEIGHT"}**
+  - **AGE APPEARANCE → ${ageCategory} (${a.crewAge !== null && a.crewAge !== undefined ? `${a.crewAge} years old` : "adult"})**
+
+  ⚠️ CRITICAL: "${a.characterName}" is ${a.crewHeightDescription || "adult height"}.
+  Draw them at THIS height, NOT the placeholder's height.
+  ${a.crewAge !== null && a.crewAge !== undefined && a.crewAge < 12
+    ? `This is a ${a.crewAge}-year-old child — they must be SHORT like a child, not adult-sized.`
+    : a.crewAge !== null && a.crewAge !== undefined && a.crewAge >= 18
+    ? `This is an adult — they must be TALL like an adult, not child-sized.`
+    : ""}`;
 
       if (a.identityProfile) {
         const p = a.identityProfile;
@@ -1121,46 +1166,62 @@ export function buildPromptFromV2Blueprint(
 
       return `**${a.slotId.toUpperCase()} → "${a.characterName}" (IMAGE ${a.imageIndex})**
 
-  **POSITION/POSE (from blueprint "${a.blueprintCharacterName || a.slotId}"):**
-  - Head position: (${a.head_anchor.x.toFixed(2)}, ${a.head_anchor.y.toFixed(2)})
+  **POSITION/POSE (from blueprint only — NOT appearance):**
+  - Head anchor position: (${a.head_anchor.x.toFixed(2)}, ${a.head_anchor.y.toFixed(2)})
   - Depth in scene: ${a.depth}
   - Action/pose: ${a.action_and_location}
-  - Importance: ${a.importance} (priority ${a.priority_rank})
-  - KEEP: exact position, pose, body orientation, gestures, interaction with objects
+  - KEEP: location in scene, general pose direction, interaction with objects
+  - ADJUST: body size/height to match crew member's actual proportions
 
 ${appearanceSection}
-  - IGNORE: "${a.blueprintCharacterName || a.slotId}" placeholder appearance completely
-  - The crew member takes over this position with THEIR OWN appearance`;
+
+  ❌ IGNORE COMPLETELY: The placeholder "${a.blueprintCharacterName || a.slotId}" character's height, body size, and appearance.
+  ✅ USE: "${a.characterName}"'s actual body proportions from their reference image.`;
     })
     .join("\n\n");
 
-  // Build comprehensive identity section
+  // Build comprehensive identity section with STRONGER height emphasis
   let identitySection = `
-## CREW IDENTITY — CRITICAL
+## ⚠️ HEIGHT AND BODY SIZE — MOST CRITICAL INSTRUCTION ⚠️
 
-**WHAT TO USE FROM EACH IMAGE:**
+**THE #1 MISTAKE TO AVOID:** Drawing crew members at the WRONG height.
+
+If the blueprint shows a tall adult but the crew member is a 5-year-old child → Draw a SHORT CHILD.
+If the blueprint shows a small child but the crew member is an adult → Draw a TALL ADULT.
+
+**THE CREW MEMBER'S HEIGHT OVERRIDES THE PLACEHOLDER'S HEIGHT. ALWAYS.**
 
 `;
 
+  // Add specific height for each character
   for (const a of sortedAssignments) {
-    identitySection += `**IMAGE ${a.imageIndex}: "${a.characterName}"**
-- Face shape, facial features → FROM crew reference
-- Hair color, style, texture → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.hair.color}, ${a.identityProfile.hair.style})` : ""}
-- Eye color, shape → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.eyes.color})` : ""}
-- Skin tone → FROM crew reference${a.identityProfile ? ` (${a.identityProfile.skinTone})` : ""}
-- Body proportions, height → FROM crew (${a.crewHeightDescription || "adult"})
-- IGNORE the blueprint placeholder character's appearance entirely
+    const heightWarning = a.crewAge !== null && a.crewAge !== undefined && a.crewAge < 10
+      ? `⚠️ CHILD - Must be visibly shorter than any adults in the scene!`
+      : a.crewAge !== null && a.crewAge !== undefined && a.crewAge >= 18
+      ? `⚠️ ADULT - Must be taller than any children in the scene!`
+      : "";
+
+    identitySection += `**"${a.characterName}" (IMAGE ${a.imageIndex}):**
+- Height: **${a.crewHeightDescription?.toUpperCase() || "ADULT HEIGHT"}** ${heightWarning}
+- Age: ${a.crewAge !== null && a.crewAge !== undefined ? `${a.crewAge} years old` : "adult"}
+- Use THEIR body proportions, NOT the placeholder's
+${a.identityProfile ? `- Hair: ${a.identityProfile.hair.color}, ${a.identityProfile.hair.style}
+- Eyes: ${a.identityProfile.eyes.color}
+- Skin: ${a.identityProfile.skinTone}` : ""}
 
 `;
   }
 
-  identitySection += `**AGE AND HEIGHT ARE CRITICAL:**
-The crew member's age determines their height. Do NOT make adults look like children or children look like adults.
-- Children (under 12): Should be noticeably shorter than adults
-- Teens (12-17): Between child and adult height
-- Adults (18+): Full adult height
+  identitySection += `## BODY PROPORTION RULES
 
-Each crew member must maintain their age-appropriate body proportions regardless of the placeholder they replace.
+When replacing a placeholder character:
+1. **KEEP** the character's POSITION (where they stand/sit in the scene)
+2. **KEEP** the general POSE DIRECTION (facing left, reaching up, etc.)
+3. **CHANGE** the body HEIGHT to match the crew member's actual height
+4. **CHANGE** the body PROPORTIONS to match the crew member's age
+
+A child replacing an adult slot → Shorter body, childlike proportions
+An adult replacing a child slot → Taller body, adult proportions
 `;
 
   // Build removals section
@@ -1199,13 +1260,34 @@ Do not add these characters. They are intentionally absent.
   // Get page dimensions
   const dimensions = page.master_image_size || { width: 1536, height: 1024 };
 
+  // Cover title section - only for cover pages
+  let coverTitleSection = "";
+  if (isCoverPage) {
+    coverTitleSection = `
+## BOOK COVER TITLE — REQUIRED
+
+This is a **BOOK COVER**. It MUST include the title:
+
+**"${blueprint.title}"**
+
+The title should be:
+- Prominently displayed at the TOP of the cover
+- Large, decorative, child-friendly font style
+- Clearly readable against the background
+- Styled to match the ${blueprint.visual_style.split(".")[0]} aesthetic
+- Could have subtle effects (outline, shadow, glow) for visibility
+
+If the master image already has a title, keep it in the same style but ensure it says "${blueprint.title}".
+`;
+  }
+
   return `# STORYME V2 — CHARACTER REPLACEMENT
 
 You are editing an existing children's storybook illustration.
 
 ## IMAGE INPUTS
 
-- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" page ${page.page_number}.
+- **IMAGE 1 — MASTER PAGE:** The original "${blueprint.title}" ${isCoverPage ? "COVER" : `page ${page.page_number}`}.
 - **IMAGES 2+ — CREW REFERENCES:** Customer character illustrations to use for appearance.
 
 ## VISUAL STYLE
@@ -1215,14 +1297,17 @@ ${blueprint.visual_style}
 ## SCENE
 
 ${page.scene_description}
-
-## CRITICAL INSTRUCTION
+${coverTitleSection}
+## CRITICAL INSTRUCTION — HEIGHT AND APPEARANCE
 
 For each replacement:
-1. **POSITION/POSE** comes from the BLUEPRINT placeholder (where they stand, what they're doing)
-2. **APPEARANCE** comes from the CREW reference image (face, hair, eyes, skin, body, height)
+1. **POSITION** comes from the blueprint (WHERE they stand in the scene)
+2. **HEIGHT AND BODY** comes from the CREW member (their actual age-appropriate size)
+3. **FACE, HAIR, EYES, SKIN** comes from the CREW reference image
 
-The crew member "takes over" the placeholder's position but keeps their OWN physical appearance.
+⚠️ **THE CREW MEMBER'S HEIGHT MUST OVERRIDE THE PLACEHOLDER'S HEIGHT.**
+If a 5-year-old child replaces an adult slot, draw them as a SHORT CHILD.
+If an adult replaces a child slot, draw them as a TALL ADULT.
 
 ## CHARACTER REPLACEMENTS
 
@@ -1244,17 +1329,20 @@ Preserve from IMAGE 1:
 
 ## PRIORITY ORDER
 
-1. Crew appearance must match their reference images (face, hair, eyes, skin, height)
-2. Position/pose must match the blueprint slot
-3. Remove any unassigned placeholder characters
-4. Preserve scene composition
+1. **HEIGHT** — Each crew member drawn at their CORRECT height (not the placeholder's)
+2. **APPEARANCE** — Face, hair, eyes, skin match crew reference images exactly
+3. **POSITION** — Characters placed where blueprint indicates
+4. **REMOVALS** — Unassigned placeholders removed
+5. **COMPOSITION** — Scene preserved
+${isCoverPage ? "6. **TITLE** — Book title prominently displayed at top" : ""}
 
 ## OUTPUT
 
 Nearly identical to IMAGE 1, except:
-- Designated placeholders replaced with crew members
+- Designated placeholders replaced with crew members (at THEIR correct heights)
 - Unassigned placeholders removed
 - Background reconstructed where characters removed
+${isCoverPage ? `- Title "${blueprint.title}" displayed prominently` : ""}
 
 Make minimal changes. This is an edit, not a recreation.`;
 }
