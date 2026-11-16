@@ -4,11 +4,19 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
+import BookViewer from "@/components/BookViewer";
+
+interface PersonalizedPage {
+  page_number: number;
+  title: string;
+  story_text: string;
+}
 
 interface Book {
   id: string;
   status: string;
   preview_pages: { page_number: number; url: string; title?: string }[];
+  personalized_pages?: PersonalizedPage[];
   characters_snapshot?: { id: string; name: string; generated_image_url?: string }[];
   metadata?: {
     storySlug?: string;
@@ -48,10 +56,12 @@ function BookCard({
   book,
   onDelete,
   isPreview,
+  onPreview,
 }: {
   book: Book;
   onDelete: (id: string) => void;
   isPreview: boolean;
+  onPreview: (book: Book) => void;
 }) {
   const storySlug = book.metadata?.bookId || book.metadata?.storySlug || "";
   const storyTitle = storyTitles[storySlug] || "Custom Story";
@@ -62,8 +72,11 @@ function BookCard({
 
   return (
     <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl overflow-hidden group hover:border-accent-gold/50 transition-colors">
-      {/* Cover preview */}
-      <div className="aspect-[4/3] bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] relative overflow-hidden">
+      {/* Cover preview - clickable to open preview modal */}
+      <button
+        onClick={() => onPreview(book)}
+        className="aspect-[4/3] w-full bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] relative overflow-hidden cursor-pointer"
+      >
         {coverUrl ? (
           <img
             src={coverUrl}
@@ -75,6 +88,17 @@ function BookCard({
             <span className="text-6xl">📚</span>
           </div>
         )}
+        {/* Play/preview overlay on hover */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1E1B4B" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
         {/* Status badge */}
         <div
@@ -112,7 +136,7 @@ function BookCard({
             )}
           </div>
         )}
-      </div>
+      </button>
 
       {/* Info */}
       <div className="p-4">
@@ -163,10 +187,68 @@ function BookCard({
 export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewBook, setPreviewBook] = useState<Book | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewPages, setPreviewPages] = useState<{ page_number: number; url: string; title: string; story_text?: string }[]>([]);
 
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  // When a book is selected for preview, fetch its story text
+  async function openPreview(book: Book) {
+    setPreviewBook(book);
+    setPreviewLoading(true);
+
+    // Build pages array with images
+    const pages = (book.preview_pages || []).map((p) => ({
+      page_number: p.page_number,
+      url: p.url,
+      title: p.title || `Page ${p.page_number}`,
+      story_text: undefined as string | undefined,
+    }));
+
+    // If book has personalized pages, merge the story text
+    if (book.personalized_pages && book.personalized_pages.length > 0) {
+      for (const page of pages) {
+        const personalizedPage = book.personalized_pages.find((pp) => pp.page_number === page.page_number);
+        if (personalizedPage) {
+          page.title = personalizedPage.title;
+          page.story_text = personalizedPage.story_text;
+        }
+      }
+      setPreviewPages(pages);
+      setPreviewLoading(false);
+      return;
+    }
+
+    // Try to fetch story text from API
+    try {
+      const res = await fetch(`/api/books/${book.id}/story-text`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.format === "v2" && data.pages) {
+          for (const page of pages) {
+            const storyPage = data.pages.find((sp: PersonalizedPage) => sp.page_number === page.page_number);
+            if (storyPage) {
+              page.title = storyPage.title;
+              page.story_text = storyPage.story_text;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch story text:", err);
+    }
+
+    setPreviewPages(pages);
+    setPreviewLoading(false);
+  }
+
+  function closePreview() {
+    setPreviewBook(null);
+    setPreviewPages([]);
+  }
 
   async function fetchBooks() {
     setLoading(true);
@@ -266,6 +348,7 @@ export default function BooksPage() {
                         book={book}
                         onDelete={deleteBook}
                         isPreview={true}
+                        onPreview={openPreview}
                       />
                     ))}
                   </div>
@@ -291,6 +374,7 @@ export default function BooksPage() {
                         book={book}
                         onDelete={deleteBook}
                         isPreview={false}
+                        onPreview={openPreview}
                       />
                     ))}
                   </div>
@@ -302,6 +386,26 @@ export default function BooksPage() {
       </main>
 
       <Footer />
+
+      {/* Preview Modal */}
+      {previewBook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
+          <div className="w-full max-w-5xl max-h-[90vh] overflow-auto">
+            {previewLoading ? (
+              <div className="bg-brand-purple-light rounded-3xl p-12 text-center">
+                <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-text-muted">Loading preview...</p>
+              </div>
+            ) : (
+              <BookViewer
+                pages={previewPages}
+                title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
+                onClose={closePreview}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

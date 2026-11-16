@@ -6,6 +6,7 @@ interface Page {
   page_number: number;
   url: string;
   title: string;
+  story_text?: string;
 }
 
 interface BookViewerProps {
@@ -255,10 +256,15 @@ export default function BookViewer({
               className="w-full h-full object-contain"
             />
 
-            {/* Page title overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+            {/* Page title and story text overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6">
               <span className="text-accent-gold text-sm font-bold">Page {page.page_number}</span>
-              <h4 className="text-2xl font-black text-white">{page.title}</h4>
+              <h4 className="text-2xl font-black text-white mb-2">{page.title}</h4>
+              {page.story_text && (
+                <p className="text-white/90 text-lg font-medium leading-relaxed max-w-3xl">
+                  {page.story_text}
+                </p>
+              )}
             </div>
 
             {/* Navigation arrows */}
