@@ -51,11 +51,13 @@ export async function POST(
       );
     }
 
-    // Get character IDs from metadata or snapshot
+    // Get character IDs from metadata - this preserves the user's chosen priority order
+    // The metadata.characterIds is the source of truth for order
     let characterIds: string[] = book.metadata?.characterIds || [];
 
-    // If we have a characters snapshot, use those IDs
-    if (book.characters_snapshot && Array.isArray(book.characters_snapshot)) {
+    // Only use snapshot IDs if metadata doesn't have them (legacy books)
+    if (characterIds.length === 0 && book.characters_snapshot && Array.isArray(book.characters_snapshot)) {
+      console.log("Using character IDs from snapshot (metadata.characterIds was empty)");
       characterIds = book.characters_snapshot.map((c: { id: string }) => c.id);
     }
 
@@ -65,6 +67,8 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    console.log(`Character order for generation: ${characterIds.map((id, i) => `${i + 1}. ${id.substring(0, 8)}`).join(", ")}`);
 
     // Get cover URL
     const coverPage = book.preview_pages?.find(

@@ -92,6 +92,31 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-16)
+- [x] **Character Priority Order Fix** - Character hierarchy now respected in generation
+  - Added `reorderCharacters()` utility function to both `generate/route.ts` and `generate-page/route.ts`
+  - Supabase `.in()` queries don't preserve order - now explicitly reorder characters to match user's priority selection
+  - `metadata.characterIds` is the source of truth for character priority order
+  - Debug logging added to track character order at each step
+  - Characters snapshot now reordered before use
+
+- [x] **Height/Age in Generation Prompts** - Physical attributes now properly passed through
+  - Added `height_cm` to `CharacterInput` interface in `generate/route.ts`
+  - V2 prompt builder includes height descriptions (e.g., "small child height (110cm)")
+  - Age-based height estimation when explicit height not provided
+  - AI prompt emphasizes age-appropriate body proportions
+
+- [x] **Automatic Page Retry System** - Failed/stuck pages auto-retry
+  - Added to `hooks/useBookGeneration.ts`:
+    - `PAGE_TIMEOUT_MS` (3 minutes) - pages generating longer are considered stuck
+    - `MAX_AUTO_RETRIES` (3) - maximum automatic retry attempts per page
+    - `pageStartTimesRef` - tracks when each page started generating
+    - `autoRetryCountsRef` - tracks retry counts per page
+    - `checkAndAutoRetry()` - detects and retries stuck/failed pages
+  - Auto-retry integrated into polling cycle and page processing
+  - Failed pages automatically retry up to 3 times
+  - Stuck pages (>3 min generating) are reset and retried
+
 ### Recent Changes (2026-11-12)
 - [x] **V2 Blueprint Format Support** - Essendon Five style books with enhanced features
   - New `books/` folder for V2 format books (each book has its own folder with blueprint.json + images)

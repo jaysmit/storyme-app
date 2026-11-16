@@ -3,6 +3,27 @@ import { createClient } from "@/lib/supabase/server";
 import { generateSinglePage, type CharacterInput } from "@/lib/page-generation";
 import { type PageStatus } from "@/lib/types";
 
+/**
+ * Reorder characters to match the specified order of IDs.
+ * This is necessary because Supabase .in() doesn't preserve order.
+ */
+function reorderCharacters(
+  characters: CharacterInput[],
+  orderedIds: string[]
+): CharacterInput[] {
+  const charMap = new Map(characters.map((c) => [c.id, c]));
+  const ordered: CharacterInput[] = [];
+
+  for (const id of orderedIds) {
+    const char = charMap.get(id);
+    if (char) {
+      ordered.push(char);
+    }
+  }
+
+  return ordered;
+}
+
 // POST /api/books/[id]/generate-page - Generate a single interior page
 export async function POST(
   request: NextRequest,
@@ -114,8 +135,11 @@ export async function POST(
 
     if (book.characters_snapshot && Array.isArray(book.characters_snapshot) && book.characters_snapshot.length > 0) {
       // Use the stored snapshot - characters are preserved even if deleted
+      // Reorder to match characterIds order (snapshot may not be in order)
       console.log(`Using characters snapshot (${book.characters_snapshot.length} characters)`);
-      characters = book.characters_snapshot as CharacterInput[];
+      const rawSnapshot = book.characters_snapshot as CharacterInput[];
+      characters = reorderCharacters(rawSnapshot, config.characterIds);
+      console.log("Snapshot order:", characters.map((c, i) => `${i + 1}. ${c.name}`).join(", "));
     } else {
       // Fall back to fetching from database
       console.log("No characters snapshot, fetching from database");
@@ -136,7 +160,10 @@ export async function POST(
         charData = data1;
       }
 
-      characters = charData || [];
+      // Reorder to match characterIds order (important for priority)
+      const rawCharacters = charData || [];
+      characters = reorderCharacters(rawCharacters, config.characterIds);
+      console.log("Fetched order:", characters.map((c, i) => `${i + 1}. ${c.name}`).join(", "));
     }
 
     // Validate all characters have generated images

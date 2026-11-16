@@ -35,6 +35,7 @@ interface CharacterInput {
   character_type?: string;
   pet_type?: string;
   age?: number | null;
+  height_cm?: number | null;  // Height in centimeters
   generated_image_url?: string;
   identity_profile?: {
     hair: { color: string; style: string; length?: string };
@@ -43,6 +44,27 @@ interface CharacterInput {
     distinctiveFeatures?: string[];
   } | null;
   identity_confirmed?: boolean;
+}
+
+/**
+ * Reorder characters to match the specified order of IDs.
+ * This is necessary because Supabase .in() doesn't preserve order.
+ */
+function reorderCharacters(
+  characters: CharacterInput[],
+  orderedIds: string[]
+): CharacterInput[] {
+  const charMap = new Map(characters.map((c) => [c.id, c]));
+  const ordered: CharacterInput[] = [];
+
+  for (const id of orderedIds) {
+    const char = charMap.get(id);
+    if (char) {
+      ordered.push(char);
+    }
+  }
+
+  return ordered;
 }
 
 // Map customer character type to crew slot type
@@ -678,7 +700,16 @@ export async function POST(
       );
     }
 
-    const characters: CharacterInput[] = charData || [];
+    // Reorder characters to match the original characterIds order
+    // This is critical because .in() doesn't preserve order, and character priority matters
+    const rawCharacters: CharacterInput[] = charData || [];
+    const characters = reorderCharacters(rawCharacters, characterIds);
+
+    console.log("=== CHARACTER ORDER DEBUG ===");
+    console.log("Requested order:", characterIds.map((id, i) => `${i + 1}. ${id.substring(0, 8)}`).join(", "));
+    console.log("Database order:", rawCharacters.map((c, i) => `${i + 1}. ${c.name}`).join(", "));
+    console.log("Final order:", characters.map((c, i) => `${i + 1}. ${c.name} (age: ${c.age}, height: ${c.height_cm}cm)`).join(", "));
+    console.log("===========================");
 
     // Validate all characters have generated images
     const missingImages = characters.filter((c) => !c.generated_image_url);
