@@ -23,10 +23,19 @@ interface TextOverlay {
   visible: boolean;
 }
 
+interface PageStatus {
+  pageId: string;
+  pageNumber: number;
+  status: "pending" | "generating" | "completed" | "failed";
+  url?: string;
+  error?: string;
+}
+
 interface Book {
   id: string;
   status: string;
   preview_pages: { page_number: number; url: string; title?: string }[];
+  page_statuses?: PageStatus[];
   personalized_pages?: PersonalizedPage[];
   text_overlays?: TextOverlay[];
   characters_snapshot?: { id: string; name: string; generated_image_url?: string }[];
@@ -203,6 +212,8 @@ export default function BooksPage() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewPages, setPreviewPages] = useState<{ page_number: number; url: string; title: string; story_text?: string }[]>([]);
   const [previewOverlays, setPreviewOverlays] = useState<TextOverlay[]>([]);
+  const [missingPages, setMissingPages] = useState<PageStatus[]>([]);
+  const [regenerating, setRegenerating] = useState(false);
 
   useEffect(() => {
     fetchBooks();
@@ -212,9 +223,18 @@ export default function BooksPage() {
   async function openPreview(book: Book) {
     setPreviewBook(book);
     setPreviewLoading(true);
+    setMissingPages([]);
 
     // Set text overlays from book if available
     setPreviewOverlays(book.text_overlays || []);
+
+    // Check for missing/failed pages
+    if (book.page_statuses && book.page_statuses.length > 0) {
+      const incomplete = book.page_statuses.filter(
+        (p) => p.status === "failed" || p.status === "pending"
+      );
+      setMissingPages(incomplete);
+    }
 
     // Build pages array with images
     const pages = (book.preview_pages || []).map((p) => ({
@@ -265,6 +285,107 @@ export default function BooksPage() {
     setPreviewBook(null);
     setPreviewPages([]);
     setPreviewOverlays([]);
+    setMissingPages([]);
+    setRegenerating(false);
+  }
+
+  // Regenerate missing/failed pages
+  async function regenerateMissingPages() {
+    if (!previewBook || missingPages.length === 0) return;
+
+    setRegenerating(true);
+
+    try {
+      // Retry each missing page
+      const retryPromises = missingPages.map(async (page) => {
+        try {
+          const res = await fetch(`/api/books/${previewBook.id}/retry-page`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pageId: page.pageId }),
+          });
+
+          if (!res.ok) {
+            console.error(`Failed to retry ${page.pageId}`);
+            return null;
+          }
+
+          // Now generate the page
+          const genRes = await fetch(`/api/books/${previewBook.id}/generate-page`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pageId: page.pageId }),
+          });
+
+          if (genRes.ok) {
+            const data = await genRes.json();
+            return { pageId: page.pageId, url: data.url, status: data.status };
+          }
+          return null;
+        } catch (err) {
+          console.error(`Error regenerating ${page.pageId}:`, err);
+          return null;
+        }
+      });
+
+      const results = await Promise.all(retryPromises);
+      const successful = results.filter((r) => r && r.status === "completed");
+
+      if (successful.length > 0) {
+        // Refresh the book data
+        const res = await fetch(`/api/books/${previewBook.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          const updatedBook = data.book as Book;
+
+          // Update the preview with new pages
+          setPreviewBook(updatedBook);
+
+          // Rebuild pages array
+          const pages = (updatedBook.preview_pages || []).map((p) => ({
+            page_number: p.page_number,
+            url: p.url,
+            title: p.title || `Page ${p.page_number}`,
+            story_text: undefined as string | undefined,
+          }));
+
+          // Merge story text
+          if (updatedBook.personalized_pages) {
+            for (const page of pages) {
+              const personalized = updatedBook.personalized_pages.find(
+                (pp) => pp.page_number === page.page_number
+              );
+              if (personalized) {
+                page.title = personalized.title;
+                page.story_text = personalized.story_text;
+              }
+            }
+          }
+
+          setPreviewPages(pages);
+          setPreviewOverlays(updatedBook.text_overlays || []);
+
+          // Update missing pages
+          if (updatedBook.page_statuses) {
+            const stillMissing = updatedBook.page_statuses.filter(
+              (p) => p.status === "failed" || p.status === "pending"
+            );
+            setMissingPages(stillMissing);
+          } else {
+            setMissingPages([]);
+          }
+
+          // Also update the book in the main list
+          setBooks((prev) =>
+            prev.map((b) => (b.id === updatedBook.id ? updatedBook : b))
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error regenerating pages:", err);
+    }
+
+    setRegenerating(false);
   }
 
   async function fetchBooks() {
@@ -414,12 +535,81 @@ export default function BooksPage() {
                 <p className="text-text-muted">Loading preview...</p>
               </div>
             ) : (
-              <BookViewer
-                pages={previewPages}
-                title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
-                onClose={closePreview}
-                textOverlays={previewOverlays}
-              />
+              <div className="space-y-4">
+                {/* Missing pages warning */}
+                {missingPages.length > 0 && (
+                  <div className="bg-amber-500/20 border border-amber-500/50 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/30 flex items-center justify-center">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
+                          <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-amber-200 font-bold">
+                          {missingPages.length} page{missingPages.length !== 1 ? "s" : ""} missing
+                        </p>
+                        <p className="text-amber-200/70 text-sm">
+                          {missingPages.map((p) => `Page ${p.pageNumber}`).join(", ")}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={regenerateMissingPages}
+                      disabled={regenerating}
+                      className="px-4 py-2 bg-amber-500 text-black font-bold rounded-full hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-2"
+                    >
+                      {regenerating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M23 4v6h-6M1 20v-6h6" />
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                          </svg>
+                          Regenerate
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Book viewer */}
+                <BookViewer
+                  pages={previewPages}
+                  title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
+                  onClose={closePreview}
+                  textOverlays={previewOverlays}
+                />
+
+                {/* Action buttons */}
+                <div className="flex justify-center gap-4 pt-2">
+                  <Link
+                    href={`/book/${previewBook.id}/edit`}
+                    className="px-6 py-3 bg-brand-purple border border-brand-purple-muted text-white font-bold rounded-full hover:bg-brand-purple-light transition-colors flex items-center gap-2"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Edit Text & Styling
+                  </Link>
+                  <Link
+                    href={`/book/${previewBook.id}`}
+                    className="px-6 py-3 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                    Open Full Page
+                  </Link>
+                </div>
+              </div>
             )}
           </div>
         </div>
