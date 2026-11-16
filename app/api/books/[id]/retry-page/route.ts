@@ -54,10 +54,10 @@ export async function POST(
 
     const pageStatus = pageStatuses[pageIndex];
 
-    // Only allow retry for failed pages
-    if (pageStatus.status !== "failed") {
+    // Allow retry for failed or pending (stuck) pages
+    if (pageStatus.status !== "failed" && pageStatus.status !== "pending") {
       return NextResponse.json(
-        { error: `Cannot retry page - status is "${pageStatus.status}", expected "failed"` },
+        { error: `Cannot retry page - status is "${pageStatus.status}", expected "failed" or "pending"` },
         { status: 400 }
       );
     }

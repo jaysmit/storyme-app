@@ -577,38 +577,15 @@ export default function BooksPage() {
                   </div>
                 )}
 
-                {/* Book viewer */}
+                {/* Book viewer with action buttons inside */}
                 <BookViewer
                   pages={previewPages}
                   title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
                   onClose={closePreview}
                   textOverlays={previewOverlays}
+                  bookId={previewBook.id}
+                  showActions={true}
                 />
-
-                {/* Action buttons */}
-                <div className="flex justify-center gap-4 pt-2">
-                  <Link
-                    href={`/book/${previewBook.id}/edit`}
-                    className="px-6 py-3 bg-brand-purple border border-brand-purple-muted text-white font-bold rounded-full hover:bg-brand-purple-light transition-colors flex items-center gap-2"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    Edit Text & Styling
-                  </Link>
-                  <Link
-                    href={`/book/${previewBook.id}`}
-                    className="px-6 py-3 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                      <polyline points="15 3 21 3 21 9" />
-                      <line x1="10" y1="14" x2="21" y2="3" />
-                    </svg>
-                    Open Full Page
-                  </Link>
-                </div>
               </div>
             )}
           </div>

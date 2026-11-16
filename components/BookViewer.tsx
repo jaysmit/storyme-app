@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 interface Page {
   page_number: number;
@@ -39,6 +40,8 @@ interface BookViewerProps {
   onMinimize?: () => void;
   generationStartTime?: number;
   textOverlays?: TextOverlay[];
+  bookId?: string; // For edit/view links
+  showActions?: boolean; // Show edit/view buttons
 }
 
 export default function BookViewer({
@@ -50,6 +53,8 @@ export default function BookViewer({
   onMinimize,
   generationStartTime,
   textOverlays = [],
+  bookId,
+  showActions = false,
 }: BookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -232,10 +237,24 @@ export default function BookViewer({
   const page = pages[currentPage];
 
   // Get text overlay for current page (from saved overlays or use story_text with defaults)
-  const getPageOverlay = (pageNum: number, storyText?: string): TextOverlay | null => {
+  const getPageOverlay = (pageNum: number, storyText?: string, pageTitle?: string): TextOverlay | null => {
     // First check for saved overlay
     const savedOverlay = textOverlays.find((o) => o.pageNumber === pageNum);
     if (savedOverlay) return savedOverlay;
+
+    // For cover page (page 0), show the book title
+    if (pageNum === 0) {
+      return {
+        pageNumber: 0,
+        text: title, // Use the book title
+        position: { x: 50, y: 50 }, // Center of cover
+        fontSize: 28,
+        fontColor: "#FFFFFF",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        textAlign: "center",
+        visible: true,
+      };
+    }
 
     // If no saved overlay but we have story text, create a default one
     if (storyText) {
@@ -249,7 +268,7 @@ export default function BookViewer({
     return null;
   };
 
-  const currentOverlay = getPageOverlay(page.page_number, page.story_text);
+  const currentOverlay = getPageOverlay(page.page_number, page.story_text, page.title);
 
   return (
     <div className={`${isFullscreen ? "fixed inset-0 z-50 bg-brand-dark p-4" : ""}`}>
@@ -261,6 +280,32 @@ export default function BookViewer({
             <p className="text-sm text-text-muted">Preview • {pages.length} pages</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Action buttons */}
+            {showActions && bookId && (
+              <>
+                <Link
+                  href={`/book/${bookId}/edit`}
+                  className="px-3 py-1.5 bg-brand-purple border border-brand-purple-muted text-white text-sm font-bold rounded-full hover:bg-brand-purple-light transition-colors flex items-center gap-1.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit
+                </Link>
+                <Link
+                  href={`/book/${bookId}`}
+                  className="px-3 py-1.5 bg-accent-gold text-brand-dark text-sm font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-1.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                  Full Page
+                </Link>
+              </>
+            )}
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-2 rounded-lg hover:bg-brand-purple-muted transition-colors text-text-muted hover:text-white"

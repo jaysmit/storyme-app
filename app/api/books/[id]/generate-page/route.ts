@@ -63,10 +63,12 @@ export async function POST(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    // Verify book is in generating_full status
-    if (book.status !== "generating_full") {
+    // Allow generation for books in generating_full, completed, or preview_ready status
+    // This enables regeneration of failed/missing pages after initial generation
+    const allowedStatuses = ["generating_full", "completed", "preview_ready", "cover_approved"];
+    if (!allowedStatuses.includes(book.status)) {
       return NextResponse.json(
-        { error: `Cannot generate page - book status is "${book.status}", expected "generating_full"` },
+        { error: `Cannot generate page - book status is "${book.status}", expected one of: ${allowedStatuses.join(", ")}` },
         { status: 400 }
       );
     }
