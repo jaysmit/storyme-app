@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Character, IdentityProfile } from "@/lib/types";
 import { TOKEN_COSTS } from "@/lib/types";
 
@@ -67,7 +67,7 @@ const SKIN_TONES = [
   { value: "deep ebony", hex: "#2c1810" },
 ];
 
-// Color swatch dropdown component
+// Color swatch dropdown component with fixed positioning
 function ColorSelect({
   label,
   value,
@@ -82,12 +82,38 @@ function ColorSelect({
   disabled?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const selectedOption = options.find((o) => o.value === value) || options[0];
 
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = 280; // max-h-70 (280px)
+
+      // Check if dropdown would go below viewport
+      const spaceBelow = viewportHeight - rect.bottom;
+      const openUpward = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+      setDropdownStyle({
+        position: 'fixed',
+        left: rect.left,
+        width: rect.width,
+        ...(openUpward
+          ? { bottom: viewportHeight - rect.top + 4 }
+          : { top: rect.bottom + 4 }
+        ),
+      });
+    }
+  }, [isOpen]);
+
   return (
-    <div className="relative">
+    <div>
       <label className="block text-xs text-text-muted mb-1.5">{label}</label>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
@@ -111,11 +137,16 @@ function ColorSelect({
 
       {isOpen && (
         <>
+          {/* Backdrop to close dropdown */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[60]"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full left-0 right-0 mt-2 bg-brand-purple border border-brand-purple-muted rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
+          {/* Dropdown - fixed position relative to viewport */}
+          <div
+            className="bg-brand-purple border border-brand-purple-muted rounded-xl shadow-2xl z-[70] max-h-70 overflow-y-auto"
+            style={dropdownStyle}
+          >
             <div className="grid grid-cols-4 gap-1 p-2">
               {options.map((option) => (
                 <button
