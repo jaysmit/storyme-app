@@ -9,6 +9,27 @@ interface Page {
   story_text?: string;
 }
 
+interface TextOverlay {
+  pageNumber: number;
+  text: string;
+  position: { x: number; y: number }; // percentage from top-left
+  fontSize: number;
+  fontColor: string;
+  backgroundColor: string;
+  textAlign: "left" | "center" | "right";
+  visible: boolean;
+}
+
+// Default overlay styling for pages without custom overlays
+const DEFAULT_OVERLAY_STYLE = {
+  position: { x: 50, y: 85 }, // Center bottom
+  fontSize: 18,
+  fontColor: "#FFFFFF",
+  backgroundColor: "rgba(0,0,0,0.7)",
+  textAlign: "center" as const,
+  visible: true,
+};
+
 interface BookViewerProps {
   pages: Page[];
   title: string;
@@ -17,6 +38,7 @@ interface BookViewerProps {
   generatingProgress?: number;
   onMinimize?: () => void;
   generationStartTime?: number;
+  textOverlays?: TextOverlay[];
 }
 
 export default function BookViewer({
@@ -27,6 +49,7 @@ export default function BookViewer({
   generatingProgress = 0,
   onMinimize,
   generationStartTime,
+  textOverlays = [],
 }: BookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -208,6 +231,26 @@ export default function BookViewer({
 
   const page = pages[currentPage];
 
+  // Get text overlay for current page (from saved overlays or use story_text with defaults)
+  const getPageOverlay = (pageNum: number, storyText?: string): TextOverlay | null => {
+    // First check for saved overlay
+    const savedOverlay = textOverlays.find((o) => o.pageNumber === pageNum);
+    if (savedOverlay) return savedOverlay;
+
+    // If no saved overlay but we have story text, create a default one
+    if (storyText) {
+      return {
+        pageNumber: pageNum,
+        text: storyText,
+        ...DEFAULT_OVERLAY_STYLE,
+      };
+    }
+
+    return null;
+  };
+
+  const currentOverlay = getPageOverlay(page.page_number, page.story_text);
+
   return (
     <div className={`${isFullscreen ? "fixed inset-0 z-50 bg-brand-dark p-4" : ""}`}>
       <div className={`bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden ${isFullscreen ? "h-full flex flex-col" : ""}`}>
@@ -256,15 +299,28 @@ export default function BookViewer({
               className="w-full h-full object-contain"
             />
 
-            {/* Page title and story text overlay */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6">
-              <span className="text-accent-gold text-sm font-bold">Page {page.page_number}</span>
-              <h4 className="text-2xl font-black text-white mb-2">{page.title}</h4>
-              {page.story_text && (
-                <p className="text-white/90 text-lg font-medium leading-relaxed max-w-3xl">
-                  {page.story_text}
-                </p>
-              )}
+            {/* Text overlay - positioned on page */}
+            {currentOverlay?.visible && currentOverlay?.text && (
+              <div
+                className="absolute px-4 py-3 rounded-lg max-w-[80%] pointer-events-none"
+                style={{
+                  left: `${currentOverlay.position.x}%`,
+                  top: `${currentOverlay.position.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  fontSize: `${currentOverlay.fontSize}px`,
+                  color: currentOverlay.fontColor,
+                  backgroundColor: currentOverlay.backgroundColor,
+                  textAlign: currentOverlay.textAlign,
+                  lineHeight: 1.4,
+                }}
+              >
+                {currentOverlay.text}
+              </div>
+            )}
+
+            {/* Page number indicator - subtle bottom left */}
+            <div className="absolute bottom-3 left-3 bg-black/50 px-2 py-1 rounded text-xs text-white/70">
+              Page {page.page_number}
             </div>
 
             {/* Navigation arrows */}

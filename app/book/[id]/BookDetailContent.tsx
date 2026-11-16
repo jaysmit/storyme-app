@@ -6,12 +6,39 @@ import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import BookViewer from "@/components/BookViewer";
 
+interface TextOverlay {
+  pageNumber: number;
+  text: string;
+  position: { x: number; y: number };
+  fontSize: number;
+  fontColor: string;
+  backgroundColor: string;
+  textAlign: "left" | "center" | "right";
+  visible: boolean;
+}
+
+interface PersonalizedPage {
+  page_number: number;
+  title: string;
+  story_text: string;
+}
+
+interface BookPage {
+  page_number: number;
+  url: string;
+  title: string;
+  story_text?: string;
+}
+
 interface Book {
   id: string;
   status: string;
-  preview_pages: { page_number: number; url: string; title: string }[];
+  preview_pages: BookPage[];
+  personalized_pages?: PersonalizedPage[];
+  text_overlays?: TextOverlay[];
   metadata?: {
     storySlug?: string;
+    bookId?: string;
     artStyle?: string;
   };
   created_at: string;
@@ -34,6 +61,7 @@ export default function BookDetailContent({ bookId }: Props) {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pagesWithText, setPagesWithText] = useState<BookPage[]>([]);
 
   useEffect(() => {
     fetchBook();
@@ -45,7 +73,50 @@ export default function BookDetailContent({ bookId }: Props) {
       const res = await fetch(`/api/books/${bookId}`);
       if (res.ok) {
         const data = await res.json();
-        setBook(data.book);
+        const bookData = data.book as Book;
+        setBook(bookData);
+
+        // Build pages with story text
+        const pages = (bookData.preview_pages || []).map((p) => ({
+          ...p,
+          story_text: undefined as string | undefined,
+        }));
+
+        // Merge personalized text if available
+        if (bookData.personalized_pages && bookData.personalized_pages.length > 0) {
+          for (const page of pages) {
+            const personalized = bookData.personalized_pages.find(
+              (pp) => pp.page_number === page.page_number
+            );
+            if (personalized) {
+              page.title = personalized.title;
+              page.story_text = personalized.story_text;
+            }
+          }
+        } else if (bookData.metadata?.bookId) {
+          // Try to fetch story text from API
+          try {
+            const storyRes = await fetch(`/api/books/${bookId}/story-text`);
+            if (storyRes.ok) {
+              const storyData = await storyRes.json();
+              if (storyData.format === "v2" && storyData.pages) {
+                for (const page of pages) {
+                  const storyPage = storyData.pages.find(
+                    (sp: PersonalizedPage) => sp.page_number === page.page_number
+                  );
+                  if (storyPage) {
+                    page.title = storyPage.title;
+                    page.story_text = storyPage.story_text;
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch story text:", err);
+          }
+        }
+
+        setPagesWithText(pages);
       } else {
         setError("Book not found");
       }
@@ -119,7 +190,7 @@ export default function BookDetailContent({ bookId }: Props) {
               </Link>
               <h1 className="text-4xl font-black text-white">{storyTitle}</h1>
               <p className="text-lg text-text-muted mt-2">
-                {book.preview_pages.length} preview pages • {book.metadata?.artStyle || "glow"} style
+                {pagesWithText.length} preview pages • {book.metadata?.artStyle || "glow"} style
               </p>
             </div>
 
@@ -138,9 +209,13 @@ export default function BookDetailContent({ bookId }: Props) {
               isGenerating={true}
               generatingProgress={50}
             />
-          ) : book.preview_pages.length > 0 ? (
+          ) : pagesWithText.length > 0 ? (
             <>
-              <BookViewer pages={book.preview_pages} title={storyTitle} />
+              <BookViewer
+                pages={pagesWithText}
+                title={storyTitle}
+                textOverlays={book.text_overlays}
+              />
 
               {/* Actions */}
               <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">

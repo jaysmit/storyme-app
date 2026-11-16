@@ -12,11 +12,23 @@ interface PersonalizedPage {
   story_text: string;
 }
 
+interface TextOverlay {
+  pageNumber: number;
+  text: string;
+  position: { x: number; y: number };
+  fontSize: number;
+  fontColor: string;
+  backgroundColor: string;
+  textAlign: "left" | "center" | "right";
+  visible: boolean;
+}
+
 interface Book {
   id: string;
   status: string;
   preview_pages: { page_number: number; url: string; title?: string }[];
   personalized_pages?: PersonalizedPage[];
+  text_overlays?: TextOverlay[];
   characters_snapshot?: { id: string; name: string; generated_image_url?: string }[];
   metadata?: {
     storySlug?: string;
@@ -190,15 +202,19 @@ export default function BooksPage() {
   const [previewBook, setPreviewBook] = useState<Book | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewPages, setPreviewPages] = useState<{ page_number: number; url: string; title: string; story_text?: string }[]>([]);
+  const [previewOverlays, setPreviewOverlays] = useState<TextOverlay[]>([]);
 
   useEffect(() => {
     fetchBooks();
   }, []);
 
-  // When a book is selected for preview, fetch its story text
+  // When a book is selected for preview, fetch its story text and overlays
   async function openPreview(book: Book) {
     setPreviewBook(book);
     setPreviewLoading(true);
+
+    // Set text overlays from book if available
+    setPreviewOverlays(book.text_overlays || []);
 
     // Build pages array with images
     const pages = (book.preview_pages || []).map((p) => ({
@@ -248,6 +264,7 @@ export default function BooksPage() {
   function closePreview() {
     setPreviewBook(null);
     setPreviewPages([]);
+    setPreviewOverlays([]);
   }
 
   async function fetchBooks() {
@@ -401,6 +418,7 @@ export default function BooksPage() {
                 pages={previewPages}
                 title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
                 onClose={closePreview}
+                textOverlays={previewOverlays}
               />
             )}
           </div>
