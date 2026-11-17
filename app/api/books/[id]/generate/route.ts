@@ -4,6 +4,12 @@ import { getOpenAI } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
 import {
+  startGenerationLog,
+  completeGenerationLog,
+  failGenerationLog,
+  type GenerationLogResult,
+} from "@/lib/generation-logs";
+import {
   loadBlueprintWithFormat,
   loadBlueprintCover,
   buildPromptFromBlueprint,
@@ -310,6 +316,20 @@ async function handleV2Generation(
 ) {
   const serviceClient = createServiceClient();
   const openai = getOpenAI();
+  const isRegenerate = !!editInstructions || (book.metadata as Record<string, unknown>)?.hasGeneratedCover === true;
+
+  // Start generation log
+  const generationLog = await startGenerationLog({
+    user_id: user.id,
+    book_id: id,
+    event_type: isRegenerate ? "cover_regenerate" : "cover_generate",
+    page_number: 0,
+    character_count: characters.length,
+    blueprint_id: bookId,
+    blueprint_format: "v2",
+    edit_instructions: editInstructions || undefined,
+    is_regenerate: isRegenerate,
+  });
 
   // Get cover page (page 1 in V2)
   const coverPage = getV2CoverPage(blueprint);
@@ -459,37 +479,54 @@ async function handleV2Generation(
   console.log("\nCalling OpenAI images.edit (V2)...");
   const startTime = Date.now();
 
-  const response = await openai.images.edit({
-    model: "gpt-image-2.5-sunburst",
-    image: allImageFiles,
-    prompt,
-    n: 1,
-    size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
-    quality: "high",
-    output_format: "jpeg",
-  });
-
-  const elapsedTime = Date.now() - startTime;
-  console.log(`V2 OpenAI response in: ${elapsedTime}ms`);
-
-  const imageData = response.data?.[0];
+  let response;
   let outputBuffer: Buffer | null = null;
 
-  if (imageData?.b64_json) {
-    outputBuffer = Buffer.from(imageData.b64_json, "base64");
-  } else if (imageData?.url) {
-    const imgResponse = await fetch(imageData.url);
-    if (!imgResponse.ok) {
-      throw new Error(`Failed to download generated image: ${imgResponse.status}`);
+  try {
+    response = await openai.images.edit({
+      model: "gpt-image-2.5-sunburst",
+      image: allImageFiles,
+      prompt,
+      n: 1,
+      size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+      quality: "high",
+      output_format: "jpeg",
+    });
+
+    const elapsedTime = Date.now() - startTime;
+    console.log(`V2 OpenAI response in: ${elapsedTime}ms`);
+
+    const imageData = response.data?.[0];
+
+    if (imageData?.b64_json) {
+      outputBuffer = Buffer.from(imageData.b64_json, "base64");
+    } else if (imageData?.url) {
+      const imgResponse = await fetch(imageData.url);
+      if (!imgResponse.ok) {
+        throw new Error(`Failed to download generated image: ${imgResponse.status}`);
+      }
+      outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
     }
-    outputBuffer = Buffer.from(await imgResponse.arrayBuffer());
-  }
 
-  if (!outputBuffer) {
-    throw new Error("OpenAI returned no image data");
-  }
+    if (!outputBuffer) {
+      throw new Error("OpenAI returned no image data");
+    }
 
-  console.log(`V2 Image buffer size: ${outputBuffer.length} bytes`);
+    console.log(`V2 Image buffer size: ${outputBuffer.length} bytes`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("V2 generation error:", errorMessage);
+
+    // Fail generation log
+    if (generationLog) {
+      await failGenerationLog(generationLog.id, errorMessage);
+    }
+
+    // Update book status
+    await supabase.from("books").update({ status: "failed" }).eq("id", id);
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
+  }
 
   // Upload to storage
   const fileName = `${user.id}/${id}/cover.jpg`;
@@ -501,7 +538,11 @@ async function handleV2Generation(
     });
 
   if (uploadError) {
-    throw new Error(`Storage upload failed: ${uploadError.message}`);
+    const errorMessage = `Storage upload failed: ${uploadError.message}`;
+    if (generationLog) {
+      await failGenerationLog(generationLog.id, errorMessage);
+    }
+    throw new Error(errorMessage);
   }
 
   const { data: { publicUrl } } = serviceClient.storage
@@ -581,6 +622,19 @@ async function handleV2Generation(
     `V2 Cover: "${blueprint.title}" (${characters.length} characters)`
   );
 
+  // Complete generation log
+  if (generationLog) {
+    await completeGenerationLog(generationLog.id, {
+      tokens_used: tokenCost,
+      output_url: publicUrl,
+      image_size: outputSize,
+      metadata: {
+        blueprint_title: blueprint.title,
+        name_mapping: nameMapping,
+      },
+    });
+  }
+
   return NextResponse.json({
     book: updatedBook,
     pages: generatedPages,
@@ -606,6 +660,9 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Track V1 generation log at outer scope for error handling
+  let v1GenerationLog: { id: string; startedAt: Date } | null = null;
 
   try {
     // Get the book
@@ -828,6 +885,20 @@ export async function POST(
 
     // Update status to generating
     await supabase.from("books").update({ status: "generating" }).eq("id", id);
+
+    // Start generation log for V1
+    const v1IsRegenerate = !!editInstructions || (book.metadata as Record<string, unknown>)?.hasGeneratedCover === true;
+    v1GenerationLog = await startGenerationLog({
+      user_id: user.id,
+      book_id: id,
+      event_type: v1IsRegenerate ? "cover_regenerate" : "cover_generate",
+      page_number: 0,
+      character_count: characters.length,
+      blueprint_id: bookId,
+      blueprint_format: "v1",
+      edit_instructions: editInstructions || undefined,
+      is_regenerate: v1IsRegenerate,
+    });
 
     // ============================================
     // Assign characters to crew slots
@@ -1102,6 +1173,22 @@ export async function POST(
       `Cover: "${blueprint.title}" (${characters.length} characters)`
     );
 
+    // Complete generation log for V1
+    if (v1GenerationLog) {
+      await completeGenerationLog(v1GenerationLog.id, {
+        tokens_used: tokenCost,
+        output_url: publicUrl,
+        image_size: outputSize,
+        metadata: {
+          blueprint_title: blueprint.title,
+          crew_assignments: crewAssignments.map(a => ({
+            slotId: a.slotId,
+            characterName: a.characterName,
+          })),
+        },
+      });
+    }
+
     return NextResponse.json({
       book: updatedBook,
       pages: generatedPages,
@@ -1117,6 +1204,13 @@ export async function POST(
 
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
+
+    // Fail generation log if V1 log was started
+    // Note: V2 handles its own logging in handleV2Generation
+    if (v1GenerationLog) {
+      await failGenerationLog(v1GenerationLog.id, errorMessage);
+    }
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

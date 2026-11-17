@@ -92,6 +92,33 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-17)
+- [x] **Generation Analytics Logging System** - Track all generation events for user flow analysis
+  - New `generation_logs` table with comprehensive tracking:
+    - Event types: cover_generate, cover_regenerate, page_generate, page_regenerate, caricature_generate, caricature_regenerate
+    - Timing: started_at, completed_at, duration_ms
+    - Status: started, completed, failed (with error_message)
+    - Details: page_number, character_count, blueprint_id, blueprint_format
+    - User edits: edit_instructions, is_regenerate
+    - Output: tokens_used, output_url, image_size, model_used
+    - Flexible metadata JSONB
+  - New `lib/generation-logs.ts` utility with:
+    - `startGenerationLog()` - Begin tracking a generation
+    - `completeGenerationLog()` - Mark success with output details
+    - `failGenerationLog()` - Mark failure with error message
+  - Logging integrated into all generation routes:
+    - `/api/books/[id]/generate` - V1 and V2 cover generation
+    - `/api/books/[id]/generate-page` - Interior page generation
+    - `/api/characters/[id]/generate` - Caricature generation
+  - `generation_analytics` SQL view for quick aggregate queries
+  - Migration: `014_generation_logs.sql`
+  - RLS policies: Users can view own logs, service role can manage all
+
+- [x] **Cover Regeneration Cache Busting** - Fixed regenerated images not updating in UI
+  - Issue: Regenerated covers uploaded to same filename (cover.jpg), browser cached old version
+  - Solution: Added cache-busting timestamp to image URLs (`?t=${Date.now()}`)
+  - Applied in BookEditContent.tsx when receiving new image URL
+
 ### Recent Changes (2026-11-16)
 - [x] **Character Priority Order Fix** - Character hierarchy now respected in generation
   - Added `reorderCharacters()` utility function to both `generate/route.ts` and `generate-page/route.ts`

@@ -3,6 +3,11 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI, artStylePrompts } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS } from "@/lib/types";
+import {
+  startGenerationLog,
+  completeGenerationLog,
+  failGenerationLog,
+} from "@/lib/generation-logs";
 
 // POST /api/characters/[id]/generate - Generate AI character image from photo
 export async function POST(
@@ -56,6 +61,9 @@ export async function POST(
     );
   }
 
+  // Track generation log at outer scope for error handling
+  let generationLog: { id: string; startedAt: Date } | null = null;
+
   try {
     // Get art style and optional feedback from request body
     const body = await request.json().catch(() => ({}));
@@ -68,6 +76,21 @@ export async function POST(
       .from("characters")
       .update({ generation_status: "generating" })
       .eq("id", id);
+
+    // Start generation log
+    const isRegenerate = !!character.generated_image_url || !!userFeedback;
+    generationLog = await startGenerationLog({
+      user_id: user.id,
+      event_type: isRegenerate ? "caricature_regenerate" : "caricature_generate",
+      character_count: 1,
+      edit_instructions: userFeedback,
+      is_regenerate: isRegenerate,
+      metadata: {
+        character_id: id,
+        character_name: character.name,
+        art_style: artStyle,
+      },
+    });
 
     // Step 1: Download the original photo
     console.log("Downloading original photo for character:", character.name);
@@ -507,6 +530,20 @@ Before finalising, ensure:
           `Generated illustration for ${character.name}`
         );
 
+        // Complete generation log (retry case)
+        if (generationLog) {
+          await completeGenerationLog(generationLog.id, {
+            tokens_used: tokenCost,
+            output_url: publicUrl,
+            image_size: "1024x1024",
+            metadata: {
+              character_name: character.name,
+              art_style: artStyle,
+              retry_case: true,
+            },
+          });
+        }
+
         return NextResponse.json({
           character: { ...retryCharacter, physical_description: physicalDescription },
           tokensUsed: tokenCost,
@@ -526,6 +563,19 @@ Before finalising, ensure:
       `Generated illustration for ${character.name}`
     );
 
+    // Complete generation log
+    if (generationLog) {
+      await completeGenerationLog(generationLog.id, {
+        tokens_used: tokenCost,
+        output_url: publicUrl,
+        image_size: "1024x1024",
+        metadata: {
+          character_name: character.name,
+          art_style: artStyle,
+        },
+      });
+    }
+
     return NextResponse.json({
       character: updatedCharacter,
       tokensUsed: tokenCost,
@@ -540,10 +590,15 @@ Before finalising, ensure:
       .update({ generation_status: "failed" })
       .eq("id", id);
 
+    // Fail generation log
+    const errorMessage = error instanceof Error ? error.message : "Failed to generate image";
+    if (generationLog) {
+      await failGenerationLog(generationLog.id, errorMessage);
+    }
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to generate image",
+        error: errorMessage,
       },
       { status: 500 }
     );

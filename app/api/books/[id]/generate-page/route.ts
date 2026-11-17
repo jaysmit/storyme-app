@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateSinglePage, type CharacterInput } from "@/lib/page-generation";
 import { type PageStatus } from "@/lib/types";
+import {
+  startGenerationLog,
+  completeGenerationLog,
+  failGenerationLog,
+} from "@/lib/generation-logs";
 
 /**
  * Reorder characters to match the specified order of IDs.
@@ -131,6 +136,18 @@ export async function POST(
       })
       .eq("id", id);
 
+    // Start generation log for interior page
+    const generationLog = await startGenerationLog({
+      user_id: user.id,
+      book_id: id,
+      event_type: pageStatus.retryCount > 0 ? "page_regenerate" : "page_generate",
+      page_number: pageStatus.pageNumber,
+      character_count: config.characterIds.length,
+      blueprint_id: config.bookId,
+      blueprint_format: book.blueprint_format || "v1",
+      is_regenerate: pageStatus.retryCount > 0,
+    });
+
     // Use characters snapshot if available (resilient to deleted characters)
     // Otherwise fall back to fetching from database
     let characters: CharacterInput[] = [];
@@ -245,6 +262,18 @@ export async function POST(
 
       // Note: Tokens were already deducted upfront in start-full-generation
 
+      // Complete generation log
+      if (generationLog) {
+        await completeGenerationLog(generationLog.id, {
+          tokens_used: 1, // 1 token per page
+          output_url: result.url,
+          metadata: {
+            page_id: pageId,
+            page_number: result.pageNumber,
+          },
+        });
+      }
+
       return NextResponse.json({
         pageId,
         pageNumber: result.pageNumber,
@@ -269,6 +298,11 @@ export async function POST(
         })
         .eq("id", id);
 
+      // Fail generation log
+      if (generationLog) {
+        await failGenerationLog(generationLog.id, result.error || "Unknown error");
+      }
+
       return NextResponse.json(
         {
           pageId,
@@ -281,6 +315,10 @@ export async function POST(
   } catch (error) {
     console.error("Error generating page:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    // Note: generationLog may not be in scope if error happened before it was created
+    // The log will remain in "started" status if not completed/failed
+
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

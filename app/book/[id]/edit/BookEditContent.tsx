@@ -322,16 +322,26 @@ export default function BookEditContent({ bookId }: Props) {
         }
 
         const data = await res.json();
+        console.log("Cover regeneration response:", data);
 
-        // Update book state with new cover
+        // Update book state with new cover (add cache-busting timestamp)
         if (data.pages && data.pages.length > 0) {
+          const newUrl = data.pages[0].url;
+          // Add timestamp to bust browser cache
+          const cacheBustedUrl = newUrl.includes("?")
+            ? `${newUrl}&t=${Date.now()}`
+            : `${newUrl}?t=${Date.now()}`;
+          console.log("New cover URL:", cacheBustedUrl);
+
           setBook((prev) => {
             if (!prev) return prev;
             const newPreviewPages = prev.preview_pages.map((p) =>
-              p.page_number === 0 ? { ...p, url: data.pages[0].url } : p
+              p.page_number === 0 ? { ...p, url: cacheBustedUrl } : p
             );
             return { ...prev, preview_pages: newPreviewPages };
           });
+        } else {
+          console.error("No pages in response:", data);
         }
       } else {
         // For interior pages
@@ -360,16 +370,25 @@ export default function BookEditContent({ bookId }: Props) {
         }
 
         const data = await res.json();
+        console.log("Page regeneration response:", data);
 
-        // Update book state with new page
+        // Update book state with new page (add cache-busting timestamp)
         if (data.url) {
+          const newUrl = data.url;
+          const cacheBustedUrl = newUrl.includes("?")
+            ? `${newUrl}&t=${Date.now()}`
+            : `${newUrl}?t=${Date.now()}`;
+          console.log("New page URL:", cacheBustedUrl);
+
           setBook((prev) => {
             if (!prev) return prev;
             const newPreviewPages = prev.preview_pages.map((p) =>
-              p.page_number === currentPageData.page_number ? { ...p, url: data.url } : p
+              p.page_number === currentPageData.page_number ? { ...p, url: cacheBustedUrl } : p
             );
             return { ...prev, preview_pages: newPreviewPages };
           });
+        } else {
+          console.error("No URL in response:", data);
         }
       }
 
