@@ -49,12 +49,15 @@ interface Book {
   created_at: string;
 }
 
+type BookCategory = "cover" | "book" | "error";
+
 const storyTitles: Record<string, string> = {
   "dragon-castle-valley": "The Dragon of Castle Valley",
   "the-dragon-of-castle-valley": "The Dragon of Castle Valley",
   "fairy-glade": "The Fairy Glade",
   "the-fairy-glade": "The Fairy Glade",
   "grand-final-day": "Grand Final Day",
+  "essendon-five": "Essendon Five",
   "cloud-ship": "Captain of the Cloud Ship",
   "captain-of-the-cloud-ship": "Captain of the Cloud Ship",
   "super-squad": "The Super Squad and the Sorceress",
@@ -63,40 +66,66 @@ const storyTitles: Record<string, string> = {
   "the-great-galaxy-road-trip": "The Great Galaxy Road Trip",
 };
 
-const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  draft: { label: "Draft", color: "text-text-muted", bgColor: "bg-gray-500/30" },
-  generating: { label: "Generating...", color: "text-accent-gold", bgColor: "bg-accent-gold/20" },
-  preview_ready: { label: "Cover Ready", color: "text-accent-teal", bgColor: "bg-accent-teal/20" },
-  cover_approved: { label: "Ready to Generate", color: "text-accent-gold", bgColor: "bg-accent-gold/20" },
-  generating_full: { label: "Generating Pages...", color: "text-accent-gold", bgColor: "bg-accent-gold/20" },
-  completed: { label: "Complete", color: "text-green-400", bgColor: "bg-green-500/20" },
-  purchased: { label: "Purchased", color: "text-accent-pink", bgColor: "bg-accent-pink/20" },
-  failed: { label: "Failed", color: "text-red-400", bgColor: "bg-red-500/20" },
-};
+function getStoryTitle(book: Book): string {
+  const slug = book.metadata?.bookId || book.metadata?.storySlug || "";
+  return storyTitles[slug] || "Custom Story";
+}
+
+// Determine which category a book belongs to
+function categorizeBook(book: Book): BookCategory {
+  // Check for errors first - books with failed/pending pages
+  if (book.page_statuses && book.page_statuses.length > 0) {
+    const hasErrors = book.page_statuses.some(
+      (p) => p.status === "failed" || p.status === "pending"
+    );
+    if (hasErrors) return "error";
+  }
+
+  // Completed books
+  if (book.status === "completed" || book.status === "purchased") {
+    return "book";
+  }
+
+  // Everything else is a cover (preview_ready, cover_approved, generating, draft, etc.)
+  return "cover";
+}
 
 function BookCard({
   book,
+  category,
   onDelete,
-  isPreview,
   onPreview,
 }: {
   book: Book;
+  category: BookCategory;
   onDelete: (id: string) => void;
-  isPreview: boolean;
-  onPreview: (book: Book) => void;
+  onPreview: (book: Book, category: BookCategory) => void;
 }) {
-  const storySlug = book.metadata?.bookId || book.metadata?.storySlug || "";
-  const storyTitle = storyTitles[storySlug] || "Custom Story";
-  const status = statusConfig[book.status] || statusConfig.draft;
+  const storyTitle = getStoryTitle(book);
   const coverUrl = book.preview_pages?.find((p) => p.page_number === 0)?.url;
   const characterCount = book.metadata?.characterCount || book.characters_snapshot?.length || 0;
   const pageCount = book.preview_pages?.length || 0;
+
+  // Get status badge based on category
+  const getStatusBadge = () => {
+    if (category === "error") {
+      const failedCount = book.page_statuses?.filter((p) => p.status === "failed" || p.status === "pending").length || 0;
+      return { label: `${failedCount} page${failedCount !== 1 ? "s" : ""} failed`, color: "text-red-400", bgColor: "bg-red-500/20" };
+    }
+    if (category === "book") {
+      return { label: "Complete", color: "text-green-400", bgColor: "bg-green-500/20" };
+    }
+    // Cover
+    return { label: "Cover Ready", color: "text-accent-teal", bgColor: "bg-accent-teal/20" };
+  };
+
+  const status = getStatusBadge();
 
   return (
     <div className="bg-brand-purple-light border border-brand-purple-muted rounded-2xl overflow-hidden group hover:border-accent-gold/50 transition-colors">
       {/* Cover preview - clickable to open preview modal */}
       <button
-        onClick={() => onPreview(book)}
+        onClick={() => onPreview(book, category)}
         className="aspect-[4/3] w-full bg-gradient-to-br from-[#6B5BB0] to-[#1E1B4B] relative overflow-hidden cursor-pointer"
       >
         {coverUrl ? (
@@ -123,9 +152,7 @@ function BookCard({
         </div>
 
         {/* Status badge */}
-        <div
-          className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold ${status.bgColor} ${status.color}`}
-        >
+        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold ${status.bgColor} ${status.color}`}>
           {status.label}
         </div>
 
@@ -168,28 +195,53 @@ function BookCard({
         </p>
 
         <div className="flex gap-2">
-          {isPreview ? (
+          {category === "cover" && (
             <>
               <Link
                 href={`/create?book=${book.id}`}
                 className="flex-1 px-4 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full text-center hover:bg-accent-gold-light transition-colors text-sm"
               >
-                Continue
+                Generate Book
               </Link>
-              <Link
-                href={`/book/${book.id}`}
-                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full text-center hover:border-accent-gold hover:text-white transition-colors text-sm"
+              <button
+                onClick={() => onPreview(book, category)}
+                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-accent-gold hover:text-white transition-colors text-sm"
               >
                 Preview
-              </Link>
+              </button>
             </>
-          ) : (
-            <Link
-              href={`/book/${book.id}`}
-              className="flex-1 px-4 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full text-center hover:bg-accent-gold-light transition-colors text-sm"
-            >
-              View Book
-            </Link>
+          )}
+          {category === "book" && (
+            <>
+              <Link
+                href={`/book/${book.id}/print`}
+                className="flex-1 px-4 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full text-center hover:bg-accent-gold-light transition-colors text-sm"
+              >
+                Print Book
+              </Link>
+              <button
+                onClick={() => onPreview(book, category)}
+                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-accent-gold hover:text-white transition-colors text-sm"
+              >
+                Preview
+              </button>
+            </>
+          )}
+          {category === "error" && (
+            <>
+              <Link
+                href={`/create?book=${book.id}`}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-full text-center hover:bg-red-400 transition-colors text-sm"
+              >
+                Fix Errors
+              </Link>
+              <button
+                onClick={() => onPreview(book, category)}
+                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-accent-gold hover:text-white transition-colors text-sm"
+              >
+                Preview
+              </button>
+            </>
           )}
           <button
             onClick={() => onDelete(book.id)}
@@ -212,11 +264,11 @@ function BooksPageContent() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewBook, setPreviewBook] = useState<Book | null>(null);
+  const [previewCategory, setPreviewCategory] = useState<BookCategory>("cover");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewPages, setPreviewPages] = useState<{ page_number: number; url: string; title: string; story_text?: string }[]>([]);
   const [previewOverlays, setPreviewOverlays] = useState<TextOverlay[]>([]);
   const [missingPages, setMissingPages] = useState<PageStatus[]>([]);
-  const [regenerating, setRegenerating] = useState(false);
   const [autoPreviewHandled, setAutoPreviewHandled] = useState(false);
 
   useEffect(() => {
@@ -231,21 +283,20 @@ function BooksPageContent() {
     if (previewId) {
       const bookToPreview = books.find((b) => b.id === previewId);
       if (bookToPreview) {
-        openPreview(bookToPreview);
-        // Clear the URL parameter without triggering navigation
+        const category = categorizeBook(bookToPreview);
+        openPreview(bookToPreview, category);
         router.replace("/books", { scroll: false });
       }
       setAutoPreviewHandled(true);
     }
   }, [loading, books, searchParams, autoPreviewHandled]);
 
-  // When a book is selected for preview, fetch its story text and overlays
-  async function openPreview(book: Book) {
+  async function openPreview(book: Book, category: BookCategory) {
     setPreviewBook(book);
+    setPreviewCategory(category);
     setPreviewLoading(true);
     setMissingPages([]);
 
-    // Set text overlays from book if available
     setPreviewOverlays(book.text_overlays || []);
 
     // Check for missing/failed pages
@@ -306,106 +357,6 @@ function BooksPageContent() {
     setPreviewPages([]);
     setPreviewOverlays([]);
     setMissingPages([]);
-    setRegenerating(false);
-  }
-
-  // Regenerate missing/failed pages
-  async function regenerateMissingPages() {
-    if (!previewBook || missingPages.length === 0) return;
-
-    setRegenerating(true);
-
-    try {
-      // Retry each missing page
-      const retryPromises = missingPages.map(async (page) => {
-        try {
-          const res = await fetch(`/api/books/${previewBook.id}/retry-page`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pageId: page.pageId }),
-          });
-
-          if (!res.ok) {
-            console.error(`Failed to retry ${page.pageId}`);
-            return null;
-          }
-
-          // Now generate the page
-          const genRes = await fetch(`/api/books/${previewBook.id}/generate-page`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pageId: page.pageId }),
-          });
-
-          if (genRes.ok) {
-            const data = await genRes.json();
-            return { pageId: page.pageId, url: data.url, status: data.status };
-          }
-          return null;
-        } catch (err) {
-          console.error(`Error regenerating ${page.pageId}:`, err);
-          return null;
-        }
-      });
-
-      const results = await Promise.all(retryPromises);
-      const successful = results.filter((r) => r && r.status === "completed");
-
-      if (successful.length > 0) {
-        // Refresh the book data
-        const res = await fetch(`/api/books/${previewBook.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          const updatedBook = data.book as Book;
-
-          // Update the preview with new pages
-          setPreviewBook(updatedBook);
-
-          // Rebuild pages array
-          const pages = (updatedBook.preview_pages || []).map((p) => ({
-            page_number: p.page_number,
-            url: p.url,
-            title: p.title || `Page ${p.page_number}`,
-            story_text: undefined as string | undefined,
-          }));
-
-          // Merge story text
-          if (updatedBook.personalized_pages) {
-            for (const page of pages) {
-              const personalized = updatedBook.personalized_pages.find(
-                (pp) => pp.page_number === page.page_number
-              );
-              if (personalized) {
-                page.title = personalized.title;
-                page.story_text = personalized.story_text;
-              }
-            }
-          }
-
-          setPreviewPages(pages);
-          setPreviewOverlays(updatedBook.text_overlays || []);
-
-          // Update missing pages
-          if (updatedBook.page_statuses) {
-            const stillMissing = updatedBook.page_statuses.filter(
-              (p) => p.status === "failed" || p.status === "pending"
-            );
-            setMissingPages(stillMissing);
-          } else {
-            setMissingPages([]);
-          }
-
-          // Also update the book in the main list
-          setBooks((prev) =>
-            prev.map((b) => (b.id === updatedBook.id ? updatedBook : b))
-          );
-        }
-      }
-    } catch (err) {
-      console.error("Error regenerating pages:", err);
-    }
-
-    setRegenerating(false);
   }
 
   async function fetchBooks() {
@@ -429,18 +380,19 @@ function BooksPageContent() {
       const res = await fetch(`/api/books/${id}`, { method: "DELETE" });
       if (res.ok) {
         setBooks((prev) => prev.filter((b) => b.id !== id));
+        if (previewBook?.id === id) {
+          closePreview();
+        }
       }
     } catch (error) {
       console.error("Failed to delete book:", error);
     }
   }
 
-  // Separate previews from completed books
-  const previewStatuses = ["draft", "generating", "preview_ready", "cover_approved", "generating_full", "failed"];
-  const completedStatuses = ["completed", "purchased"];
-
-  const previews = books.filter((b) => previewStatuses.includes(b.status));
-  const completed = books.filter((b) => completedStatuses.includes(b.status));
+  // Categorize all books
+  const covers = books.filter((b) => categorizeBook(b) === "cover");
+  const completedBooks = books.filter((b) => categorizeBook(b) === "book");
+  const errorBooks = books.filter((b) => categorizeBook(b) === "error");
 
   return (
     <div className="min-h-screen bg-brand-dark flex flex-col">
@@ -452,7 +404,7 @@ function BooksPageContent() {
             <div>
               <h1 className="text-4xl font-black text-white mb-2">My Books</h1>
               <p className="text-lg text-text-muted">
-                Your personalized storybooks and works in progress.
+                Your personalized storybooks and covers.
               </p>
             </div>
             <Link
@@ -487,25 +439,25 @@ function BooksPageContent() {
             </div>
           ) : (
             <div className="space-y-12">
-              {/* Works in Progress */}
-              {previews.length > 0 && (
+              {/* Errors Section - Show first if any */}
+              {errorBooks.length > 0 && (
                 <section>
                   <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-2xl font-black text-white">Works in Progress</h2>
-                    <span className="px-3 py-1 bg-accent-gold/20 text-accent-gold rounded-full text-sm font-bold">
-                      {previews.length}
+                    <h2 className="text-2xl font-black text-white">Needs Attention</h2>
+                    <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-bold">
+                      {errorBooks.length}
                     </span>
                   </div>
                   <p className="text-text-muted mb-6">
-                    Continue where you left off or generate the full book.
+                    These books have pages that failed to generate. Click to fix.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {previews.map((book) => (
+                    {errorBooks.map((book) => (
                       <BookCard
                         key={book.id}
                         book={book}
+                        category="error"
                         onDelete={deleteBook}
-                        isPreview={true}
                         onPreview={openPreview}
                       />
                     ))}
@@ -513,25 +465,51 @@ function BooksPageContent() {
                 </section>
               )}
 
-              {/* Completed Books */}
-              {completed.length > 0 && (
+              {/* Covers Section */}
+              {covers.length > 0 && (
                 <section>
                   <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-2xl font-black text-white">Completed Books</h2>
+                    <h2 className="text-2xl font-black text-white">Covers</h2>
                     <span className="px-3 py-1 bg-accent-teal/20 text-accent-teal rounded-full text-sm font-bold">
-                      {completed.length}
+                      {covers.length}
                     </span>
                   </div>
                   <p className="text-text-muted mb-6">
-                    Your finished storybooks ready to view or purchase.
+                    Cover previews ready. Generate the full book when you&apos;re happy with the cover.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {completed.map((book) => (
+                    {covers.map((book) => (
                       <BookCard
                         key={book.id}
                         book={book}
+                        category="cover"
                         onDelete={deleteBook}
-                        isPreview={false}
+                        onPreview={openPreview}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Completed Books Section */}
+              {completedBooks.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-3 mb-6">
+                    <h2 className="text-2xl font-black text-white">Books</h2>
+                    <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-bold">
+                      {completedBooks.length}
+                    </span>
+                  </div>
+                  <p className="text-text-muted mb-6">
+                    Completed storybooks ready to print.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {completedBooks.map((book) => (
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        category="book"
+                        onDelete={deleteBook}
                         onPreview={openPreview}
                       />
                     ))}
@@ -547,67 +525,129 @@ function BooksPageContent() {
 
       {/* Preview Modal */}
       {previewBook && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80">
-          <div className="w-full max-w-5xl max-h-[90vh] overflow-auto">
-            {previewLoading ? (
-              <div className="bg-brand-purple-light rounded-3xl p-12 text-center">
-                <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-text-muted">Loading preview...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Missing pages warning */}
-                {missingPages.length > 0 && (
-                  <div className="bg-amber-500/20 border border-amber-500/50 rounded-2xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/30 flex items-center justify-center">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2">
-                          <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-amber-200 font-bold">
-                          {missingPages.length} page{missingPages.length !== 1 ? "s" : ""} missing
-                        </p>
-                        <p className="text-amber-200/70 text-sm">
-                          {missingPages.map((p) => `Page ${p.pageNumber}`).join(", ")}
-                        </p>
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/80">
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-auto p-4 pb-24">
+            <div className="max-w-5xl mx-auto">
+              {previewLoading ? (
+                <div className="bg-brand-purple-light rounded-3xl p-12 text-center">
+                  <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-text-muted">Loading preview...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Missing pages warning for errors */}
+                  {missingPages.length > 0 && (
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-red-500/30 flex items-center justify-center shrink-0">
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-red-200 font-bold">
+                            {missingPages.length} page{missingPages.length !== 1 ? "s" : ""} need attention
+                          </p>
+                          <p className="text-red-200/70 text-sm">
+                            {missingPages.map((p) => `Page ${p.pageNumber}`).join(", ")}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <button
-                      onClick={regenerateMissingPages}
-                      disabled={regenerating}
-                      className="px-4 py-2 bg-amber-500 text-black font-bold rounded-full hover:bg-amber-400 disabled:opacity-50 transition-colors flex items-center gap-2"
-                    >
-                      {regenerating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                          Regenerating...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6M1 20v-6h6" />
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                          </svg>
-                          Regenerate
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+                  )}
 
-                {/* Book viewer with action buttons inside */}
-                <BookViewer
-                  pages={previewPages}
-                  title={storyTitles[previewBook.metadata?.bookId || previewBook.metadata?.storySlug || ""] || "Your Story"}
-                  onClose={closePreview}
-                  textOverlays={previewOverlays}
-                  bookId={previewBook.id}
-                  showActions={true}
-                />
+                  {/* Book viewer */}
+                  <BookViewer
+                    pages={previewPages}
+                    title={getStoryTitle(previewBook)}
+                    onClose={closePreview}
+                    textOverlays={previewOverlays}
+                    bookId={previewBook.id}
+                    showActions={false}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Fixed bottom action bar */}
+          <div className="bg-brand-purple-light border-t border-brand-purple-muted p-4">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+              {/* Left side - close button */}
+              <button
+                onClick={closePreview}
+                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-white hover:text-white transition-colors flex items-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+                Close
+              </button>
+
+              {/* Right side - action buttons */}
+              <div className="flex items-center gap-3">
+                {previewCategory === "cover" && (
+                  <>
+                    <Link
+                      href={`/book/${previewBook.id}/edit?page=0`}
+                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit Cover
+                    </Link>
+                    <Link
+                      href={`/create?book=${previewBook.id}`}
+                      className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      Generate Book
+                    </Link>
+                  </>
+                )}
+                {previewCategory === "book" && (
+                  <>
+                    <Link
+                      href={`/book/${previewBook.id}/edit`}
+                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit Book
+                    </Link>
+                    <Link
+                      href={`/book/${previewBook.id}/print`}
+                      className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                      </svg>
+                      Print Book
+                    </Link>
+                  </>
+                )}
+                {previewCategory === "error" && (
+                  <Link
+                    href={`/create?book=${previewBook.id}`}
+                    className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-full hover:bg-red-400 transition-colors flex items-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M23 4v6h-6M1 20v-6h6" />
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                    </svg>
+                    Fix & Regenerate
+                  </Link>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
