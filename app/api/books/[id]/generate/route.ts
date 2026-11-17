@@ -305,7 +305,8 @@ async function handleV2Generation(
   user: { id: string },
   id: string,
   book: { metadata?: Record<string, unknown> },
-  supabase: Awaited<ReturnType<typeof createClient>>
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  editInstructions: string = ""
 ) {
   const serviceClient = createServiceClient();
   const openai = getOpenAI();
@@ -397,7 +398,13 @@ async function handleV2Generation(
   // ============================================
   // Build V2 prompt (pass removals for characters to be deleted from scene)
   // ============================================
-  const prompt = buildPromptFromV2Blueprint(blueprint, coverPage, assignments, removals);
+  let prompt = buildPromptFromV2Blueprint(blueprint, coverPage, assignments, removals);
+
+  // Append edit instructions if provided (for regeneration)
+  if (editInstructions) {
+    prompt += `\n\n## USER EDIT INSTRUCTIONS\n\nThe user has requested the following changes:\n${editInstructions}\n\nPlease apply these changes while maintaining the overall style and composition.`;
+    console.log("Edit instructions appended to V2 prompt");
+  }
 
   console.log("\n=== V2 FULL PROMPT SENT TO OPENAI ===");
   console.log("Prompt length:", prompt.length, "characters");
@@ -613,6 +620,12 @@ export async function POST(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
+    // Get generation params
+    const body = await request.json().catch(() => ({}));
+    const isRegenerate = body.regenerate === true;
+    const editInstructions = body.editInstructions || "";
+
+    // Only block if currently generating (not for regeneration of preview_ready/completed)
     if (book.status === "generating") {
       return NextResponse.json(
         { error: "Generation already in progress" },
@@ -636,11 +649,21 @@ export async function POST(
       );
     }
 
-    // Get generation params
-    const body = await request.json().catch(() => ({}));
+    console.log(`=== COVER GENERATION ${isRegenerate ? "(REGENERATE)" : ""} ===`);
+    if (editInstructions) {
+      console.log(`Edit instructions: ${editInstructions}`);
+    }
+
     const rawBookId = body.bookId || book.metadata?.bookId || book.metadata?.storySlug;
-    const characterIds: string[] =
-      body.characterIds || book.metadata?.characterIds || [];
+
+    // For regeneration, use snapshot; otherwise use provided or stored character IDs
+    let characterIds: string[] = body.characterIds || book.metadata?.characterIds || [];
+
+    // If regenerating with snapshot, extract IDs from snapshot
+    if (isRegenerate && book.characters_snapshot && book.characters_snapshot.length > 0) {
+      characterIds = book.characters_snapshot.map((c: { id: string }) => c.id);
+      console.log(`Using characters_snapshot for regeneration: ${characterIds.length} characters`);
+    }
 
     if (!rawBookId) {
       return NextResponse.json(
@@ -669,46 +692,54 @@ export async function POST(
     }
 
     // ============================================
-    // Fetch characters from database (needed for both V1 and V2)
+    // Fetch characters from database OR use snapshot for regeneration
     // ============================================
-    let charData: CharacterInput[] | null = null;
-    let charError: { message: string } | null = null;
+    let characters: CharacterInput[] = [];
 
-    const { data: data1, error: error1 } = await supabase
-      .from("characters")
-      .select("id, name, character_type, pet_type, age, height_cm, generated_image_url, identity_profile, identity_confirmed")
-      .in("id", characterIds);
-
-    if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {
-      // Some columns don't exist, try minimal query
-      console.log("Some columns not found, fetching minimal set");
-      const { data: data2, error: error2 } = await supabase
-        .from("characters")
-        .select("id, name, character_type, pet_type, generated_image_url")
-        .in("id", characterIds);
-      charData = data2;
-      charError = error2;
+    if (isRegenerate && book.characters_snapshot && book.characters_snapshot.length > 0) {
+      // Use snapshot for regeneration - no need to fetch from database
+      console.log("Using characters_snapshot for regeneration");
+      characters = book.characters_snapshot as CharacterInput[];
     } else {
-      charData = data1;
-      charError = error1;
-    }
+      // Fetch fresh from database
+      let charData: CharacterInput[] | null = null;
+      let charError: { message: string } | null = null;
 
-    if (charError) {
-      return NextResponse.json(
-        { error: `Failed to fetch characters: ${charError.message}` },
-        { status: 500 }
-      );
-    }
+      const { data: data1, error: error1 } = await supabase
+        .from("characters")
+        .select("id, name, character_type, pet_type, age, height_cm, generated_image_url, identity_profile, identity_confirmed")
+        .in("id", characterIds);
 
-    // Reorder characters to match the original characterIds order
-    // This is critical because .in() doesn't preserve order, and character priority matters
-    const rawCharacters: CharacterInput[] = charData || [];
-    const characters = reorderCharacters(rawCharacters, characterIds);
+      if (error1?.message?.includes("age") || error1?.message?.includes("identity")) {
+        // Some columns don't exist, try minimal query
+        console.log("Some columns not found, fetching minimal set");
+        const { data: data2, error: error2 } = await supabase
+          .from("characters")
+          .select("id, name, character_type, pet_type, generated_image_url")
+          .in("id", characterIds);
+        charData = data2;
+        charError = error2;
+      } else {
+        charData = data1;
+        charError = error1;
+      }
+
+      if (charError) {
+        return NextResponse.json(
+          { error: `Failed to fetch characters: ${charError.message}` },
+          { status: 500 }
+        );
+      }
+
+      // Reorder characters to match the original characterIds order
+      // This is critical because .in() doesn't preserve order, and character priority matters
+      const rawCharacters: CharacterInput[] = charData || [];
+      characters = reorderCharacters(rawCharacters, characterIds);
+    }
 
     console.log("=== CHARACTER ORDER DEBUG ===");
-    console.log("Requested order:", characterIds.map((id, i) => `${i + 1}. ${id.substring(0, 8)}`).join(", "));
-    console.log("Database order:", rawCharacters.map((c, i) => `${i + 1}. ${c.name}`).join(", "));
-    console.log("Final order:", characters.map((c, i) => `${i + 1}. ${c.name} (age: ${c.age}, height: ${c.height_cm}cm)`).join(", "));
+    console.log("Requested order:", characterIds.map((id: string, i: number) => `${i + 1}. ${id.substring(0, 8)}`).join(", "));
+    console.log("Final order:", characters.map((c: CharacterInput, i: number) => `${i + 1}. ${c.name} (age: ${c.age}, height: ${c.height_cm}cm)`).join(", "));
     console.log("===========================");
 
     // Validate all characters have generated images
@@ -759,7 +790,8 @@ export async function POST(
         user,
         id,
         book,
-        supabase
+        supabase,
+        editInstructions
       );
     }
 
@@ -875,7 +907,13 @@ export async function POST(
     // ============================================
     // Build prompt from blueprint
     // ============================================
-    const prompt = buildPromptFromBlueprint(blueprint, coverPage, crewAssignments);
+    let prompt = buildPromptFromBlueprint(blueprint, coverPage, crewAssignments);
+
+    // Append edit instructions if provided (for regeneration)
+    if (editInstructions) {
+      prompt += `\n\n## USER EDIT INSTRUCTIONS\n\nThe user has requested the following changes:\n${editInstructions}\n\nPlease apply these changes while maintaining the overall style and composition.`;
+      console.log("Edit instructions appended to prompt");
+    }
 
     console.log("\n=== FULL PROMPT SENT TO OPENAI ===");
     console.log("Prompt length:", prompt.length, "characters");

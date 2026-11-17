@@ -128,6 +128,24 @@ export default function BookEditContent({ bookId }: Props) {
   const [imageEditPrompt, setImageEditPrompt] = useState("");
   const [regenerating, setRegenerating] = useState(false);
   const [regenerateError, setRegenerateError] = useState<string | null>(null);
+  const [regenerateProgress, setRegenerateProgress] = useState(0);
+  const [regenerateStartTime, setRegenerateStartTime] = useState<number | null>(null);
+
+  // Estimated time for regeneration (in seconds)
+  const ESTIMATED_GENERATION_TIME = 45; // 45 seconds estimate
+
+  // Progress timer effect
+  useEffect(() => {
+    if (!regenerating || !regenerateStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - regenerateStartTime) / 1000;
+      const progress = Math.min((elapsed / ESTIMATED_GENERATION_TIME) * 100, 95);
+      setRegenerateProgress(progress);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [regenerating, regenerateStartTime]);
 
   // Load book data
   useEffect(() => {
@@ -283,6 +301,8 @@ export default function BookEditContent({ bookId }: Props) {
 
     setRegenerating(true);
     setRegenerateError(null);
+    setRegenerateProgress(0);
+    setRegenerateStartTime(Date.now());
 
     try {
       // For cover (page 0), retry and regenerate
@@ -354,12 +374,14 @@ export default function BookEditContent({ bookId }: Props) {
       }
 
       setImageEditPrompt("");
+      setRegenerateProgress(100);
     } catch (error) {
       console.error("Regenerate error:", error);
       setRegenerateError(error instanceof Error ? error.message : "Failed to regenerate");
     }
 
     setRegenerating(false);
+    setRegenerateStartTime(null);
   };
 
   // Get character info for display
@@ -541,12 +563,27 @@ export default function BookEditContent({ bookId }: Props) {
                     </div>
                   )}
 
-                  {/* Regenerating overlay */}
+                  {/* Regenerating overlay with progress */}
                   {regenerating && (
-                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                      <div className="text-center">
+                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                      <div className="text-center w-64">
                         <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                        <p className="text-white font-bold">Regenerating image...</p>
+                        <p className="text-white font-bold mb-3">Regenerating image...</p>
+
+                        {/* Progress bar */}
+                        <div className="bg-brand-purple-muted rounded-full h-2 overflow-hidden mb-2">
+                          <div
+                            className="bg-accent-gold h-full transition-all duration-500 ease-out"
+                            style={{ width: `${regenerateProgress}%` }}
+                          />
+                        </div>
+
+                        {/* Time estimate */}
+                        <p className="text-sm text-text-muted">
+                          {regenerateProgress < 95
+                            ? `Estimated: ~${Math.max(0, Math.round(ESTIMATED_GENERATION_TIME - (regenerateProgress / 100) * ESTIMATED_GENERATION_TIME))}s remaining`
+                            : "Almost done..."}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -887,7 +924,7 @@ export default function BookEditContent({ bookId }: Props) {
                       </div>
                     )}
 
-                    {/* Regenerate button */}
+                    {/* Regenerate button with token cost */}
                     <button
                       onClick={regenerateImage}
                       disabled={regenerating}
@@ -904,13 +941,13 @@ export default function BookEditContent({ bookId }: Props) {
                             <path d="M23 4v6h-6M1 20v-6h6" />
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
                           </svg>
-                          Regenerate Image
+                          Regenerate (1 token)
                         </>
                       )}
                     </button>
 
                     <p className="text-xs text-text-muted text-center">
-                      Regenerating uses 1 token. Leave the text box empty to regenerate without changes.
+                      Leave the description empty to regenerate without changes.
                     </p>
                   </>
                 )}
