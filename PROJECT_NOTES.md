@@ -205,14 +205,15 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Maintains target concurrency of 3 pages (triggers enough to reach target after each completion)
   - Faster book completion through parallelism
 
-- [x] **Vercel Cron Job for Background Generation** - True server-side generation
-  - New `/api/cron/generate-books` endpoint runs every minute
+- [x] **Vercel Cron Job for Background Generation** - Backup recovery for stalled books
+  - New `/api/cron/generate-books` endpoint runs daily (Hobby plan limit)
   - Finds all books in `generating_full` or `incomplete` status
   - Triggers pending pages to maintain 3 concurrent per book
   - Detects stuck pages (generating >3 min) and retriggers them
-  - Works even when user leaves the app - generation continues
   - Protected by CRON_SECRET environment variable
-  - Added to `vercel.json` with `"schedule": "* * * * *"` (every minute)
+  - Added to `vercel.json` with `"schedule": "0 0 * * *"` (daily at midnight)
+  - **Note**: Hobby plan only allows daily cron - upgrade to Pro for minute-level
+  - Primary generation relies on chain triggering; cron is fallback for stuck books
 
 - [x] **Auto-Resume on Page Load** - When viewing progress, stalled generation auto-continues
   - `useBookGeneration.ts` checkResume now detects stalled pages
