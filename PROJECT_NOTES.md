@@ -191,6 +191,28 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-18 Evening)
+- [x] **Page Version History** - Previous image versions saved when regenerating
+  - New `PageVersion` type in `lib/types.ts` with url, createdAt, editInstructions
+  - `generate-page/route.ts` saves previous URL to `page_statuses[pageIndex].versions` (max 5)
+  - `generate/route.ts` saves cover versions, creates page_statuses entry for cover-only books
+  - New `/api/books/[id]/switch-version` endpoint swaps current with selected version
+  - Edit page refetches book after regeneration to get updated page_statuses
+  - Image tab shows "Previous Versions" thumbnails - click to swap
+- [x] **Unified BookViewer Actions** - Action buttons moved to header
+  - Edit/Generate/Print buttons now in header next to close button
+  - Icons only on mobile, text labels on desktop for better fit
+  - Removed bottom action bar
+- [x] **Server-Side Chain Generation** - Reliable background generation
+  - Each completed page triggers next pending page via fire-and-forget fetch
+  - `start-full-generation` triggers initial batch of 3 pages
+  - Simplified `useBookGeneration` hook to just poll for status
+  - New `/api/cron/process-pages` endpoint for manual recovery of stuck pages
+- [x] **Character Sex Field** - Pronoun support
+  - Added `sex` column to characters table (migration 016)
+  - Blue/pink sex selection buttons in CharacterFormModal
+  - `getPronouns()` helper in story-text.ts for `{{slot_subject}}`, `{{slot_possessive}}` etc.
+
 ### Recent Changes (2026-11-18)
 - [x] **Book Completion Validation System** - Ensure books are only marked complete when all pages generated
   - **Root cause fixed**: Books were marked "completed" when all pages in `page_statuses` completed, but validation didn't check if `page_statuses` contained all expected pages from blueprint
