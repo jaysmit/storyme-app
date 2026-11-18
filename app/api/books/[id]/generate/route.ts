@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getOpenAI } from "@/lib/openai";
 import { checkTokens, deductTokens } from "@/lib/tokens";
-import { TOKEN_COSTS } from "@/lib/types";
+import { TOKEN_COSTS, type PageStatus, type PageVersion } from "@/lib/types";
 import {
   startGenerationLog,
   completeGenerationLog,
@@ -310,7 +310,12 @@ async function handleV2Generation(
   characterIds: string[],
   user: { id: string },
   id: string,
-  book: { metadata?: Record<string, unknown> },
+  book: {
+    metadata?: Record<string, unknown>;
+    preview_pages?: Array<{ url: string; page_number: number }>;
+    page_statuses?: PageStatus[];
+    updated_at?: string;
+  },
   supabase: Awaited<ReturnType<typeof createClient>>,
   editInstructions: string = ""
 ) {
@@ -579,6 +584,36 @@ async function handleV2Generation(
   }));
 
   // ============================================
+  // Save previous cover version if regenerating
+  // ============================================
+  let updatedPageStatuses: PageStatus[] | undefined;
+  if (isRegenerate && book.preview_pages && book.preview_pages.length > 0) {
+    const oldCoverUrl = book.preview_pages[0]?.url;
+    if (oldCoverUrl) {
+      const pageStatuses: PageStatus[] = book.page_statuses || [];
+      const coverIndex = pageStatuses.findIndex((p) => p.pageNumber === 0);
+
+      if (coverIndex >= 0) {
+        // Add old cover to versions
+        const coverStatus = pageStatuses[coverIndex];
+        const versions: PageVersion[] = coverStatus.versions || [];
+        const newVersions = [
+          { url: oldCoverUrl, createdAt: book.updated_at || new Date().toISOString() },
+          ...versions,
+        ].slice(0, 5); // Keep max 5 versions
+
+        pageStatuses[coverIndex] = {
+          ...coverStatus,
+          url: publicUrl,
+          versions: newVersions,
+        };
+        updatedPageStatuses = pageStatuses;
+        console.log(`Saved previous V2 cover version, now have ${newVersions.length} versions`);
+      }
+    }
+  }
+
+  // ============================================
   // Update book with V2 metadata
   // ============================================
   const { data: updatedBook, error: updateError } = await supabase
@@ -590,6 +625,7 @@ async function handleV2Generation(
       name_mapping: nameMapping,
       personalized_pages: personalizedPages,
       blueprint_format: "v2",
+      ...(updatedPageStatuses && { page_statuses: updatedPageStatuses }),
       metadata: {
         ...book.metadata,
         bookId,
@@ -1134,6 +1170,35 @@ export async function POST(
     }));
 
     // ============================================
+    // Save previous cover version if regenerating
+    // ============================================
+    let v1UpdatedPageStatuses: PageStatus[] | undefined;
+    if (v1IsRegenerate && book.preview_pages?.length > 0) {
+      const oldCoverUrl = book.preview_pages[0]?.url;
+      if (oldCoverUrl) {
+        const pageStatuses: PageStatus[] = book.page_statuses || [];
+        const coverIndex = pageStatuses.findIndex((p) => p.pageNumber === 0);
+
+        if (coverIndex >= 0) {
+          const coverStatus = pageStatuses[coverIndex];
+          const versions: PageVersion[] = coverStatus.versions || [];
+          const newVersions = [
+            { url: oldCoverUrl, createdAt: book.updated_at || new Date().toISOString() },
+            ...versions,
+          ].slice(0, 5);
+
+          pageStatuses[coverIndex] = {
+            ...coverStatus,
+            url: publicUrl,
+            versions: newVersions,
+          };
+          v1UpdatedPageStatuses = pageStatuses;
+          console.log(`Saved previous V1 cover version, now have ${newVersions.length} versions`);
+        }
+      }
+    }
+
+    // ============================================
     // Update book with generation metadata
     // ============================================
     const { data: updatedBook, error: updateError } = await supabase
@@ -1142,6 +1207,7 @@ export async function POST(
         preview_pages: generatedPages,
         status: "preview_ready",
         characters_snapshot: charactersSnapshot,
+        ...(v1UpdatedPageStatuses && { page_statuses: v1UpdatedPageStatuses }),
         metadata: {
           ...book.metadata,
           bookId,

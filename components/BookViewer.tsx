@@ -306,47 +306,109 @@ export default function BookViewer({
     <div className={`${isFullscreen ? "fixed inset-0 z-50 bg-brand-dark p-4" : ""}`}>
       <div className={`bg-brand-purple-light border border-brand-purple-muted rounded-3xl overflow-hidden ${isFullscreen ? "h-full flex flex-col" : ""}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-brand-purple-muted">
-          <div>
-            <h3 className="text-lg font-bold text-white">{title}</h3>
-            <p className="text-sm text-text-muted">Preview • {pages.length} pages</p>
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-brand-purple-muted">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-base sm:text-lg font-bold text-white truncate">{title}</h3>
+            <p className="text-xs sm:text-sm text-text-muted">{pages.length} pages</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Category badge */}
-            {showActions && (
-              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                bookCategory === "cover" ? "bg-accent-teal/20 text-accent-teal" :
-                bookCategory === "book" ? "bg-green-500/20 text-green-400" :
-                bookCategory === "generating" ? "bg-amber-500/20 text-amber-400" :
-                "bg-red-500/20 text-red-400"
-              }`}>
-                {bookCategory === "cover" ? "Cover Ready" :
-                 bookCategory === "book" ? "Complete" :
-                 bookCategory === "generating" ? "Generating" :
-                 "Needs Recovery"}
-              </span>
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* Action buttons - icons on mobile, text on desktop */}
+            {showActions && bookId && (
+              <>
+                {/* Edit button */}
+                <Link
+                  href={bookCategory === "cover" ? `/book/${bookId}/edit?page=0` : `/book/${bookId}/edit`}
+                  className="p-2 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-full border border-brand-purple-muted text-white hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-1.5"
+                  title={bookCategory === "cover" ? "Edit Cover" : "Edit Book"}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  <span className="hidden sm:inline text-sm font-bold">Edit</span>
+                </Link>
+
+                {/* Primary action button */}
+                {bookCategory === "cover" && (
+                  <Link
+                    href={`/create?book=${bookId}`}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-full bg-accent-gold text-brand-dark hover:bg-accent-gold-light transition-colors flex items-center gap-1.5"
+                    title="Generate Book"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    <span className="hidden sm:inline text-sm font-bold">Generate</span>
+                  </Link>
+                )}
+                {bookCategory === "book" && (
+                  <Link
+                    href={`/book/${bookId}/print`}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-full bg-accent-gold text-brand-dark hover:bg-accent-gold-light transition-colors flex items-center gap-1.5"
+                    title="Print Book"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                      <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                    <span className="hidden sm:inline text-sm font-bold">Print</span>
+                  </Link>
+                )}
+                {(bookCategory === "generating" || bookCategory === "incomplete") && onRegenerateAll && (
+                  <button
+                    onClick={onRegenerateAll}
+                    disabled={isRegenerating}
+                    className={`p-2 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-full transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                      bookCategory === "incomplete"
+                        ? "bg-red-500 text-white hover:bg-red-400"
+                        : "bg-amber-500 text-brand-dark hover:bg-amber-400"
+                    }`}
+                    title={bookCategory === "incomplete" ? "Recover Pages" : "Regenerate All"}
+                  >
+                    {isRegenerating ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M23 4v6h-6M1 20v-6h6" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                      </svg>
+                    )}
+                    <span className="hidden sm:inline text-sm font-bold">
+                      {isRegenerating ? "..." : bookCategory === "incomplete" ? "Recover" : "Retry"}
+                    </span>
+                  </button>
+                )}
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-brand-purple-muted mx-1" />
+              </>
             )}
+
+            {/* Fullscreen button */}
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="p-2 rounded-lg hover:bg-brand-purple-muted transition-colors text-text-muted hover:text-white"
               title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             >
               {isFullscreen ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M8 3v3a2 2 0 0 1-2 2H3M21 8h-3a2 2 0 0 1-2-2V3M3 16h3a2 2 0 0 1 2 2v3M16 21v-3a2 2 0 0 1 2-2h3" />
                 </svg>
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
                 </svg>
               )}
             </button>
+
+            {/* Close button */}
             {onClose && (
               <button
                 onClick={onClose}
                 className="p-2 rounded-lg hover:bg-brand-purple-muted transition-colors text-text-muted hover:text-white"
+                title="Close"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
               </button>
@@ -505,105 +567,6 @@ export default function BookViewer({
           </p>
         </div>
 
-        {/* Action bar - shown when showActions is true */}
-        {showActions && bookId && (
-          <div className="p-4 border-t border-brand-purple-muted bg-brand-dark/50">
-            <div className="flex items-center justify-center gap-3">
-              {/* Cover actions */}
-              {bookCategory === "cover" && (
-                <>
-                  <Link
-                    href={`/book/${bookId}/edit?page=0`}
-                    className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    Edit Cover
-                  </Link>
-                  <Link
-                    href={`/create?book=${bookId}`}
-                    className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    Generate Book
-                  </Link>
-                </>
-              )}
-
-              {/* Completed book actions */}
-              {bookCategory === "book" && (
-                <>
-                  <Link
-                    href={`/book/${bookId}/edit`}
-                    className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    Edit Book
-                  </Link>
-                  <Link
-                    href={`/book/${bookId}/print`}
-                    className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                      <rect x="6" y="14" width="12" height="8" />
-                    </svg>
-                    Print Book
-                  </Link>
-                </>
-              )}
-
-              {/* Generating/Incomplete actions */}
-              {(bookCategory === "generating" || bookCategory === "incomplete") && (
-                <>
-                  <Link
-                    href={`/book/${bookId}/edit`}
-                    className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    Edit Pages
-                  </Link>
-                  {onRegenerateAll && (
-                    <button
-                      onClick={onRegenerateAll}
-                      disabled={isRegenerating}
-                      className={`px-6 py-2.5 font-bold rounded-full transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        bookCategory === "incomplete"
-                          ? "bg-red-500 text-white hover:bg-red-400"
-                          : "bg-amber-500 text-brand-dark hover:bg-amber-400"
-                      }`}
-                    >
-                      {isRegenerating ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          Regenerating...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6M1 20v-6h6" />
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                          </svg>
-                          {bookCategory === "incomplete" ? "Recover Pages" : "Regenerate All"}
-                        </>
-                      )}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
