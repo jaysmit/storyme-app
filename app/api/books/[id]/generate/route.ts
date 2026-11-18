@@ -535,7 +535,8 @@ async function handleV2Generation(
   }
 
   // Upload to storage
-  const fileName = `${user.id}/${id}/cover.jpg`;
+  // Use timestamped filename to avoid browser caching issues
+  const fileName = `${user.id}/${id}/cover-${Date.now()}.jpg`;
   const { error: uploadError } = await serviceClient.storage
     .from("previews")
     .upload(fileName, outputBuffer, {
@@ -1157,7 +1158,8 @@ export async function POST(
     console.log("=== END OPENAI RESPONSE ===\n");
 
     // Upload to storage
-    const fileName = `${user.id}/${id}/cover.jpg`;
+    // Use timestamped filename to avoid browser caching issues
+  const fileName = `${user.id}/${id}/cover-${Date.now()}.jpg`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
       .upload(fileName, outputBuffer, {

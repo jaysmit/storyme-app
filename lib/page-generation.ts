@@ -363,7 +363,8 @@ export async function generateSinglePage(
 
     // Upload to storage
     const serviceClient = createServiceClient();
-    const fileName = `${userId}/${bookDbId}/${pageId}.jpg`;
+    // Use timestamped filename to avoid browser caching
+  const fileName = `${userId}/${bookDbId}/${pageId}-${Date.now()}.jpg`;
     const { error: uploadError } = await serviceClient.storage
       .from("previews")
       .upload(fileName, outputBuffer, {
@@ -576,7 +577,8 @@ async function generateV2Page(
 
   // Upload to storage
   const serviceClient = createServiceClient();
-  const fileName = `${userId}/${bookDbId}/${pageId}.jpg`;
+  // Use timestamped filename to avoid browser caching
+  const fileName = `${userId}/${bookDbId}/${pageId}-${Date.now()}.jpg`;
   const { error: uploadError } = await serviceClient.storage
     .from("previews")
     .upload(fileName, outputBuffer, {
