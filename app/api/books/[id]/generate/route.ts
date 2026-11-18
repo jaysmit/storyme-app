@@ -312,9 +312,10 @@ async function handleV2Generation(
   id: string,
   book: {
     metadata?: Record<string, unknown>;
-    preview_pages?: Array<{ url: string; page_number: number }>;
+    preview_pages?: Array<{ url: string; page_number: number; title?: string }>;
     page_statuses?: PageStatus[];
     updated_at?: string;
+    status?: string;
   },
   supabase: Awaited<ReturnType<typeof createClient>>,
   editInstructions: string = ""
@@ -629,11 +630,25 @@ async function handleV2Generation(
   // ============================================
   // Update book with V2 metadata
   // ============================================
+  // For regeneration, merge new cover into existing pages instead of replacing all
+  let finalPreviewPages: Array<{ page_number: number; url: string; title?: string }> = generatedPages;
+  if (isRegenerate && book.preview_pages && book.preview_pages.length > 0) {
+    // Replace just the cover (page 0) in existing pages
+    finalPreviewPages = book.preview_pages.map((p) =>
+      p.page_number === 0 ? { ...p, url: publicUrl } : p
+    );
+    // If cover didn't exist, add it
+    if (!finalPreviewPages.some((p) => p.page_number === 0)) {
+      finalPreviewPages = [generatedPages[0], ...finalPreviewPages];
+    }
+    console.log(`Regeneration: merged new cover into ${finalPreviewPages.length} existing pages`);
+  }
+
   const { data: updatedBook, error: updateError } = await supabase
     .from("books")
     .update({
-      preview_pages: generatedPages,
-      status: "preview_ready",
+      preview_pages: finalPreviewPages,
+      ...(isRegenerate ? {} : { status: "preview_ready" }), // Keep status on regeneration
       characters_snapshot: charactersSnapshot,
       name_mapping: nameMapping,
       personalized_pages: personalizedPages,
@@ -1228,11 +1243,25 @@ export async function POST(
     // ============================================
     // Update book with generation metadata
     // ============================================
+    // For regeneration, merge new cover into existing pages instead of replacing all
+    let v1FinalPreviewPages: Array<{ page_number: number; url: string; title?: string }> = generatedPages;
+    if (v1IsRegenerate && book.preview_pages?.length > 0) {
+      // Replace just the cover (page 0) in existing pages
+      v1FinalPreviewPages = book.preview_pages.map((p: { page_number: number; url: string; title?: string }) =>
+        p.page_number === 0 ? { ...p, url: publicUrl } : p
+      );
+      // If cover didn't exist, add it
+      if (!v1FinalPreviewPages.some((p) => p.page_number === 0)) {
+        v1FinalPreviewPages = [generatedPages[0], ...v1FinalPreviewPages];
+      }
+      console.log(`V1 Regeneration: merged new cover into ${v1FinalPreviewPages.length} existing pages`);
+    }
+
     const { data: updatedBook, error: updateError } = await supabase
       .from("books")
       .update({
-        preview_pages: generatedPages,
-        status: "preview_ready",
+        preview_pages: v1FinalPreviewPages,
+        ...(v1IsRegenerate ? {} : { status: "preview_ready" }), // Keep status on regeneration
         characters_snapshot: charactersSnapshot,
         ...(v1UpdatedPageStatuses && { page_statuses: v1UpdatedPageStatuses }),
         metadata: {
