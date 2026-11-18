@@ -256,7 +256,7 @@ export function useBookGeneration({
     }
   }, [bookId, pageStatuses, isGenerating]);
 
-  // Check for resume on mount - if book is mid-generation, start polling
+  // Check for resume on mount - if book is mid-generation, start polling and trigger stalled pages
   useEffect(() => {
     const checkResume = async () => {
       try {
@@ -271,11 +271,56 @@ export function useBookGeneration({
           data.pageStatuses
         ) {
           setPageStatuses(data.pageStatuses);
-          const { pending, generating } = updateProgress(data.pageStatuses);
+          const { pending, generating, failed } = updateProgress(data.pageStatuses);
           setHasInteriorPages(true);
 
           // If there's work in progress, start polling
           if (pending > 0 || generating > 0) {
+            setIsGenerating(true);
+            isStartedRef.current = true;
+
+            // Auto-trigger stalled pages (stuck in "generating" for too long or pending with nothing running)
+            const stalledPages = (data.pageStatuses as PageStatus[]).filter((p) => {
+              if (p.status === "generating" && p.startedAt) {
+                const stalledMs = Date.now() - new Date(p.startedAt).getTime();
+                return stalledMs > 2 * 60 * 1000; // Stalled for 2+ minutes
+              }
+              return false;
+            });
+
+            // If nothing is actively generating but there are pending pages, kick them off
+            const activelyGenerating = (data.pageStatuses as PageStatus[]).filter((p) => {
+              if (p.status === "generating" && p.startedAt) {
+                const stalledMs = Date.now() - new Date(p.startedAt).getTime();
+                return stalledMs < 2 * 60 * 1000; // Active (started < 2 min ago)
+              }
+              return false;
+            });
+
+            if (activelyGenerating.length === 0 && (pending > 0 || stalledPages.length > 0)) {
+              console.log(`[RESUME] No active generation, triggering stalled/pending pages...`);
+              // Trigger up to 3 pages to restart generation
+              const toTrigger = [
+                ...stalledPages.slice(0, 3),
+                ...(data.pageStatuses as PageStatus[])
+                  .filter((p) => p.status === "pending")
+                  .slice(0, 3 - stalledPages.length),
+              ].slice(0, 3);
+
+              for (const page of toTrigger) {
+                fetch(`/api/books/${bookId}/generate-page`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ pageId: page.pageId, fromCron: true }),
+                }).catch(console.error);
+              }
+            }
+          }
+
+          // Auto-trigger failed pages if any
+          if (failed > 0 && generating === 0 && pending === 0) {
+            console.log(`[RESUME] ${failed} failed pages with no pending, suggesting retry...`);
+            // Don't auto-retry failed pages, but set isGenerating to show UI
             setIsGenerating(true);
             isStartedRef.current = true;
           }

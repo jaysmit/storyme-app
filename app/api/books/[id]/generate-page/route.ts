@@ -326,25 +326,37 @@ export async function POST(
         });
       }
 
-      // Chain trigger: If there are more pending pages, trigger the next one
-      // This creates a cascade effect for faster generation
+      // Chain trigger: Spawn multiple pending pages to maintain parallelism
+      // This keeps ~3 pages generating concurrently for faster completion
+      const CONCURRENT_TARGET = 3;
       if (!validation.isComplete && validation.pendingCount > 0) {
-        const nextPending = pageStatuses.find((p) => p.status === "pending");
-        if (nextPending) {
-          console.log(`[CHAIN] Triggering next pending page: ${nextPending.pageId}`);
+        const pendingPages = pageStatuses.filter((p) => p.status === "pending");
+        const generatingCount = pageStatuses.filter((p) => p.status === "generating").length;
+
+        // Trigger enough pages to maintain target concurrency
+        const toTriggerCount = Math.min(
+          CONCURRENT_TARGET - generatingCount,
+          pendingPages.length
+        );
+
+        if (toTriggerCount > 0) {
+          const pagesToTrigger = pendingPages.slice(0, toTriggerCount);
+          console.log(`[CHAIN] Triggering ${pagesToTrigger.length} pages to maintain ${CONCURRENT_TARGET} concurrent (${generatingCount} currently generating)`);
           const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://storyme-app-roan.vercel.app";
 
           // Fire and forget - don't await
-          fetch(`${baseUrl}/api/books/${id}/generate-page`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              pageId: nextPending.pageId,
-              fromCron: true, // Treat as background job
-            }),
-          }).catch((err) => {
-            console.error(`[CHAIN] Failed to trigger next page:`, err);
-          });
+          for (const page of pagesToTrigger) {
+            fetch(`${baseUrl}/api/books/${id}/generate-page`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                pageId: page.pageId,
+                fromCron: true, // Treat as background job
+              }),
+            }).catch((err) => {
+              console.error(`[CHAIN] Failed to trigger page ${page.pageId}:`, err);
+            });
+          }
         }
       }
 

@@ -199,12 +199,34 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Root cause: All images uploaded to same filename (cover.jpg), so URL never changed
   - Fix: Now uses timestamped filenames (cover-{timestamp}.jpg) for unique URLs
 
+### Recent Changes (2026-11-18 Night)
+- [x] **Parallel Page Generation** - Now generates 3 pages concurrently instead of 1
+  - `generate-page/route.ts` chain trigger updated to spawn multiple pages
+  - Maintains target concurrency of 3 pages (triggers enough to reach target after each completion)
+  - Faster book completion through parallelism
+
+- [x] **Vercel Cron Job for Background Generation** - True server-side generation
+  - New `/api/cron/generate-books` endpoint runs every minute
+  - Finds all books in `generating_full` or `incomplete` status
+  - Triggers pending pages to maintain 3 concurrent per book
+  - Detects stuck pages (generating >3 min) and retriggers them
+  - Works even when user leaves the app - generation continues
+  - Protected by CRON_SECRET environment variable
+  - Added to `vercel.json` with `"schedule": "* * * * *"` (every minute)
+
+- [x] **Auto-Resume on Page Load** - When viewing progress, stalled generation auto-continues
+  - `useBookGeneration.ts` checkResume now detects stalled pages
+  - Pages stuck in "generating" for >2 minutes are retriggered
+  - If nothing actively generating but pending pages exist, kicks off generation
+  - Up to 3 pages triggered on resume
+
+### Setup Required for Cron
+- [ ] Add `CRON_SECRET` environment variable to Vercel
+  - Generate a secure random string
+  - Add via: `vercel env add CRON_SECRET`
+  - Protects cron endpoint from unauthorized access
+
 ### Known Issues / TODO (2026-11-18)
-- [ ] **Generation stops when leaving website** - Server-side chain triggering relies on client polling; true background needed
-- [ ] **No progress animation** - Console shows "3 initial pages triggered" but no UI feedback
-- [ ] **Retry regenerates cover** - Should skip cover (already approved), only regenerate failed interior pages
-- [ ] **Only 1 page at a time** - Should generate 3-5 pages in parallel for speed
-- [ ] **No auto-resume** - When viewing progress, should auto-continue stalled generation with prompt
 - [ ] **Server logs hard to access** - Consider adding `/api/admin/logs` endpoint or use Vercel log drains
 - [ ] **Vercel log filtering** - Add consistent log prefixes like `[BOOK:xxx] [PAGE:y]` for easier filtering
 - [x] **Page Version History** - Previous image versions saved when regenerating

@@ -12,6 +12,15 @@
     },
     "app/api/characters/[id]/analyze/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/generate-books/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/generate-books",
+      "schedule": "* * * * *"
+    }
+  ]
 }
