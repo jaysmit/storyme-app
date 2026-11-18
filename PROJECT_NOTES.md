@@ -208,6 +208,13 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Updated `generate-page` route to use validation before marking complete
   - Updated `start-full-generation` to store expected contents
   - Non-negotiable principle added to STORYME_MASTER.md
+- [x] **Cover Generation Bug Fix** - Cover was using page 1 image instead of cover.png
+  - `getV2CoverPage()` was returning `page_number === 1` instead of `page_number === 0`
+  - Fixed to look for page_number 0 first, with fallback to 1 for backwards compatibility
+- [x] **UI Fixes**
+  - Sticky filter bar now sticks to top of viewport without gap (changed `top-[72px]` to `top-0`)
+  - Worlds page cards now link directly to preview page (`/worlds/${slug}/preview`)
+  - Books page categorization enhanced to detect missing pages from `generation_config.expectedPageCount`
 
 ### Recent Changes (2026-11-17)
 - [x] **Generation Analytics Logging System** - Track all generation events for user flow analysis
