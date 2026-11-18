@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateSinglePage, type CharacterInput } from "@/lib/page-generation";
-import { type PageStatus } from "@/lib/types";
+import { type PageStatus, type PageVersion } from "@/lib/types";
 import {
   startGenerationLog,
   completeGenerationLog,
@@ -232,6 +232,17 @@ export async function POST(
     );
 
     if (result.success && result.url) {
+      // Save previous version if there was an existing URL (regeneration)
+      let versions: PageVersion[] = pageStatus.versions || [];
+      if (pageStatus.url) {
+        // Add current URL to versions history (most recent first)
+        versions = [
+          { url: pageStatus.url, createdAt: pageStatus.completedAt || new Date().toISOString() },
+          ...versions,
+        ].slice(0, 5); // Keep max 5 versions
+        console.log(`Saved previous version for page ${pageId}, now have ${versions.length} versions`);
+      }
+
       // Update page status to completed
       pageStatuses[pageIndex] = {
         ...pageStatus,
@@ -239,6 +250,7 @@ export async function POST(
         url: result.url,
         completedAt: new Date().toISOString(),
         error: undefined,
+        versions,
       };
 
       // Update preview_pages array with this page

@@ -50,6 +50,13 @@ export const TOKEN_COSTS = {
   BOOK_PREVIEW_FULL: 3, // 3 preview pages (for later)
 } as const;
 
+// Version history for a page (stored when regenerating)
+export interface PageVersion {
+  url: string;
+  createdAt: string;
+  editInstructions?: string;  // What was requested for this version
+}
+
 // Page generation status for full book generation
 export interface PageStatus {
   pageId: string;         // "cover", "page-1", etc.
@@ -60,6 +67,7 @@ export interface PageStatus {
   startedAt?: string;
   completedAt?: string;
   retryCount: number;
+  versions?: PageVersion[];  // Previous versions (most recent first, max 5)
 }
 
 // Generation config stored in book for resume capability

@@ -41,6 +41,18 @@ interface PersonalizedPage {
   title?: string;
 }
 
+interface PageVersion {
+  url: string;
+  createdAt: string;
+}
+
+interface PageStatus {
+  pageId: string;
+  pageNumber: number;
+  url?: string;
+  versions?: PageVersion[];
+}
+
 interface Book {
   id: string;
   title?: string;
@@ -49,6 +61,7 @@ interface Book {
   text_overlays?: TextOverlay[];
   personalized_pages?: PersonalizedPage[];
   characters_snapshot?: CharacterSnapshot[];
+  page_statuses?: PageStatus[];
   metadata?: {
     bookId?: string;
   };
@@ -919,6 +932,79 @@ export default function BookEditContent({ bookId }: Props) {
                         </p>
                       </div>
                     </div>
+
+                    {/* Version history */}
+                    {(() => {
+                      const pageStatus = book?.page_statuses?.find(
+                        (ps) => ps.pageNumber === currentPageData?.page_number
+                      );
+                      const versions = pageStatus?.versions || [];
+                      if (versions.length === 0) return null;
+
+                      return (
+                        <div>
+                          <label className="block text-sm font-bold text-white mb-2">
+                            Previous Versions ({versions.length})
+                          </label>
+                          <div className="flex gap-2 overflow-x-auto py-2">
+                            {versions.map((version, index) => (
+                              <button
+                                key={index}
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(`/api/books/${bookId}/switch-version`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        pageId: pageStatus?.pageId,
+                                        versionIndex: index,
+                                      }),
+                                    });
+                                    if (res.ok) {
+                                      const data = await res.json();
+                                      // Update the book with swapped version
+                                      setBook((prev) => {
+                                        if (!prev) return prev;
+                                        return {
+                                          ...prev,
+                                          preview_pages: prev.preview_pages.map((p) =>
+                                            p.page_number === currentPageData?.page_number
+                                              ? { ...p, url: `${data.newUrl}?t=${Date.now()}` }
+                                              : p
+                                          ),
+                                        };
+                                      });
+                                      // Refetch to get updated versions
+                                      const bookRes = await fetch(`/api/books/${bookId}`);
+                                      if (bookRes.ok) {
+                                        const bookData = await bookRes.json();
+                                        setBook(bookData.book);
+                                      }
+                                    }
+                                  } catch (e) {
+                                    console.error("Failed to switch version:", e);
+                                  }
+                                }}
+                                className="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 border-brand-purple-muted hover:border-accent-gold transition-colors relative group"
+                                title={`Version from ${new Date(version.createdAt).toLocaleString()}`}
+                              >
+                                <img
+                                  src={version.url}
+                                  alt={`Version ${index + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <span className="text-xs text-white font-bold">Use</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-xs text-text-muted mt-1">
+                            Click a previous version to switch to it (current becomes a version).
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     {/* Edit instructions */}
                     <div>
