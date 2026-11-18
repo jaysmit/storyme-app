@@ -337,24 +337,19 @@ export default function BookEditContent({ bookId }: Props) {
         const data = await res.json();
         console.log("Cover regeneration response:", data);
 
-        // Update book state with new cover (add cache-busting timestamp)
-        if (data.pages && data.pages.length > 0) {
-          const newUrl = data.pages[0].url;
-          // Add timestamp to bust browser cache
-          const cacheBustedUrl = newUrl.includes("?")
-            ? `${newUrl}&t=${Date.now()}`
-            : `${newUrl}?t=${Date.now()}`;
-          console.log("New cover URL:", cacheBustedUrl);
-
-          setBook((prev) => {
-            if (!prev) return prev;
-            const newPreviewPages = prev.preview_pages.map((p) =>
-              p.page_number === 0 ? { ...p, url: cacheBustedUrl } : p
-            );
-            return { ...prev, preview_pages: newPreviewPages };
-          });
-        } else {
-          console.error("No pages in response:", data);
+        // Refetch the full book to get updated page_statuses with versions
+        const bookRes = await fetch(`/api/books/${bookId}`);
+        if (bookRes.ok) {
+          const bookData = await bookRes.json();
+          // Add cache-busting to cover URL
+          if (bookData.book?.preview_pages?.[0]?.url) {
+            const url = bookData.book.preview_pages[0].url;
+            bookData.book.preview_pages[0].url = url.includes("?")
+              ? `${url}&t=${Date.now()}`
+              : `${url}?t=${Date.now()}`;
+          }
+          setBook(bookData.book);
+          console.log("Book refetched with page_statuses:", bookData.book.page_statuses?.length || 0, "entries");
         }
       } else {
         // For interior pages
@@ -385,23 +380,22 @@ export default function BookEditContent({ bookId }: Props) {
         const data = await res.json();
         console.log("Page regeneration response:", data);
 
-        // Update book state with new page (add cache-busting timestamp)
-        if (data.url) {
-          const newUrl = data.url;
-          const cacheBustedUrl = newUrl.includes("?")
-            ? `${newUrl}&t=${Date.now()}`
-            : `${newUrl}?t=${Date.now()}`;
-          console.log("New page URL:", cacheBustedUrl);
-
-          setBook((prev) => {
-            if (!prev) return prev;
-            const newPreviewPages = prev.preview_pages.map((p) =>
-              p.page_number === currentPageData.page_number ? { ...p, url: cacheBustedUrl } : p
-            );
-            return { ...prev, preview_pages: newPreviewPages };
-          });
-        } else {
-          console.error("No URL in response:", data);
+        // Refetch the full book to get updated page_statuses with versions
+        const bookRes = await fetch(`/api/books/${bookId}`);
+        if (bookRes.ok) {
+          const bookData = await bookRes.json();
+          // Add cache-busting to the regenerated page URL
+          if (bookData.book?.preview_pages) {
+            bookData.book.preview_pages = bookData.book.preview_pages.map((p: BookPage) => {
+              if (p.page_number === currentPageData.page_number) {
+                const url = p.url;
+                return { ...p, url: url.includes("?") ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}` };
+              }
+              return p;
+            });
+          }
+          setBook(bookData.book);
+          console.log("Book refetched with page_statuses:", bookData.book.page_statuses?.length || 0, "entries");
         }
       }
 

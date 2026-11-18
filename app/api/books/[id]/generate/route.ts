@@ -594,7 +594,7 @@ async function handleV2Generation(
       const coverIndex = pageStatuses.findIndex((p) => p.pageNumber === 0);
 
       if (coverIndex >= 0) {
-        // Add old cover to versions
+        // Update existing cover entry with version
         const coverStatus = pageStatuses[coverIndex];
         const versions: PageVersion[] = coverStatus.versions || [];
         const newVersions = [
@@ -609,6 +609,19 @@ async function handleV2Generation(
         };
         updatedPageStatuses = pageStatuses;
         console.log(`Saved previous V2 cover version, now have ${newVersions.length} versions`);
+      } else {
+        // Create cover entry if it doesn't exist (for cover-only books)
+        const newCoverStatus: PageStatus = {
+          pageId: "cover",
+          pageNumber: 0,
+          status: "completed",
+          url: publicUrl,
+          completedAt: new Date().toISOString(),
+          retryCount: 0,
+          versions: [{ url: oldCoverUrl, createdAt: book.updated_at || new Date().toISOString() }],
+        };
+        updatedPageStatuses = [newCoverStatus, ...pageStatuses];
+        console.log(`Created V2 cover page_status with 1 previous version`);
       }
     }
   }
@@ -1180,6 +1193,7 @@ export async function POST(
         const coverIndex = pageStatuses.findIndex((p) => p.pageNumber === 0);
 
         if (coverIndex >= 0) {
+          // Update existing cover entry
           const coverStatus = pageStatuses[coverIndex];
           const versions: PageVersion[] = coverStatus.versions || [];
           const newVersions = [
@@ -1194,6 +1208,19 @@ export async function POST(
           };
           v1UpdatedPageStatuses = pageStatuses;
           console.log(`Saved previous V1 cover version, now have ${newVersions.length} versions`);
+        } else {
+          // Create cover entry if it doesn't exist
+          const newCoverStatus: PageStatus = {
+            pageId: "cover",
+            pageNumber: 0,
+            status: "completed",
+            url: publicUrl,
+            completedAt: new Date().toISOString(),
+            retryCount: 0,
+            versions: [{ url: oldCoverUrl, createdAt: book.updated_at || new Date().toISOString() }],
+          };
+          v1UpdatedPageStatuses = [newCoverStatus, ...pageStatuses];
+          console.log(`Created V1 cover page_status with 1 previous version`);
         }
       }
     }
