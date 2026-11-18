@@ -192,6 +192,9 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Error states and loading indicators throughout
 
 ### Recent Changes (2026-11-18 Evening)
+- [x] **Cover Regeneration Fix** - Critical bug where regenerating cover deleted all interior pages
+  - Issue: `preview_pages: generatedPages` replaced entire array with just new cover
+  - Fix: Now merges new cover into existing pages, preserves book status
 - [x] **Page Version History** - Previous image versions saved when regenerating
   - New `PageVersion` type in `lib/types.ts` with url, createdAt, editInstructions
   - `generate-page/route.ts` saves previous URL to `page_statuses[pageIndex].versions` (max 5)
