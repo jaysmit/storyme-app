@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Story {
   id?: string;
@@ -13,6 +13,14 @@ interface Story {
   cover_image_url?: string | null;
   coverImage?: string | null;
   format?: string;
+}
+
+interface BlueprintPage {
+  pageNumber: number;
+  title: string;
+  imageUrl: string | null;
+  storyText?: string;
+  isCover: boolean;
 }
 
 interface StoryPreviewModalProps {
@@ -67,12 +75,22 @@ export default function StoryPreviewModal({
   onSelect,
   showSelectButton = false,
 }: StoryPreviewModalProps) {
+  const [pages, setPages] = useState<BlueprintPage[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+
   // Close on escape
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" && pages.length > 0) {
+        setCurrentPage((prev) => Math.min(prev + 1, pages.length - 1));
+      }
+      if (e.key === "ArrowLeft" && pages.length > 0) {
+        setCurrentPage((prev) => Math.max(prev - 1, 0));
+      }
     },
-    [onClose]
+    [onClose, pages.length]
   );
 
   useEffect(() => {
@@ -86,12 +104,38 @@ export default function StoryPreviewModal({
     };
   }, [isOpen, handleKeyDown]);
 
+  // Fetch pages when modal opens for V2 books
+  useEffect(() => {
+    if (isOpen && story?.format === "v2") {
+      setLoading(true);
+      setCurrentPage(0);
+      fetch(`/api/blueprints/${story.slug}/pages`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.pages) {
+            setPages(data.pages);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch blueprint pages:", err);
+          setPages([]);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setPages([]);
+      setCurrentPage(0);
+    }
+  }, [isOpen, story?.slug, story?.format]);
+
   if (!isOpen || !story) return null;
 
   const imageUrl =
     story.cover_image_url || story.coverImage || storyImages[story.slug] || null;
   const pageCount = story.page_count || story.pageCount || 0;
   const icon = categoryIcons[story.category || ""] || "📖";
+  const isV2 = story.format === "v2";
+  const hasPages = pages.length > 0;
+  const currentPageData = hasPages ? pages[currentPage] : null;
 
   return (
     <div
@@ -99,7 +143,7 @@ export default function StoryPreviewModal({
       onClick={onClose}
     >
       <div
-        className="relative bg-brand-purple-light rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+        className="relative bg-brand-purple-light rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -120,9 +164,19 @@ export default function StoryPreviewModal({
           </svg>
         </button>
 
-        {/* Image */}
-        <div className="aspect-[4/3] bg-gradient-to-br from-purple-600 to-indigo-800 relative">
-          {imageUrl ? (
+        {/* Image area */}
+        <div className="relative aspect-[3/2] bg-gradient-to-br from-purple-600 to-indigo-800 flex-shrink-0">
+          {loading ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : isV2 && hasPages && currentPageData?.imageUrl ? (
+            <img
+              src={currentPageData.imageUrl}
+              alt={currentPageData.title || `Page ${currentPageData.pageNumber}`}
+              className="w-full h-full object-contain bg-black"
+            />
+          ) : imageUrl ? (
             <img
               src={imageUrl}
               alt={story.title}
@@ -134,28 +188,98 @@ export default function StoryPreviewModal({
             </div>
           )}
 
+          {/* Navigation arrows for V2 books */}
+          {isV2 && hasPages && (
+            <>
+              {currentPage > 0 && (
+                <button
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+              )}
+              {currentPage < pages.length - 1 && (
+                <button
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white transition-colors"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              )}
+            </>
+          )}
+
           {/* V2 badge */}
-          {story.format === "v2" && (
+          {isV2 && (
             <div className="absolute top-4 left-4 bg-accent-gold text-brand-dark text-xs font-bold px-3 py-1 rounded-full">
               ★ Premium
             </div>
           )}
 
           {/* Category badge */}
-          {story.category && (
+          {story.category && !isV2 && (
             <div className="absolute bottom-4 left-4 bg-white/20 backdrop-blur-sm text-white text-sm font-bold px-4 py-2 rounded-full capitalize flex items-center gap-2">
               <span>{icon}</span>
               {story.category}
             </div>
           )}
+
+          {/* Page indicator for V2 */}
+          {isV2 && hasPages && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-4 py-2 rounded-full text-white text-sm font-bold">
+              {currentPageData?.isCover ? "Cover" : `Page ${currentPageData?.pageNumber}`} of {pages.length - 1}
+            </div>
+          )}
         </div>
 
+        {/* Thumbnail strip for V2 books */}
+        {isV2 && hasPages && (
+          <div className="flex-shrink-0 p-3 bg-brand-dark border-t border-brand-purple-muted overflow-x-auto">
+            <div className="flex gap-2 justify-center">
+              {pages.map((page, idx) => (
+                <button
+                  key={page.pageNumber}
+                  onClick={() => setCurrentPage(idx)}
+                  className={`flex-shrink-0 rounded-lg overflow-hidden transition-all ${
+                    idx === currentPage
+                      ? "ring-2 ring-accent-gold scale-105"
+                      : "opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  {page.imageUrl ? (
+                    <img
+                      src={page.imageUrl}
+                      alt={page.title}
+                      className="w-16 h-10 object-cover"
+                    />
+                  ) : (
+                    <div className="w-16 h-10 bg-brand-purple-muted flex items-center justify-center text-xs text-text-muted">
+                      {page.isCover ? "Cover" : page.pageNumber}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="p-6">
-          <h2 className="text-2xl font-black text-white mb-2">{story.title}</h2>
-          {story.tagline && (
+        <div className="p-6 flex-shrink-0">
+          <h2 className="text-2xl font-black text-white mb-2">
+            {isV2 && hasPages && currentPageData ? currentPageData.title : story.title}
+          </h2>
+
+          {/* Show story text for V2 pages */}
+          {isV2 && hasPages && currentPageData?.storyText ? (
+            <p className="text-text-muted mb-4 line-clamp-3">{currentPageData.storyText}</p>
+          ) : story.tagline ? (
             <p className="text-text-muted mb-4">{story.tagline}</p>
-          )}
+          ) : null}
 
           <div className="flex items-center gap-4 text-sm text-text-muted mb-6">
             {pageCount > 0 && <span>{pageCount} pages</span>}
@@ -172,6 +296,7 @@ export default function StoryPreviewModal({
               </svg>
               Ages 4-10
             </span>
+            {isV2 && <span className="text-accent-gold">Use ← → keys to navigate</span>}
           </div>
 
           {/* Actions */}

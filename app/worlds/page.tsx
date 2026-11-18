@@ -83,7 +83,7 @@ export default function WorldsPage() {
     const handleScroll = () => {
       if (filterPlaceholderRef.current) {
         const rect = filterPlaceholderRef.current.getBoundingClientRect();
-        setIsFilterSticky(rect.top <= 72); // 72px = header height
+        setIsFilterSticky(rect.top <= 0); // Stick when hits top of viewport
       }
     };
     window.addEventListener("scroll", handleScroll);
@@ -180,7 +180,7 @@ export default function WorldsPage() {
             ref={filterRef}
             className={`${
               isFilterSticky
-                ? "fixed top-[72px] left-0 right-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-brand-purple-muted py-3 px-6"
+                ? "fixed top-0 left-0 right-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-brand-purple-muted py-3 px-6"
                 : "mb-10"
             } transition-all`}
           >
@@ -338,7 +338,7 @@ function StoryCard({
 
   return (
     <div className="group relative">
-      <Link href={`/worlds/${story.slug}`} className="block">
+      <Link href={`/worlds/${story.slug}/preview`} className="block">
         <div className={`relative rounded-3xl overflow-hidden ${featured ? "ring-2 ring-accent-gold" : ""}`}>
           {/* Cover image or gradient */}
           <div className={`aspect-[4/3] bg-gradient-to-br ${gradient} relative`}>
@@ -357,7 +357,7 @@ function StoryCard({
             {/* Overlay on hover */}
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full transform scale-90 group-hover:scale-100 transition-transform">
-                Explore this world
+                Preview book
               </span>
             </div>
 

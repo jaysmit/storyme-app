@@ -69,6 +69,11 @@ export interface GenerationConfig {
   artStyle: string;
   totalPages: number;
   startedAt: string;
+  // Expected contents for validation (added for completion validation)
+  expectedPageIds?: string[];     // All page IDs expected from blueprint
+  expectedPageCount?: number;     // Total expected pages
+  blueprintFormat?: "v1" | "v2";  // Blueprint format
+  coverPageId?: string;           // Which page is the cover
 }
 
 export const NEW_USER_TOKENS = 5;
@@ -153,7 +158,7 @@ export interface Book {
   crew_id: string | null;
   story_id: string | null;
   art_style_id: string | null;
-  status: "draft" | "generating" | "preview_ready" | "cover_approved" | "generating_full" | "completed" | "purchased";
+  status: "draft" | "generating" | "preview_ready" | "cover_approved" | "generating_full" | "incomplete" | "completed" | "purchased";
   preview_pages: { url: string; page_number: number; title?: string }[];
   page_statuses?: PageStatus[];
   generation_config?: GenerationConfig;

@@ -46,10 +46,24 @@ interface Book {
     artStyle?: string;
     characterCount?: number;
   };
+  generation_config?: {
+    bookId?: string;
+    expectedPageCount?: number;
+    expectedPageIds?: string[];
+  };
   created_at: string;
 }
 
-type BookCategory = "cover" | "book" | "error";
+type BookCategory = "cover" | "book" | "generating" | "incomplete";
+
+// Enable debug logging for development (disable before production)
+const DEBUG_API = true;
+
+function debugLog(action: string, data?: unknown) {
+  if (DEBUG_API) {
+    console.log(`[Books API] ${action}`, data ?? "");
+  }
+}
 
 const storyTitles: Record<string, string> = {
   "dragon-castle-valley": "The Dragon of Castle Valley",
@@ -73,20 +87,69 @@ function getStoryTitle(book: Book): string {
 
 // Determine which category a book belongs to
 function categorizeBook(book: Book): BookCategory {
-  // Check for errors first - books with failed/pending pages
-  if (book.page_statuses && book.page_statuses.length > 0) {
-    const hasErrors = book.page_statuses.some(
-      (p) => p.status === "failed" || p.status === "pending"
-    );
-    if (hasErrors) return "error";
-  }
-
-  // Completed books
+  // Completed books - only fully complete books
   if (book.status === "completed" || book.status === "purchased") {
+    // Double-check: verify no failed/missing pages
+    if (book.page_statuses && book.page_statuses.length > 0) {
+      const hasIssues = book.page_statuses.some(
+        (p) => p.status === "failed" || p.status === "pending"
+      );
+      if (hasIssues) {
+        // Book was incorrectly marked complete - show as incomplete
+        return "incomplete";
+      }
+
+      // Check if page count matches expected (from generation_config)
+      const expectedCount = book.generation_config?.expectedPageCount;
+      const completedCount = book.page_statuses.filter((p) => p.status === "completed").length;
+      if (expectedCount && completedCount < expectedCount) {
+        // Missing pages - show as incomplete
+        return "incomplete";
+      }
+
+      // Also check if preview_pages count seems low compared to page_statuses
+      const previewPagesCount = book.preview_pages?.length || 0;
+      const pageStatusesCount = book.page_statuses.length;
+      if (pageStatusesCount > 0 && previewPagesCount < pageStatusesCount) {
+        // Some pages generated but not all have preview images
+        return "incomplete";
+      }
+    }
     return "book";
   }
 
-  // Everything else is a cover (preview_ready, cover_approved, generating, draft, etc.)
+  // Explicit incomplete status
+  if (book.status === "incomplete") {
+    return "incomplete";
+  }
+
+  // Check for generating status or any incomplete pages
+  const isGeneratingStatus = book.status === "generating" || book.status === "generating_full";
+
+  if (book.page_statuses && book.page_statuses.length > 0) {
+    const failedOrMissing = book.page_statuses.filter(
+      (p) => p.status === "failed" || p.status === "pending"
+    );
+    const generating = book.page_statuses.filter(
+      (p) => p.status === "generating"
+    );
+
+    // If pages are actively generating, show as generating
+    if (generating.length > 0) return "generating";
+
+    // If pages failed but nothing is generating, show as incomplete
+    if (failedOrMissing.length > 0 && generating.length === 0 && !isGeneratingStatus) {
+      return "incomplete";
+    }
+
+    // If has generating status with pending work
+    if (isGeneratingStatus) return "generating";
+  }
+
+  // If it has generating status but no page_statuses yet, still generating
+  if (isGeneratingStatus) return "generating";
+
+  // Everything else is a cover (preview_ready, cover_approved, draft - ready to generate full book)
   return "cover";
 }
 
@@ -108,9 +171,31 @@ function BookCard({
 
   // Get status badge based on category
   const getStatusBadge = () => {
-    if (category === "error") {
-      const failedCount = book.page_statuses?.filter((p) => p.status === "failed" || p.status === "pending").length || 0;
-      return { label: `${failedCount} page${failedCount !== 1 ? "s" : ""} failed`, color: "text-red-400", bgColor: "bg-red-500/20" };
+    if (category === "incomplete") {
+      const failedCount = book.page_statuses?.filter((p) => p.status === "failed").length || 0;
+      const pendingCount = book.page_statuses?.filter((p) => p.status === "pending").length || 0;
+      const totalMissing = failedCount + pendingCount;
+      return {
+        label: `${totalMissing} page${totalMissing !== 1 ? "s" : ""} missing`,
+        color: "text-red-400",
+        bgColor: "bg-red-500/20"
+      };
+    }
+    if (category === "generating") {
+      const failedCount = book.page_statuses?.filter((p) => p.status === "failed").length || 0;
+      const pendingCount = book.page_statuses?.filter((p) => p.status === "pending").length || 0;
+      const generatingCount = book.page_statuses?.filter((p) => p.status === "generating").length || 0;
+
+      if (failedCount > 0) {
+        return { label: `${failedCount} failed`, color: "text-red-400", bgColor: "bg-red-500/20" };
+      }
+      if (generatingCount > 0) {
+        return { label: "Generating...", color: "text-amber-400", bgColor: "bg-amber-500/20" };
+      }
+      if (pendingCount > 0) {
+        return { label: `${pendingCount} pending`, color: "text-amber-400", bgColor: "bg-amber-500/20" };
+      }
+      return { label: "In Progress", color: "text-amber-400", bgColor: "bg-amber-500/20" };
     }
     if (category === "book") {
       return { label: "Complete", color: "text-green-400", bgColor: "bg-green-500/20" };
@@ -227,19 +312,23 @@ function BookCard({
               </button>
             </>
           )}
-          {category === "error" && (
+          {category === "generating" && (
             <>
-              <Link
-                href={`/create?book=${book.id}`}
-                className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-full text-center hover:bg-red-400 transition-colors text-sm"
-              >
-                Fix Errors
-              </Link>
               <button
                 onClick={() => onPreview(book, category)}
-                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-accent-gold hover:text-white transition-colors text-sm"
+                className="flex-1 px-4 py-2.5 bg-amber-500 text-brand-dark font-bold rounded-full text-center hover:bg-amber-400 transition-colors text-sm"
               >
-                Preview
+                View Progress
+              </button>
+            </>
+          )}
+          {category === "incomplete" && (
+            <>
+              <button
+                onClick={() => onPreview(book, category)}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white font-bold rounded-full text-center hover:bg-red-400 transition-colors text-sm"
+              >
+                Recover Pages
               </button>
             </>
           )}
@@ -270,6 +359,8 @@ function BooksPageContent() {
   const [previewOverlays, setPreviewOverlays] = useState<TextOverlay[]>([]);
   const [missingPages, setMissingPages] = useState<PageStatus[]>([]);
   const [autoPreviewHandled, setAutoPreviewHandled] = useState(false);
+  const [regenerating, setRegenerating] = useState<Set<string>>(new Set());
+  const [regenerationErrors, setRegenerationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchBooks();
@@ -292,18 +383,60 @@ function BooksPageContent() {
   }, [loading, books, searchParams, autoPreviewHandled]);
 
   async function openPreview(book: Book, category: BookCategory) {
+    debugLog(`Opening preview for book ${book.id.slice(0, 8)}...`, { category, status: book.status });
     setPreviewBook(book);
     setPreviewCategory(category);
     setPreviewLoading(true);
     setMissingPages([]);
+    setRegenerationErrors({});
 
     setPreviewOverlays(book.text_overlays || []);
 
-    // Check for missing/failed pages
+    // For incomplete books, run reconciliation to identify all missing pages
+    if (category === "incomplete" || book.status === "incomplete" || book.status === "completed") {
+      try {
+        debugLog(`Reconciling book ${book.id.slice(0, 8)}...`);
+        const reconcileRes = await fetch(`/api/books/${book.id}/reconcile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ autoFix: true, prepareMissingForRetry: true }),
+        });
+        const reconcileData = await reconcileRes.json();
+        debugLog(`Reconciliation result`, reconcileData);
+
+        if (reconcileRes.ok && reconcileData.recoverablePages?.length > 0) {
+          // Update missing pages from reconciliation
+          setMissingPages(reconcileData.recoverablePages.map((p: { pageId: string; pageNumber: number; status: string }) => ({
+            pageId: p.pageId,
+            pageNumber: p.pageNumber,
+            status: p.status as "failed" | "pending" | "generating",
+            retryCount: 0,
+          })));
+        }
+
+        // Refresh book data after reconciliation
+        const bookRes = await fetch(`/api/books/${book.id}`);
+        if (bookRes.ok) {
+          const bookData = await bookRes.json();
+          book = bookData.book;
+          setPreviewBook(bookData.book);
+        }
+      } catch (err) {
+        debugLog(`Reconciliation failed`, err);
+      }
+    }
+
+    // Check for incomplete pages (failed, pending, OR stuck in generating)
     if (book.page_statuses && book.page_statuses.length > 0) {
       const incomplete = book.page_statuses.filter(
-        (p) => p.status === "failed" || p.status === "pending"
+        (p) => p.status === "failed" || p.status === "pending" || p.status === "generating"
       );
+      // Log stuck generating pages
+      const stuckGenerating = book.page_statuses.filter((p) => p.status === "generating");
+      if (stuckGenerating.length > 0) {
+        debugLog(`Found ${stuckGenerating.length} pages stuck in "generating" status`,
+          stuckGenerating.map((p) => `Page ${p.pageNumber}`));
+      }
       setMissingPages(incomplete);
     }
 
@@ -331,20 +464,21 @@ function BooksPageContent() {
 
     // Try to fetch story text from API
     try {
+      debugLog(`GET /api/books/${book.id}/story-text`);
       const res = await fetch(`/api/books/${book.id}/story-text`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.format === "v2" && data.pages) {
-          for (const page of pages) {
-            const storyPage = data.pages.find((sp: PersonalizedPage) => sp.page_number === page.page_number);
-            if (storyPage) {
-              page.title = storyPage.title;
-              page.story_text = storyPage.story_text;
-            }
+      const data = await res.json();
+      debugLog(`GET story-text response`, { status: res.status, format: data.format, pageCount: data.pages?.length });
+      if (res.ok && data.format === "v2" && data.pages) {
+        for (const page of pages) {
+          const storyPage = data.pages.find((sp: PersonalizedPage) => sp.page_number === page.page_number);
+          if (storyPage) {
+            page.title = storyPage.title;
+            page.story_text = storyPage.story_text;
           }
         }
       }
     } catch (err) {
+      debugLog(`GET story-text failed`, err);
       console.error("Failed to fetch story text:", err);
     }
 
@@ -361,30 +495,164 @@ function BooksPageContent() {
 
   async function fetchBooks() {
     setLoading(true);
+    debugLog("GET /api/books - fetching books");
     try {
       const res = await fetch("/api/books");
+      const data = await res.json();
+      debugLog("GET /api/books - response", { status: res.status, bookCount: data.books?.length });
       if (res.ok) {
-        const data = await res.json();
+        // Log each book's status for debugging
+        data.books?.forEach((book: Book) => {
+          const pageStats = book.page_statuses || [];
+          const failedPages = pageStats.filter((p) => p.status === "failed");
+          const pendingPages = pageStats.filter((p) => p.status === "pending");
+          const generatingPages = pageStats.filter((p) => p.status === "generating");
+          debugLog(`Book ${book.id.slice(0, 8)}...`, {
+            status: book.status,
+            category: categorizeBook(book),
+            pages: pageStats.length,
+            failed: failedPages.length,
+            pending: pendingPages.length,
+            generating: generatingPages.length,
+            failedDetails: failedPages.map((p) => ({ page: p.pageNumber, error: p.error })),
+          });
+        });
         setBooks(data.books || []);
+      } else {
+        debugLog("GET /api/books - error response", data);
       }
     } catch (error) {
+      debugLog("GET /api/books - exception", error);
       console.error("Failed to fetch books:", error);
     }
     setLoading(false);
   }
 
+  // Regenerate a single page with timeout
+  async function regeneratePage(bookId: string, pageId: string, pageNumber: number) {
+    const startTime = Date.now();
+    debugLog(`Regenerating page ${pageNumber} (${pageId}) for book ${bookId.slice(0, 8)}...`);
+
+    setRegenerating((prev) => new Set(prev).add(pageId));
+    setRegenerationErrors((prev) => {
+      const updated = { ...prev };
+      delete updated[pageId];
+      return updated;
+    });
+
+    // Client-side timeout for the entire operation (4 minutes)
+    const CLIENT_TIMEOUT_MS = 240000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      debugLog(`Client timeout for page ${pageNumber} after ${CLIENT_TIMEOUT_MS / 1000}s`);
+    }, CLIENT_TIMEOUT_MS);
+
+    try {
+      // Step 1: Reset page to pending via retry-page endpoint
+      debugLog(`POST /api/books/${bookId}/retry-page`, { pageId });
+      const retryRes = await fetch(`/api/books/${bookId}/retry-page`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId }),
+        signal: controller.signal,
+      });
+      const retryData = await retryRes.json();
+      debugLog(`POST retry-page response`, { status: retryRes.status, data: retryData });
+
+      if (!retryRes.ok) {
+        throw new Error(retryData.error || "Failed to reset page");
+      }
+
+      // Step 2: Trigger page generation (this is the long-running call)
+      debugLog(`POST /api/books/${bookId}/generate-page`, { pageId, note: "This may take 1-3 minutes..." });
+      const genRes = await fetch(`/api/books/${bookId}/generate-page`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageId }),
+        signal: controller.signal,
+      });
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      let genData;
+      try {
+        genData = await genRes.json();
+      } catch {
+        // Response might not be JSON if server crashed
+        throw new Error(`Server returned non-JSON response (status ${genRes.status}) after ${elapsed}s`);
+      }
+      debugLog(`POST generate-page response`, { status: genRes.status, elapsed: `${elapsed}s`, data: genData });
+
+      if (!genRes.ok) {
+        throw new Error(genData.error || `Generation failed (status ${genRes.status})`);
+      }
+
+      // Success - refresh books list and update preview
+      debugLog(`Page ${pageNumber} regenerated successfully in ${elapsed}s`, { url: genData.url });
+      await fetchBooks();
+
+      // Update preview if this book is currently being previewed
+      if (previewBook?.id === bookId) {
+        // Refresh the book data
+        const bookRes = await fetch(`/api/books/${bookId}`);
+        if (bookRes.ok) {
+          const bookData = await bookRes.json();
+          openPreview(bookData.book, previewCategory);
+        }
+      }
+    } catch (error) {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      let errorMsg: string;
+
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          errorMsg = `Request timed out after ${elapsed}s - check Vercel logs for details`;
+        } else {
+          errorMsg = error.message;
+        }
+      } else {
+        errorMsg = "Unknown error";
+      }
+
+      debugLog(`Regeneration failed for page ${pageNumber} after ${elapsed}s`, { error: errorMsg });
+      setRegenerationErrors((prev) => ({ ...prev, [pageId]: errorMsg }));
+    } finally {
+      clearTimeout(timeoutId);
+      setRegenerating((prev) => {
+        const updated = new Set(prev);
+        updated.delete(pageId);
+        return updated;
+      });
+    }
+  }
+
+  // Regenerate all failed/pending pages
+  async function regenerateAllMissing(bookId: string) {
+    debugLog(`Regenerating all missing pages for book ${bookId.slice(0, 8)}...`);
+
+    for (const page of missingPages) {
+      await regeneratePage(bookId, page.pageId, page.pageNumber);
+    }
+  }
+
   async function deleteBook(id: string) {
     if (!confirm("Are you sure you want to delete this book?")) return;
 
+    debugLog(`DELETE /api/books/${id}`);
     try {
       const res = await fetch(`/api/books/${id}`, { method: "DELETE" });
+      debugLog(`DELETE response`, { status: res.status });
       if (res.ok) {
         setBooks((prev) => prev.filter((b) => b.id !== id));
         if (previewBook?.id === id) {
           closePreview();
         }
+      } else {
+        const data = await res.json();
+        debugLog(`DELETE failed`, data);
       }
     } catch (error) {
+      debugLog(`DELETE exception`, error);
       console.error("Failed to delete book:", error);
     }
   }
@@ -392,7 +660,8 @@ function BooksPageContent() {
   // Categorize all books
   const covers = books.filter((b) => categorizeBook(b) === "cover");
   const completedBooks = books.filter((b) => categorizeBook(b) === "book");
-  const errorBooks = books.filter((b) => categorizeBook(b) === "error");
+  const generatingBooks = books.filter((b) => categorizeBook(b) === "generating");
+  const incompleteBooks = books.filter((b) => categorizeBook(b) === "incomplete");
 
   return (
     <div className="min-h-screen bg-brand-dark flex flex-col">
@@ -439,24 +708,24 @@ function BooksPageContent() {
             </div>
           ) : (
             <div className="space-y-12">
-              {/* Errors Section - Show first if any */}
-              {errorBooks.length > 0 && (
+              {/* Incomplete Books Section - Needs Attention */}
+              {incompleteBooks.length > 0 && (
                 <section>
                   <div className="flex items-center gap-3 mb-6">
-                    <h2 className="text-2xl font-black text-white">Needs Attention</h2>
+                    <h2 className="text-2xl font-black text-white">Needs Recovery</h2>
                     <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm font-bold">
-                      {errorBooks.length}
+                      {incompleteBooks.length}
                     </span>
                   </div>
                   <p className="text-text-muted mb-6">
-                    These books have pages that failed to generate. Click to fix.
+                    These books have missing or failed pages that can be regenerated.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {errorBooks.map((book) => (
+                    {incompleteBooks.map((book) => (
                       <BookCard
                         key={book.id}
                         book={book}
-                        category="error"
+                        category="incomplete"
                         onDelete={deleteBook}
                         onPreview={openPreview}
                       />
@@ -516,6 +785,32 @@ function BooksPageContent() {
                   </div>
                 </section>
               )}
+
+              {/* Generating Section - books still generating or with missing pages */}
+              {generatingBooks.length > 0 && (
+                <section>
+                  <div className="flex items-center gap-3 mb-6">
+                    <h2 className="text-2xl font-black text-white">Generating</h2>
+                    <span className="px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-sm font-bold">
+                      {generatingBooks.length}
+                    </span>
+                  </div>
+                  <p className="text-text-muted mb-6">
+                    Books currently generating or with pages that need attention.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {generatingBooks.map((book) => (
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        category="generating"
+                        onDelete={deleteBook}
+                        onPreview={openPreview}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>
@@ -535,29 +830,8 @@ function BooksPageContent() {
                   <p className="text-text-muted">Loading preview...</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Missing pages warning for errors */}
-                  {missingPages.length > 0 && (
-                    <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-red-500/30 flex items-center justify-center shrink-0">
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
-                            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-red-200 font-bold">
-                            {missingPages.length} page{missingPages.length !== 1 ? "s" : ""} need attention
-                          </p>
-                          <p className="text-red-200/70 text-sm">
-                            {missingPages.map((p) => `Page ${p.pageNumber}`).join(", ")}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Book viewer */}
+                <div>
+                  {/* Book viewer with integrated page status */}
                   <BookViewer
                     pages={previewPages}
                     title={getStoryTitle(previewBook)}
@@ -565,6 +839,9 @@ function BooksPageContent() {
                     textOverlays={previewOverlays}
                     bookId={previewBook.id}
                     showActions={false}
+                    pageStatuses={previewBook.page_statuses || []}
+                    onRetryPage={(pageId, pageNumber) => regeneratePage(previewBook.id, pageId, pageNumber)}
+                    regeneratingPages={regenerating}
                   />
                 </div>
               )}
@@ -634,17 +911,75 @@ function BooksPageContent() {
                     </Link>
                   </>
                 )}
-                {previewCategory === "error" && (
-                  <Link
-                    href={`/create?book=${previewBook.id}`}
-                    className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-full hover:bg-red-400 transition-colors flex items-center gap-2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M23 4v6h-6M1 20v-6h6" />
-                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                    </svg>
-                    Fix & Regenerate
-                  </Link>
+                {previewCategory === "generating" && (
+                  <>
+                    <Link
+                      href={`/book/${previewBook.id}/edit`}
+                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit Pages
+                    </Link>
+                    {missingPages.length > 0 && (
+                      <button
+                        onClick={() => regenerateAllMissing(previewBook.id)}
+                        disabled={regenerating.size > 0}
+                        className="px-6 py-2.5 bg-amber-500 text-brand-dark font-bold rounded-full hover:bg-amber-400 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {regenerating.size > 0 ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
+                            Regenerating...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M23 4v6h-6M1 20v-6h6" />
+                              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                            </svg>
+                            Regenerate All
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </>
+                )}
+                {previewCategory === "incomplete" && (
+                  <>
+                    <Link
+                      href={`/book/${previewBook.id}/edit`}
+                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit Pages
+                    </Link>
+                    <button
+                      onClick={() => regenerateAllMissing(previewBook.id)}
+                      disabled={regenerating.size > 0}
+                      className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-full hover:bg-red-400 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {regenerating.size > 0 ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Recovering...
+                        </>
+                      ) : (
+                        <>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M23 4v6h-6M1 20v-6h6" />
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                          </svg>
+                          Recover Missing ({missingPages.length})
+                        </>
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             </div>

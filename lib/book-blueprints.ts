@@ -756,9 +756,13 @@ export function getV2Page(blueprint: V2Blueprint, pageNumber: number): V2Page | 
 }
 
 /**
- * Get cover page from a V2 blueprint (page 1 is typically the cover/first page)
+ * Get cover page from a V2 blueprint (page 0 is the cover)
  */
 export function getV2CoverPage(blueprint: V2Blueprint): V2Page | undefined {
+  // Cover is page_number 0
+  const cover = blueprint.pages.find((p) => p.page_number === 0);
+  if (cover) return cover;
+  // Fallback to page 1 for backwards compatibility
   return blueprint.pages.find((p) => p.page_number === 1);
 }
 

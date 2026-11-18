@@ -116,6 +116,24 @@ const demoStories: Record<string, {
       { id: "alien", name: "The Alien Buddy", description: "A friendly creature from space (pet role)" },
     ],
   },
+  "essendon-five": {
+    id: "7",
+    slug: "essendon-five",
+    title: "Grand Final Day",
+    tagline: "The Bombers need help! Five players are missing and only your family can save the day at the MCG.",
+    description: "A thrilling AFL adventure where your family gets pulled from the stands to play in the biggest game of the year. Watch as each family member becomes a Bomber and helps win the Grand Final!",
+    cover_image_url: "/books/essendon-five/cover.png",
+    page_count: 12,
+    category: "sports",
+    is_featured: true,
+    roles: [
+      { id: "leon", name: "The Star", description: "The youngest hero who kicks the winning goal" },
+      { id: "eden", name: "The Ruckman", description: "Wins the opening ball-up" },
+      { id: "ruby", name: "The Tackler", description: "Makes the crucial tackle" },
+      { id: "dad", name: "The Shepherd", description: "Protects teammates with big shepherds" },
+      { id: "mum", name: "The Kicker", description: "Launches incredible kicks downfield" },
+    ],
+  },
 };
 
 // GET /api/stories/[slug] - Get a single story with roles (public, no auth required)

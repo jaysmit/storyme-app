@@ -308,22 +308,41 @@ export async function generateSinglePage(
     // Determine output size
     const outputSize = selectOutputSize(masterPage.dimensions);
 
-    // Call OpenAI
-    console.log(`Calling OpenAI images.edit for ${pageId}...`);
+    // Call OpenAI with timeout
+    console.log(`[V1] Calling OpenAI images.edit for ${pageId}...`);
+    console.log(`[V1] Image count: ${allImageFiles.length}, Output size: ${outputSize}`);
     const startTime = Date.now();
 
-    const response = await openai.images.edit({
-      model: "gpt-image-2.5-sunburst",
-      image: allImageFiles,
-      prompt,
-      n: 1,
-      size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
-      quality: "high",
-      output_format: "jpeg",
+    // Create timeout promise (3 minutes)
+    const OPENAI_TIMEOUT_MS = 180000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`OpenAI request timed out after ${OPENAI_TIMEOUT_MS / 1000}s`));
+      }, OPENAI_TIMEOUT_MS);
     });
 
+    let response;
+    try {
+      response = await Promise.race([
+        openai.images.edit({
+          model: "gpt-image-2.5-sunburst",
+          image: allImageFiles,
+          prompt,
+          n: 1,
+          size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+          quality: "high",
+          output_format: "jpeg",
+        }),
+        timeoutPromise,
+      ]);
+    } catch (apiError) {
+      const apiMsg = apiError instanceof Error ? apiError.message : "Unknown API error";
+      console.error(`[V1] OpenAI API error for ${pageId}:`, apiMsg);
+      throw new Error(`OpenAI API failed: ${apiMsg}`);
+    }
+
     const elapsedTime = Date.now() - startTime;
-    console.log(`OpenAI response in ${elapsedTime}ms for ${pageId}`);
+    console.log(`[V1] OpenAI response in ${elapsedTime}ms for ${pageId}`);
 
     const imageData = response.data?.[0];
     let outputBuffer: Buffer | null = null;
@@ -501,22 +520,42 @@ async function generateV2Page(
   // Determine output size
   const outputSize = selectOutputSize(masterPage.dimensions);
 
-  // Call OpenAI
-  console.log(`Calling OpenAI images.edit for V2 page ${pageNumber}...`);
+  // Call OpenAI with timeout
+  console.log(`[V2] Calling OpenAI images.edit for page ${pageNumber}...`);
+  console.log(`[V2] Image count: ${allImageFiles.length}, Output size: ${outputSize}`);
+  console.log(`[V2] Assignments: ${assignments.map(a => `${a.slotId}=${a.characterName}`).join(", ")}`);
   const startTime = Date.now();
 
-  const response = await openai.images.edit({
-    model: "gpt-image-2.5-sunburst",
-    image: allImageFiles,
-    prompt,
-    n: 1,
-    size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
-    quality: "high",
-    output_format: "jpeg",
+  // Create timeout promise (3 minutes)
+  const OPENAI_TIMEOUT_MS = 180000;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`OpenAI request timed out after ${OPENAI_TIMEOUT_MS / 1000}s`));
+    }, OPENAI_TIMEOUT_MS);
   });
 
+  let response;
+  try {
+    response = await Promise.race([
+      openai.images.edit({
+        model: "gpt-image-2.5-sunburst",
+        image: allImageFiles,
+        prompt,
+        n: 1,
+        size: outputSize as "1024x1024" | "1536x1024" | "1024x1536",
+        quality: "high",
+        output_format: "jpeg",
+      }),
+      timeoutPromise,
+    ]);
+  } catch (apiError) {
+    const apiMsg = apiError instanceof Error ? apiError.message : "Unknown API error";
+    console.error(`[V2] OpenAI API error for page ${pageNumber}:`, apiMsg);
+    throw new Error(`OpenAI API failed: ${apiMsg}`);
+  }
+
   const elapsedTime = Date.now() - startTime;
-  console.log(`V2 OpenAI response in ${elapsedTime}ms for page ${pageNumber}`);
+  console.log(`[V2] OpenAI response in ${elapsedTime}ms for page ${pageNumber}`);
 
   const imageData = response.data?.[0];
   let outputBuffer: Buffer | null = null;

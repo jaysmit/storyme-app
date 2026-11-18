@@ -12,6 +12,7 @@ export async function generateStaticParams() {
     { slug: "cloud-ship" },
     { slug: "super-squad" },
     { slug: "galaxy-road-trip" },
+    { slug: "essendon-five" },
   ];
 }
 

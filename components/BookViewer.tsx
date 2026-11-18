@@ -10,6 +10,14 @@ interface Page {
   story_text?: string;
 }
 
+interface PageStatus {
+  pageId: string;
+  pageNumber: number;
+  status: "pending" | "generating" | "completed" | "failed";
+  url?: string;
+  error?: string;
+}
+
 interface TextOverlay {
   pageNumber: number;
   text: string;
@@ -42,6 +50,9 @@ interface BookViewerProps {
   textOverlays?: TextOverlay[];
   bookId?: string; // For edit/view links
   showActions?: boolean; // Show edit/view buttons
+  pageStatuses?: PageStatus[]; // For showing generation status on thumbnails
+  onRetryPage?: (pageId: string, pageNumber: number) => void; // Callback to retry a failed page
+  regeneratingPages?: Set<string>; // Pages currently being regenerated
 }
 
 export default function BookViewer({
@@ -55,6 +66,9 @@ export default function BookViewer({
   textOverlays = [],
   bookId,
   showActions = false,
+  pageStatuses = [],
+  onRetryPage,
+  regeneratingPages = new Set(),
 }: BookViewerProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -402,34 +416,98 @@ export default function BookViewer({
           </div>
         </div>
 
-        {/* Thumbnails */}
+        {/* Thumbnails with status indicators */}
         <div className="p-4 border-t border-brand-purple-muted">
-          <div className="flex justify-center gap-3">
-            {pages.map((p, i) => (
-              <button
-                key={p.page_number}
-                onClick={() => goToPage(i)}
-                className={`relative rounded-lg overflow-hidden transition-all ${
-                  i === currentPage
-                    ? "ring-2 ring-accent-gold scale-105"
-                    : "opacity-60 hover:opacity-100"
-                }`}
-              >
-                <img
-                  src={p.url}
-                  alt={p.title}
-                  className="w-20 h-12 object-cover"
-                />
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">{p.page_number}</span>
+          <div className="flex justify-center gap-2 flex-wrap">
+            {pages.map((p, i) => {
+              const status = pageStatuses.find((s) => s.pageNumber === p.page_number);
+              const isRegenerating = status && regeneratingPages.has(status.pageId);
+              const pageStatus = status?.status || "completed";
+              const canRetry = (pageStatus === "failed" || pageStatus === "pending" || pageStatus === "generating") && !isRegenerating;
+
+              // Border color based on status
+              const getBorderClass = () => {
+                if (i === currentPage) return "ring-2 ring-accent-gold scale-105";
+                switch (pageStatus) {
+                  case "completed": return "ring-2 ring-green-500";
+                  case "generating": return "ring-2 ring-amber-500";
+                  case "failed": return "ring-2 ring-red-500";
+                  case "pending": return "ring-2 ring-gray-500";
+                  default: return "";
+                }
+              };
+
+              return (
+                <div key={p.page_number} className="relative group">
+                  <button
+                    onClick={() => goToPage(i)}
+                    className={`relative rounded-lg overflow-hidden transition-all ${getBorderClass()} ${
+                      i !== currentPage ? "opacity-80 hover:opacity-100" : ""
+                    }`}
+                  >
+                    <img
+                      src={p.url}
+                      alt={p.title}
+                      className="w-16 h-10 object-cover"
+                    />
+
+                    {/* Page number */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] font-bold text-center py-0.5">
+                      {p.page_number === 0 ? "Cover" : `P${p.page_number}`}
+                    </div>
+
+                    {/* Status overlay for non-completed pages */}
+                    {pageStatus !== "completed" && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        {(pageStatus === "generating" || isRegenerating) && (
+                          <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {pageStatus === "failed" && !isRegenerating && (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="3">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        )}
+                        {pageStatus === "pending" && !isRegenerating && (
+                          <div className="w-3 h-3 rounded-full bg-gray-400" />
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Retry button overlay on hover for failed/pending/stuck pages */}
+                  {canRetry && onRetryPage && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetryPage(status!.pageId, p.page_number);
+                      }}
+                      className="absolute inset-0 bg-black/70 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                      title={pageStatus === "generating" ? "Page stuck - click to retry" : "Retry generation"}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                        <path d="M23 4v6h-6M1 20v-6h6" />
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Page indicator */}
-          <div className="text-center mt-4 text-sm text-text-muted">
-            Page {currentPage + 1} of {pages.length} • Use ← → keys to navigate
+          {/* Page indicator and legend */}
+          <div className="flex items-center justify-center gap-4 mt-3 text-xs text-text-muted">
+            <span>Page {currentPage + 1} of {pages.length}</span>
+            {pageStatuses.length > 0 && (
+              <>
+                <span className="text-brand-purple-muted">|</span>
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Done</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Working</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Failed</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

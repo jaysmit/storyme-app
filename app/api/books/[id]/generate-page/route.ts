@@ -7,6 +7,10 @@ import {
   completeGenerationLog,
   failGenerationLog,
 } from "@/lib/generation-logs";
+import {
+  validateBookCompletion,
+  logValidationResult,
+} from "@/lib/book-validation";
 
 /**
  * Reorder characters to match the specified order of IDs.
@@ -227,9 +231,6 @@ export async function POST(
         error: undefined,
       };
 
-      // Check if all pages are completed
-      const allCompleted = pageStatuses.every((p) => p.status === "completed");
-
       // Update preview_pages array with this page
       const previewPages = [...(book.preview_pages || [])];
       const existingPageIndex = previewPages.findIndex(
@@ -250,12 +251,41 @@ export async function POST(
       // Sort by page number
       previewPages.sort((a, b) => a.page_number - b.page_number);
 
+      // CRITICAL: Validate book completion against blueprint expectations
+      // This ensures we don't mark books complete with missing pages
+      const validation = await validateBookCompletion(
+        pageStatuses,
+        config,
+        config.bookId
+      );
+      logValidationResult(validation);
+
+      // Determine new status based on validation
+      let newStatus: string;
+      if (validation.isComplete && validation.recommendedStatus === "completed") {
+        newStatus = "completed";
+        console.log(`Book ${id} VALIDATED as complete - all ${validation.expectedPageCount} pages generated`);
+      } else if (validation.failedCount > 0 || validation.missingCount > 0) {
+        // Has failures but no active generation - mark as incomplete
+        const hasActiveGeneration = validation.generatingCount > 0 || validation.pendingCount > 0;
+        if (!hasActiveGeneration) {
+          newStatus = "incomplete";
+          console.log(`Book ${id} marked INCOMPLETE - ${validation.failedCount} failed, ${validation.missingCount} missing`);
+        } else {
+          newStatus = "generating_full";
+        }
+      } else {
+        newStatus = "generating_full";
+      }
+
       await supabase
         .from("books")
         .update({
           page_statuses: pageStatuses,
           preview_pages: previewPages,
-          status: allCompleted ? "completed" : "generating_full",
+          status: newStatus,
+          validation_result: validation,
+          validated_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -279,7 +309,13 @@ export async function POST(
         pageNumber: result.pageNumber,
         status: "completed",
         url: result.url,
-        allCompleted,
+        allCompleted: validation.isComplete,
+        validation: {
+          completedCount: validation.completedCount,
+          expectedCount: validation.expectedPageCount,
+          failedCount: validation.failedCount,
+          missingCount: validation.missingCount,
+        },
       });
     } else {
       // Update page status to failed

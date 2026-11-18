@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getGeneratablePages, initializePageStatuses } from "@/lib/page-generation";
+import { getGeneratablePages } from "@/lib/page-generation";
 import { resolveBookId } from "@/lib/book-blueprints";
 import { checkTokens, deductTokens } from "@/lib/tokens";
 import { TOKEN_COSTS, type GenerationConfig } from "@/lib/types";
+import {
+  buildExpectedContents,
+  initializePageStatusesFromExpected,
+  mergePageStatuses,
+} from "@/lib/book-validation";
 
 // POST /api/books/[id]/start-full-generation - Initialize page statuses for all interior pages
 export async function POST(
@@ -76,32 +81,53 @@ export async function POST(
     );
     const coverUrl = coverPage?.url;
 
-    // Get list of generatable pages
-    const pages = await getGeneratablePages(blueprintBookId);
+    // Build expected contents from blueprint (this is the source of truth)
+    let expectedContents;
+    try {
+      expectedContents = await buildExpectedContents(blueprintBookId);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      return NextResponse.json(
+        { error: `Failed to load blueprint: ${msg}` },
+        { status: 400 }
+      );
+    }
 
-    if (pages.length === 0) {
+    console.log(`Expected contents: ${expectedContents.expectedPageCount} pages (${expectedContents.expectedPageIds.join(", ")})`);
+
+    if (expectedContents.expectedPageCount === 0) {
       return NextResponse.json(
         { error: "No pages found in blueprint" },
         { status: 400 }
       );
     }
 
-    // Filter to only pages with images
+    // Get list of generatable pages (for compatibility)
+    const pages = await getGeneratablePages(blueprintBookId);
     const pagesWithImages = pages.filter((p) => p.hasImage);
 
     if (pagesWithImages.length <= 1) {
       // Only cover page has an image
+      const coverOnlyStatuses = initializePageStatusesFromExpected(expectedContents, coverUrl);
       return NextResponse.json({
         book,
         pages: pagesWithImages,
-        pageStatuses: initializePageStatuses(pagesWithImages, coverUrl),
+        pageStatuses: coverOnlyStatuses,
         message: "Only cover page has an original image. Interior pages coming soon.",
         hasInteriorPages: false,
       });
     }
 
-    // Initialize page statuses (cover is already completed)
-    const pageStatuses = initializePageStatuses(pagesWithImages, coverUrl);
+    // Initialize or merge page statuses
+    // If book already has page_statuses (resume scenario), merge with expected
+    // Otherwise, initialize fresh from expected contents
+    let pageStatuses;
+    if (book.page_statuses && book.page_statuses.length > 0) {
+      console.log(`Resuming generation - merging ${book.page_statuses.length} existing statuses`);
+      pageStatuses = mergePageStatuses(book.page_statuses, expectedContents);
+    } else {
+      pageStatuses = initializePageStatusesFromExpected(expectedContents, coverUrl);
+    }
 
     // Calculate pages that need to be generated (exclude cover)
     const pagesToGenerateCount = pageStatuses.filter(
@@ -145,13 +171,18 @@ export async function POST(
       console.log(`Reserved ${totalTokensNeeded} tokens for ${pagesToGenerateCount} pages (balance: ${balance} -> ${deducted.newBalance})`);
     }
 
-    // Create generation config
+    // Create generation config with expected contents for validation
     const generationConfig: GenerationConfig = {
       bookId: resolveBookId(blueprintBookId),
       characterIds,
       artStyle: book.metadata?.artStyle || "glow",
-      totalPages: pagesWithImages.length,
+      totalPages: expectedContents.expectedPageCount,
       startedAt: new Date().toISOString(),
+      // Store expected contents for validation during generation
+      expectedPageIds: expectedContents.expectedPageIds,
+      expectedPageCount: expectedContents.expectedPageCount,
+      blueprintFormat: expectedContents.blueprintFormat,
+      coverPageId: expectedContents.coverPageId,
     };
 
     // Update book with page statuses and generation config

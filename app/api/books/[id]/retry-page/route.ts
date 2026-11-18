@@ -54,12 +54,18 @@ export async function POST(
 
     const pageStatus = pageStatuses[pageIndex];
 
-    // Allow retry for failed or pending (stuck) pages
-    if (pageStatus.status !== "failed" && pageStatus.status !== "pending") {
+    // Allow retry for failed, pending, or stuck generating pages
+    const retryableStatuses = ["failed", "pending", "generating"];
+    if (!retryableStatuses.includes(pageStatus.status)) {
       return NextResponse.json(
-        { error: `Cannot retry page - status is "${pageStatus.status}", expected "failed" or "pending"` },
+        { error: `Cannot retry page - status is "${pageStatus.status}", expected one of: ${retryableStatuses.join(", ")}` },
         { status: 400 }
       );
+    }
+
+    console.log(`[retry-page] Resetting page ${pageStatus.pageNumber} from "${pageStatus.status}" to "pending"`);
+    if (pageStatus.status === "generating") {
+      console.log(`[retry-page] Page was stuck in generating state - likely timed out`);
     }
 
     // Reset page status to pending

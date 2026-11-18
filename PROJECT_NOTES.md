@@ -14,6 +14,105 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - **AI**: OpenAI DALL-E 3 for character generation
 - **Hosting**: Vercel
 
+---
+
+## Development Workflow
+
+### Quick Deploy to Production
+Deploy changes directly to https://storyme-app-roan.vercel.app:
+```bash
+cd "C:\Users\jake_\Documents\Web apps\custom stories\storyme-app"
+vercel deploy --prod --yes
+```
+
+### Recommended Workflow (Speed + Backup)
+1. **Make changes locally** → test on localhost:3000
+2. **Deploy to Vercel** → `vercel deploy --prod --yes` (instant live update)
+3. **Commit to GitHub periodically** → batch multiple changes as backup
+   ```bash
+   git add -A && git commit -m "Description" && git push origin main
+   ```
+
+This gives you:
+- **Speed**: Changes live in ~30 seconds via Vercel CLI
+- **Backup**: GitHub has your code history (can batch commits)
+- **Rollback**: Both Vercel and GitHub let you revert
+
+### Why Not Auto-Deploy from GitHub?
+Auto-deploy is great for teams but adds delay for solo iteration:
+- Push to GitHub → Vercel rebuilds (~1-2 min) → Live
+- Direct Vercel CLI deploy → Live (~30 sec)
+
+You can enable auto-deploy later when the app is stable.
+
+---
+
+## Development Notes & Quirks
+
+### TypeScript
+- This project uses **strict TypeScript** - all files must have proper types
+- API routes use Next.js 15 format: `{ params }: { params: Promise<{ id: string }> }`
+- Use `interface` for object shapes, avoid `any`
+
+### Next.js 15 Specifics
+- **App Router** - all pages in `app/` folder, not `pages/`
+- **Server Components** by default - add `"use client"` for client components
+- API routes in `app/api/` with `route.ts` files
+- Dynamic routes: `[id]` folder naming
+- Use `generateStaticParams()` for static generation of dynamic routes
+
+### Common Errors & Fixes
+| Error | Fix |
+|-------|-----|
+| `params` type error in API routes | Use `Promise<{ id: string }>` and `await params` |
+| "use client" missing | Add to files using hooks, onClick, useState, etc. |
+| Hydration mismatch | Ensure server/client render same content |
+| `next/navigation` vs `next/router` | Always use `next/navigation` in App Router |
+
+### Supabase
+- Server client: `createClient()` from `@/lib/supabase/server`
+- Browser client: `createBrowserClient()` from `@/lib/supabase/client`
+- Service client (bypasses RLS): `createServiceClient()` for public data
+
+### File Naming
+- Components: PascalCase (`BookViewer.tsx`)
+- Utilities: camelCase (`generation-logs.ts`)
+- API routes: `route.ts` inside folder matching endpoint
+
+### Debug Mode
+- `app/books/page.tsx` has `DEBUG_API = true` - logs all API calls to console
+- Set to `false` before production deploy
+
+### Vercel Function Timeouts
+- **Default timeout**: 10s (Hobby) / 60s (Pro)
+- **OpenAI image generation**: Takes 30-180 seconds
+- **Solution**: `vercel.json` configures extended timeouts for generation routes
+- Generation routes have `maxDuration: 300` (5 minutes)
+
+### Checking Vercel Logs
+When API calls hang or fail silently:
+1. Go to https://vercel.com/jaysmit/storyme-app
+2. Click "Deployments" → latest deployment
+3. Click "Functions" tab
+4. Find the failing route (e.g., `generate-page`)
+5. View real-time logs and errors
+
+Or use CLI:
+```bash
+vercel logs storyme-app-roan.vercel.app --follow
+```
+
+### OpenAI Image Generation Quirks
+- Model `gpt-image-2.5-sunburst` used for all image edits
+- Can take 30-180 seconds per image
+- Timeout added to prevent infinite hangs (3 min server-side, 4 min client-side)
+- If generation fails, check:
+  1. Vercel function logs for server errors
+  2. OpenAI API status page
+  3. Character images exist and are accessible
+
+---
+
 ## Current Status
 
 ### Completed (All Slices 0-6)
@@ -91,6 +190,24 @@ AI-powered children's storybook creator. Users upload photos of family members, 
 - [x] "Order Printed Book" CTA on preview pages
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
+
+### Recent Changes (2026-11-18)
+- [x] **Book Completion Validation System** - Ensure books are only marked complete when all pages generated
+  - **Root cause fixed**: Books were marked "completed" when all pages in `page_statuses` completed, but validation didn't check if `page_statuses` contained all expected pages from blueprint
+  - New `lib/book-validation.ts` module with centralized validation logic:
+    - `validateBookCompletion()` - Compare book state against blueprint expectations
+    - `shouldMarkComplete()` - Quick check before setting completed status
+    - `getRecoverablePages()` - Find pages that need regeneration
+    - `buildExpectedContents()` - Get definitive page list from blueprint
+  - New `incomplete` book status for books with failed/missing pages
+  - New `/api/books/[id]/reconcile` endpoint to fix incorrectly completed books
+  - Books page now shows "Needs Recovery" section for incomplete books
+  - Automatic reconciliation when viewing incomplete books
+  - Migration `015_incomplete_status.sql` - adds `incomplete` status, `validation_result` and `validated_at` columns
+  - `generation_config` now stores `expectedPageIds` and `expectedPageCount` for validation
+  - Updated `generate-page` route to use validation before marking complete
+  - Updated `start-full-generation` to store expected contents
+  - Non-negotiable principle added to STORYME_MASTER.md
 
 ### Recent Changes (2026-11-17)
 - [x] **Generation Analytics Logging System** - Track all generation events for user flow analysis

@@ -196,7 +196,18 @@ export default function StoryDetailContent({ slug }: Props) {
             </div>
 
             <h1 className="text-5xl font-black text-white mb-4">{story.title}</h1>
-            <p className="text-xl text-white/80 max-w-2xl">{story.tagline}</p>
+            <p className="text-xl text-white/80 max-w-2xl mb-6">{story.tagline}</p>
+
+            <Link
+              href={`/worlds/${slug}/preview`}
+              className="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-bold px-6 py-3 rounded-full transition-colors"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Preview Original Book
+            </Link>
 
             <div className="flex items-center gap-6 mt-8 text-white/60">
               <span className="flex items-center gap-2">

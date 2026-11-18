@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "title": "The Essendon Five",
-  "page_count": 11,
+  "title": "Grand Final Day",
+  "page_count": 12,
   "visual_style": "Premium cinematic 3D animated caricature, expressive faces, sunny MCG, black Essendon guernsey with diagonal red sash. Match master image exactly.",
   "characters": {
     "leon": {
@@ -57,6 +57,78 @@
     "anchor_note": "Approximate normalized head centers (x,y), origin top-left; not segmentation masks. Use visual description and reference together."
   },
   "pages": [
+    {
+      "page_number": 0,
+      "title": "The Essendon Five",
+      "master_image_filename": "cover.png",
+      "master_image_size": {
+        "width": 1024,
+        "height": 1024
+      },
+      "scene_description": "Book cover showing the family in Essendon guernseys at the MCG.",
+      "story_text": "",
+      "story_text_template": "",
+      "word_count": 0,
+      "characters": [
+        {
+          "slot_id": "leon",
+          "swappable": true,
+          "priority_rank": 1,
+          "importance": "primary",
+          "head_anchor": { "x": 0.5, "y": 0.5 },
+          "depth": "foreground",
+          "action_and_location": "center of cover",
+          "reference_image_index": 2
+        },
+        {
+          "slot_id": "eden",
+          "swappable": true,
+          "priority_rank": 2,
+          "importance": "secondary",
+          "head_anchor": { "x": 0.3, "y": 0.5 },
+          "depth": "foreground",
+          "action_and_location": "left side",
+          "reference_image_index": 3
+        },
+        {
+          "slot_id": "ruby",
+          "swappable": true,
+          "priority_rank": 3,
+          "importance": "secondary",
+          "head_anchor": { "x": 0.7, "y": 0.5 },
+          "depth": "foreground",
+          "action_and_location": "right side",
+          "reference_image_index": 4
+        },
+        {
+          "slot_id": "dad",
+          "swappable": true,
+          "priority_rank": 4,
+          "importance": "secondary",
+          "head_anchor": { "x": 0.2, "y": 0.3 },
+          "depth": "background",
+          "action_and_location": "back left",
+          "reference_image_index": 5
+        },
+        {
+          "slot_id": "mum",
+          "swappable": true,
+          "priority_rank": 5,
+          "importance": "secondary",
+          "head_anchor": { "x": 0.8, "y": 0.3 },
+          "depth": "background",
+          "action_and_location": "back right",
+          "reference_image_index": 6
+        }
+      ],
+      "absent_character_ids": [],
+      "protected_non_swappable_elements": ["title text", "MCG background"],
+      "text_layout": {
+        "mode": "overlay",
+        "alignment": "center",
+        "render_title": true
+      }
+    },
     {
       "page_number": 1,
       "title": "Game Day!",
