@@ -44,6 +44,7 @@ export interface PendingCharacter {
   characterType: "person" | "pet" | "other";
   petType: string;
   customType: string;
+  sex: "male" | "female" | null; // For pronoun generation (he/she)
   age: number | null; // Age in years for proportionate sizing
   height_cm: number | null; // Height in centimeters
   saving: boolean;
@@ -68,6 +69,7 @@ export default function CharacterFormModal({
   const [localType, setLocalType] = useState<"person" | "pet" | "other">("person");
   const [localPetType, setLocalPetType] = useState("");
   const [localCustomType, setLocalCustomType] = useState("");
+  const [localSex, setLocalSex] = useState<"male" | "female" | null>(null);
   const [localAge, setLocalAge] = useState<number | null>(null);
   const [localHeight, setLocalHeight] = useState<number | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -79,6 +81,7 @@ export default function CharacterFormModal({
       setLocalType(pendingCharacter.characterType);
       setLocalPetType(pendingCharacter.petType);
       setLocalCustomType(pendingCharacter.customType);
+      setLocalSex(pendingCharacter.sex);
       setLocalAge(pendingCharacter.age);
       setLocalHeight(pendingCharacter.height_cm);
       setShowConfirmClose(false);
@@ -133,6 +136,7 @@ export default function CharacterFormModal({
       characterType: localType,
       petType: localPetType,
       customType: localCustomType,
+      sex: localType === "person" ? localSex : null, // Only save sex for people
       age: localAge,
       height_cm: localHeight,
     };
@@ -246,9 +250,42 @@ export default function CharacterFormModal({
             />
           </div>
 
-          {/* Age and Height inputs - only for people */}
+          {/* Sex, Age and Height inputs - only for people */}
           {localType === "person" && (
             <>
+              {/* Sex selection */}
+              <div>
+                <label className="block text-sm font-bold text-white mb-1.5">Sex</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setLocalSex("male")}
+                    disabled={pendingCharacter.saving}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                      localSex === "male"
+                        ? "bg-blue-500 text-white"
+                        : "bg-brand-dark text-text-muted hover:text-white border border-brand-purple-muted"
+                    }`}
+                  >
+                    <span>Male</span>
+                    <span className="text-xs opacity-70">(he/him)</span>
+                  </button>
+                  <button
+                    onClick={() => setLocalSex("female")}
+                    disabled={pendingCharacter.saving}
+                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 ${
+                      localSex === "female"
+                        ? "bg-pink-500 text-white"
+                        : "bg-brand-dark text-text-muted hover:text-white border border-brand-purple-muted"
+                    }`}
+                  >
+                    <span>Female</span>
+                    <span className="text-xs opacity-70">(she/her)</span>
+                  </button>
+                </div>
+                <p className="text-xs text-text-muted mt-1">Used for story pronouns (he/she, him/her)</p>
+              </div>
+
+              {/* Age and Height */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-bold text-white mb-1.5">Age</label>

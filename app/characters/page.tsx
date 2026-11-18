@@ -90,6 +90,7 @@ export default function CharactersPage() {
             characterType: "person",
             petType: "",
             customType: "",
+            sex: null,
             age: null,
             height_cm: null,
             saving: false,

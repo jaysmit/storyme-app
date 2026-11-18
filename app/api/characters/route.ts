@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
     let name: string;
     let characterType: string;
     let petType: string | null;
+    let sex: "male" | "female" | null;
     let age: number | null;
     let height_cm: number | null;
     let ageGroup: string | null;
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       name = body.name;
       characterType = body.characterType || "person";
       petType = body.petType || null;
+      sex = body.sex || null;
       age = body.age ? parseInt(body.age) : null;
       height_cm = body.height_cm ? parseInt(body.height_cm) : null;
       ageGroup = body.ageGroup || deriveAgeGroup(age);
@@ -97,6 +99,7 @@ export async function POST(request: NextRequest) {
       name = formData.get("name") as string;
       characterType = (formData.get("type") as string) || "person";
       petType = formData.get("petType") as string | null;
+      sex = (formData.get("sex") as "male" | "female" | null) || null;
       const ageStr = formData.get("age") as string | null;
       age = ageStr ? parseInt(ageStr) : null;
       const heightStr = formData.get("height_cm") as string | null;
@@ -148,7 +151,10 @@ export async function POST(request: NextRequest) {
       generation_status: "pending",
     };
 
-    // Add age and height if provided
+    // Add sex, age and height if provided
+    if (sex) {
+      baseData.sex = sex;
+    }
     if (age !== null) {
       baseData.age = age;
     }

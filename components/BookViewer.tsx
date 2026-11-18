@@ -359,46 +359,27 @@ export default function BookViewer({
         </div>
 
         {/* Main content */}
-        <div className={`relative ${isFullscreen ? "flex-1" : ""}`}>
+        <div className={`relative ${isFullscreen ? "flex-1 flex flex-col" : ""}`}>
           {/* Page image */}
-          <div className={`relative ${isFullscreen ? "h-full" : "aspect-[16/9]"} bg-brand-dark`}>
+          <div className={`relative ${isFullscreen ? "flex-1" : "aspect-[3/2]"} bg-black flex items-center justify-center`}>
             <img
               src={page.url}
               alt={page.title}
-              className="w-full h-full object-contain"
+              className="max-w-full max-h-full object-contain"
             />
 
-            {/* Text overlay - positioned on page */}
-            {currentOverlay?.visible && currentOverlay?.text && (
-              <div
-                className="absolute px-4 py-3 rounded-lg max-w-[80%] pointer-events-none"
-                style={{
-                  left: `${currentOverlay.position.x}%`,
-                  top: `${currentOverlay.position.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  fontSize: `${currentOverlay.fontSize}px`,
-                  color: currentOverlay.fontColor,
-                  backgroundColor: currentOverlay.backgroundColor,
-                  textAlign: currentOverlay.textAlign,
-                  lineHeight: 1.4,
-                }}
-              >
-                {currentOverlay.text}
-              </div>
-            )}
-
-            {/* Page number indicator - subtle bottom left */}
-            <div className="absolute bottom-3 left-3 bg-black/50 px-2 py-1 rounded text-xs text-white/70">
-              Page {page.page_number}
+            {/* Page indicator - center bottom of image */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 px-4 py-2 rounded-full text-white text-sm font-bold">
+              {page.page_number === 0 ? "Cover" : `Page ${page.page_number}`} of {pages.length - 1}
             </div>
 
             {/* Navigation arrows */}
             {currentPage > 0 && (
               <button
                 onClick={prevPage}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
@@ -406,14 +387,26 @@ export default function BookViewer({
             {currentPage < pages.length - 1 && (
               <button
                 onClick={nextPage}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/70 flex items-center justify-center text-white transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center text-white transition-colors"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M9 18l6-6-6-6" />
                 </svg>
               </button>
             )}
           </div>
+
+          {/* Story text panel - below image (not on cover) */}
+          {page.page_number !== 0 && page.story_text && (
+            <div className="bg-white p-6 border-t-4 border-accent-gold">
+              {page.title && (
+                <h3 className="text-xl font-black text-brand-dark mb-3">{page.title}</h3>
+              )}
+              <p className="text-brand-dark text-lg leading-relaxed">
+                {page.story_text}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Thumbnails with status indicators */}

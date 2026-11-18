@@ -87,6 +87,7 @@ export interface Character {
   generation_status: "pending" | "generating" | "completed" | "failed";
   character_type: "person" | "pet" | "other";
   pet_type: string | null;
+  sex: "male" | "female" | null;  // For pronoun generation (he/she, him/her, his/hers)
   age_group: "child" | "adult" | "senior" | null;
   age?: number | null;
   height_cm?: number | null;  // Height in centimeters (defaults based on age)
@@ -145,6 +146,7 @@ export interface CharacterSnapshot {
   name: string;
   character_type?: string;
   pet_type?: string;
+  sex?: "male" | "female" | null;
   age?: number | null;
   height_cm?: number | null;
   generated_image_url?: string;
