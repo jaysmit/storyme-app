@@ -198,6 +198,15 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] **Image Caching Fix** - New images not showing after regeneration
   - Root cause: All images uploaded to same filename (cover.jpg), so URL never changed
   - Fix: Now uses timestamped filenames (cover-{timestamp}.jpg) for unique URLs
+
+### Known Issues / TODO (2026-11-18)
+- [ ] **Generation stops when leaving website** - Server-side chain triggering relies on client polling; true background needed
+- [ ] **No progress animation** - Console shows "3 initial pages triggered" but no UI feedback
+- [ ] **Retry regenerates cover** - Should skip cover (already approved), only regenerate failed interior pages
+- [ ] **Only 1 page at a time** - Should generate 3-5 pages in parallel for speed
+- [ ] **No auto-resume** - When viewing progress, should auto-continue stalled generation with prompt
+- [ ] **Server logs hard to access** - Consider adding `/api/admin/logs` endpoint or use Vercel log drains
+- [ ] **Vercel log filtering** - Add consistent log prefixes like `[BOOK:xxx] [PAGE:y]` for easier filtering
 - [x] **Page Version History** - Previous image versions saved when regenerating
   - New `PageVersion` type in `lib/types.ts` with url, createdAt, editInstructions
   - `generate-page/route.ts` saves previous URL to `page_statuses[pageIndex].versions` (max 5)
