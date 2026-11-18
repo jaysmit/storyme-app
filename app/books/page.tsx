@@ -820,169 +820,29 @@ function BooksPageContent() {
 
       {/* Preview Modal */}
       {previewBook && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/80">
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-auto p-4 pb-24">
-            <div className="max-w-5xl mx-auto">
-              {previewLoading ? (
-                <div className="bg-brand-purple-light rounded-3xl p-12 text-center">
-                  <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-text-muted">Loading preview...</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Book viewer with integrated page status */}
-                  <BookViewer
-                    pages={previewPages}
-                    title={getStoryTitle(previewBook)}
-                    onClose={closePreview}
-                    textOverlays={previewOverlays}
-                    bookId={previewBook.id}
-                    showActions={false}
-                    pageStatuses={previewBook.page_statuses || []}
-                    onRetryPage={(pageId, pageNumber) => regeneratePage(previewBook.id, pageId, pageNumber)}
-                    regeneratingPages={regenerating}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Fixed bottom action bar */}
-          <div className="bg-brand-purple-light border-t border-brand-purple-muted p-4">
-            <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
-              {/* Left side - close button */}
-              <button
-                onClick={closePreview}
-                className="px-4 py-2.5 border border-brand-purple-muted text-text-muted font-bold rounded-full hover:border-white hover:text-white transition-colors flex items-center gap-2"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-                Close
-              </button>
-
-              {/* Right side - action buttons */}
-              <div className="flex items-center gap-3">
-                {previewCategory === "cover" && (
-                  <>
-                    <Link
-                      href={`/book/${previewBook.id}/edit?page=0`}
-                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Edit Cover
-                    </Link>
-                    <Link
-                      href={`/create?book=${previewBook.id}`}
-                      className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                      Generate Book
-                    </Link>
-                  </>
-                )}
-                {previewCategory === "book" && (
-                  <>
-                    <Link
-                      href={`/book/${previewBook.id}/edit`}
-                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Edit Book
-                    </Link>
-                    <Link
-                      href={`/book/${previewBook.id}/print`}
-                      className="px-6 py-2.5 bg-accent-gold text-brand-dark font-bold rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                        <rect x="6" y="14" width="12" height="8" />
-                      </svg>
-                      Print Book
-                    </Link>
-                  </>
-                )}
-                {previewCategory === "generating" && (
-                  <>
-                    <Link
-                      href={`/book/${previewBook.id}/edit`}
-                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Edit Pages
-                    </Link>
-                    {missingPages.length > 0 && (
-                      <button
-                        onClick={() => regenerateAllMissing(previewBook.id)}
-                        disabled={regenerating.size > 0}
-                        className="px-6 py-2.5 bg-amber-500 text-brand-dark font-bold rounded-full hover:bg-amber-400 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {regenerating.size > 0 ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
-                            Regenerating...
-                          </>
-                        ) : (
-                          <>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M23 4v6h-6M1 20v-6h6" />
-                              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                            </svg>
-                            Regenerate All
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </>
-                )}
-                {previewCategory === "incomplete" && (
-                  <>
-                    <Link
-                      href={`/book/${previewBook.id}/edit`}
-                      className="px-4 py-2.5 border border-brand-purple-muted text-white font-bold rounded-full hover:border-accent-gold hover:text-accent-gold transition-colors flex items-center gap-2"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                      Edit Pages
-                    </Link>
-                    <button
-                      onClick={() => regenerateAllMissing(previewBook.id)}
-                      disabled={regenerating.size > 0}
-                      className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-full hover:bg-red-400 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {regenerating.size > 0 ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Recovering...
-                        </>
-                      ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M23 4v6h-6M1 20v-6h6" />
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                          </svg>
-                          Recover Missing ({missingPages.length})
-                        </>
-                      )}
-                    </button>
-                  </>
-                )}
+        <div className="fixed inset-0 z-50 bg-black/80 overflow-auto p-4">
+          <div className="max-w-5xl mx-auto">
+            {previewLoading ? (
+              <div className="bg-brand-purple-light rounded-3xl p-12 text-center">
+                <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-text-muted">Loading preview...</p>
               </div>
-            </div>
+            ) : (
+              <BookViewer
+                pages={previewPages}
+                title={getStoryTitle(previewBook)}
+                onClose={closePreview}
+                textOverlays={previewOverlays}
+                bookId={previewBook.id}
+                showActions={true}
+                bookCategory={previewCategory}
+                pageStatuses={previewBook.page_statuses || []}
+                onRetryPage={(pageId, pageNumber) => regeneratePage(previewBook.id, pageId, pageNumber)}
+                regeneratingPages={regenerating}
+                onRegenerateAll={missingPages.length > 0 ? () => regenerateAllMissing(previewBook.id) : undefined}
+                isRegenerating={regenerating.size > 0}
+              />
+            )}
           </div>
         </div>
       )}
