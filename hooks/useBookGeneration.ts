@@ -3,10 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { PageStatus, Book } from "@/lib/types";
 
-const MAX_CONCURRENT = 5;
-const POLL_INTERVAL = 2000; // 2 seconds
-const PAGE_TIMEOUT_MS = 180000; // 3 minutes - if a page takes longer, consider it stuck
-const MAX_AUTO_RETRIES = 3; // Maximum automatic retry attempts per page
+const POLL_INTERVAL = 3000; // 3 seconds - server handles generation, we just poll
 
 interface Progress {
   total: number;
@@ -30,6 +27,7 @@ interface UseBookGenerationReturn {
   hasInteriorPages: boolean;
   startGeneration: () => Promise<void>;
   retryPage: (pageId: string) => Promise<void>;
+  retryAllFailed: () => Promise<void>;
   error: string | null;
   tokenBalance: number;
 }
@@ -53,15 +51,9 @@ export function useBookGeneration({
   const [error, setError] = useState<string | null>(null);
   const [tokenBalance, setTokenBalance] = useState(0);
 
-  // Track active generation requests
-  const activeRequestsRef = useRef(new Set<string>());
   const isStartedRef = useRef(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Track page start times for timeout detection
-  const pageStartTimesRef = useRef<Map<string, number>>(new Map());
-  // Track auto-retry counts per page
-  const autoRetryCountsRef = useRef<Map<string, number>>(new Map());
+  const previousStatusesRef = useRef<string>(""); // Track changes
 
   // Calculate progress from page statuses
   const updateProgress = useCallback((statuses: PageStatus[]) => {
@@ -73,11 +65,11 @@ export function useBookGeneration({
 
     setProgress({ total, completed, failed, generating, pending });
 
-    // Check if all done
-    if (total > 0 && completed + failed === total) {
+    // Check if all done (no more pending or generating)
+    if (total > 0 && pending === 0 && generating === 0) {
       setIsGenerating(false);
       if (failed === 0 && onComplete) {
-        // Fetch final book state
+        // All pages completed successfully - fetch final book state
         fetch(`/api/books/${bookId}`)
           .then((res) => res.json())
           .then((data) => {
@@ -88,141 +80,11 @@ export function useBookGeneration({
           .catch(console.error);
       }
     }
+
+    return { total, completed, failed, generating, pending };
   }, [bookId, onComplete]);
 
-  // Generate a single page
-  const generatePage = useCallback(async (pageId: string, isAutoRetry = false) => {
-    if (activeRequestsRef.current.has(pageId)) {
-      return; // Already generating
-    }
-
-    activeRequestsRef.current.add(pageId);
-    // Track when this page started generating
-    pageStartTimesRef.current.set(pageId, Date.now());
-
-    if (isAutoRetry) {
-      const currentCount = autoRetryCountsRef.current.get(pageId) || 0;
-      autoRetryCountsRef.current.set(pageId, currentCount + 1);
-      console.log(`Auto-retrying page ${pageId} (attempt ${currentCount + 1}/${MAX_AUTO_RETRIES})`);
-    }
-
-    try {
-      const res = await fetch(`/api/books/${bookId}/generate-page`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to generate page");
-      }
-
-      if (data.tokensRemaining !== undefined) {
-        setTokenBalance(data.tokensRemaining);
-      }
-
-      if (data.status === "completed" && data.url) {
-        // Clear tracking for this page
-        pageStartTimesRef.current.delete(pageId);
-        autoRetryCountsRef.current.delete(pageId);
-
-        // Update local state
-        setPageStatuses((prev) =>
-          prev.map((p) =>
-            p.pageId === pageId
-              ? { ...p, status: "completed", url: data.url }
-              : p
-          )
-        );
-        if (onPageComplete) {
-          onPageComplete(pageId, data.url);
-        }
-      }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      console.error(`Error generating ${pageId}:`, errorMsg);
-
-      // Clear start time tracking
-      pageStartTimesRef.current.delete(pageId);
-
-      // Update local state to failed
-      setPageStatuses((prev) =>
-        prev.map((p) =>
-          p.pageId === pageId
-            ? { ...p, status: "failed", error: errorMsg }
-            : p
-        )
-      );
-    } finally {
-      activeRequestsRef.current.delete(pageId);
-    }
-  }, [bookId, onPageComplete]);
-
-  // Check for stuck or failed pages and auto-retry
-  const checkAndAutoRetry = useCallback(() => {
-    const now = Date.now();
-
-    // Check for stuck pages (generating too long)
-    for (const [pageId, startTime] of pageStartTimesRef.current.entries()) {
-      const elapsed = now - startTime;
-      if (elapsed > PAGE_TIMEOUT_MS) {
-        const retryCount = autoRetryCountsRef.current.get(pageId) || 0;
-        if (retryCount < MAX_AUTO_RETRIES) {
-          console.log(`Page ${pageId} appears stuck (${Math.round(elapsed / 1000)}s), attempting auto-retry...`);
-          // Clear the tracking so we can retry
-          pageStartTimesRef.current.delete(pageId);
-          activeRequestsRef.current.delete(pageId);
-          // Trigger retry
-          generatePage(pageId, true);
-        } else {
-          console.log(`Page ${pageId} stuck and max retries (${MAX_AUTO_RETRIES}) reached`);
-          pageStartTimesRef.current.delete(pageId);
-        }
-      }
-    }
-
-    // Check for failed pages that can be auto-retried
-    const failedPages = pageStatuses.filter(
-      (p) => p.status === "failed" && !activeRequestsRef.current.has(p.pageId)
-    );
-
-    for (const page of failedPages) {
-      const retryCount = autoRetryCountsRef.current.get(page.pageId) || 0;
-      if (retryCount < MAX_AUTO_RETRIES) {
-        console.log(`Auto-retrying failed page ${page.pageId}...`);
-        // Reset status to pending locally for retry
-        setPageStatuses((prev) =>
-          prev.map((p) =>
-            p.pageId === page.pageId
-              ? { ...p, status: "pending", error: undefined }
-              : p
-          )
-        );
-        // Trigger generation with retry flag
-        generatePage(page.pageId, true);
-      }
-    }
-  }, [pageStatuses, generatePage]);
-
-  // Process pending pages with concurrency limit
-  const processPendingPages = useCallback(async () => {
-    // First, check for any stuck/failed pages to auto-retry
-    checkAndAutoRetry();
-
-    const pending = pageStatuses.filter(
-      (p) => p.status === "pending" && !activeRequestsRef.current.has(p.pageId)
-    );
-
-    const available = MAX_CONCURRENT - activeRequestsRef.current.size;
-    const toProcess = pending.slice(0, available);
-
-    // Start generating pages in parallel
-    await Promise.all(toProcess.map((p) => generatePage(p.pageId)));
-  }, [pageStatuses, generatePage, checkAndAutoRetry]);
-
-  // Poll for status updates
+  // Poll for status updates - server handles generation
   const pollStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/books/${bookId}/status`);
@@ -230,20 +92,36 @@ export function useBookGeneration({
 
       const data = await res.json();
       if (data.pageStatuses) {
-        setPageStatuses(data.pageStatuses);
-        updateProgress(data.pageStatuses);
-      }
+        // Check for newly completed pages
+        const newStatusJson = JSON.stringify(data.pageStatuses);
+        if (newStatusJson !== previousStatusesRef.current) {
+          previousStatusesRef.current = newStatusJson;
 
-      // Check for stuck/failed pages and auto-retry
-      checkAndAutoRetry();
+          // Find newly completed pages
+          if (onPageComplete) {
+            for (const page of data.pageStatuses) {
+              const prev = pageStatuses.find((p) => p.pageId === page.pageId);
+              if (page.status === "completed" && prev?.status !== "completed" && page.url) {
+                onPageComplete(page.pageId, page.url);
+              }
+            }
+          }
+
+          setPageStatuses(data.pageStatuses);
+          updateProgress(data.pageStatuses);
+        }
+      }
     } catch (err) {
       console.error("Error polling status:", err);
     }
-  }, [bookId, updateProgress, checkAndAutoRetry]);
+  }, [bookId, pageStatuses, updateProgress, onPageComplete]);
 
   // Start polling when generating
   useEffect(() => {
     if (isGenerating) {
+      // Poll immediately
+      pollStatus();
+      // Then set up interval
       pollIntervalRef.current = setInterval(pollStatus, POLL_INTERVAL);
     } else if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
@@ -257,14 +135,7 @@ export function useBookGeneration({
     };
   }, [isGenerating, pollStatus]);
 
-  // Process pending pages when statuses change
-  useEffect(() => {
-    if (isGenerating && pageStatuses.length > 0) {
-      processPendingPages();
-    }
-  }, [isGenerating, pageStatuses, processPendingPages]);
-
-  // Start generation
+  // Start generation - server handles everything
   const startGeneration = useCallback(async () => {
     if (isStartedRef.current) return;
     isStartedRef.current = true;
@@ -272,7 +143,7 @@ export function useBookGeneration({
     setError(null);
 
     try {
-      // Initialize generation
+      // This now triggers the server to start generation AND kick off initial pages
       const res = await fetch(`/api/books/${bookId}/start-full-generation`, {
         method: "POST",
       });
@@ -280,7 +151,7 @@ export function useBookGeneration({
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to start generation");
+        throw new Error(data.error || data.message || "Failed to start generation");
       }
 
       if (!data.hasInteriorPages) {
@@ -288,7 +159,6 @@ export function useBookGeneration({
         setIsGenerating(false);
         setPageStatuses(data.pageStatuses || []);
         updateProgress(data.pageStatuses || []);
-        // Reset so user can retry if needed
         isStartedRef.current = false;
         return;
       }
@@ -296,6 +166,8 @@ export function useBookGeneration({
       setHasInteriorPages(true);
       setPageStatuses(data.pageStatuses || []);
       updateProgress(data.pageStatuses || []);
+
+      console.log(`Generation started - server triggered ${data.triggeredPages?.length || 0} initial pages`);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       setError(errorMsg);
@@ -307,9 +179,18 @@ export function useBookGeneration({
     }
   }, [bookId, onError, updateProgress]);
 
-  // Retry a failed page
+  // Retry a single failed page
   const retryPage = useCallback(async (pageId: string) => {
     try {
+      // Update local state to show retrying
+      setPageStatuses((prev) =>
+        prev.map((p) =>
+          p.pageId === pageId
+            ? { ...p, status: "pending", error: undefined }
+            : p
+        )
+      );
+
       const res = await fetch(`/api/books/${bookId}/retry-page`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -322,24 +203,60 @@ export function useBookGeneration({
         throw new Error(data.error || "Failed to retry page");
       }
 
-      // Update local state
-      setPageStatuses((prev) =>
-        prev.map((p) =>
-          p.pageId === pageId
-            ? { ...p, status: "pending", error: undefined }
-            : p
-        )
-      );
-
-      // Trigger generation
-      await generatePage(pageId);
+      // Resume polling if not already
+      if (!isGenerating) {
+        setIsGenerating(true);
+      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       console.error(`Error retrying ${pageId}:`, errorMsg);
+      // Revert status
+      setPageStatuses((prev) =>
+        prev.map((p) =>
+          p.pageId === pageId
+            ? { ...p, status: "failed", error: errorMsg }
+            : p
+        )
+      );
     }
-  }, [bookId, generatePage]);
+  }, [bookId, isGenerating]);
 
-  // Check for resume on mount
+  // Retry all failed pages
+  const retryAllFailed = useCallback(async () => {
+    const failedPages = pageStatuses.filter((p) => p.status === "failed");
+    if (failedPages.length === 0) return;
+
+    // Update all failed to pending
+    setPageStatuses((prev) =>
+      prev.map((p) =>
+        p.status === "failed"
+          ? { ...p, status: "pending", error: undefined }
+          : p
+      )
+    );
+
+    // Trigger the cron endpoint to process them, or just trigger each
+    try {
+      // Trigger generation for first few failed pages to kick off chain
+      const toTrigger = failedPages.slice(0, 3);
+      for (const page of toTrigger) {
+        fetch(`/api/books/${bookId}/generate-page`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pageId: page.pageId, fromCron: true }),
+        }).catch(console.error);
+      }
+
+      // Resume polling
+      if (!isGenerating) {
+        setIsGenerating(true);
+      }
+    } catch (err) {
+      console.error("Error retrying all failed:", err);
+    }
+  }, [bookId, pageStatuses, isGenerating]);
+
+  // Check for resume on mount - if book is mid-generation, start polling
   useEffect(() => {
     const checkResume = async () => {
       try {
@@ -348,13 +265,20 @@ export function useBookGeneration({
 
         const data = await res.json();
 
-        // If book is in generating_full status, resume
-        if (data.status === "generating_full" && data.pageStatuses) {
+        // If book is in generating_full status with pending/generating pages, resume polling
+        if (
+          (data.status === "generating_full" || data.status === "incomplete") &&
+          data.pageStatuses
+        ) {
           setPageStatuses(data.pageStatuses);
-          updateProgress(data.pageStatuses);
+          const { pending, generating } = updateProgress(data.pageStatuses);
           setHasInteriorPages(true);
-          setIsGenerating(true);
-          isStartedRef.current = true;
+
+          // If there's work in progress, start polling
+          if (pending > 0 || generating > 0) {
+            setIsGenerating(true);
+            isStartedRef.current = true;
+          }
         }
       } catch (err) {
         console.error("Error checking resume:", err);
@@ -371,6 +295,7 @@ export function useBookGeneration({
     hasInteriorPages,
     startGeneration,
     retryPage,
+    retryAllFailed,
     error,
     tokenBalance,
   };

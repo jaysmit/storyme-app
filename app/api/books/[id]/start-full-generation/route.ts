@@ -207,12 +207,35 @@ export async function POST(
       (p) => p.status === "pending" && p.pageId !== "cover"
     );
 
+    // Trigger initial batch of pages to start generation immediately
+    // This kicks off a chain reaction - each completed page triggers the next
+    const INITIAL_BATCH_SIZE = 3; // Start with 3 concurrent pages
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://storyme-app-roan.vercel.app";
+
+    const initialBatch = pagesToGenerate.slice(0, INITIAL_BATCH_SIZE);
+    console.log(`[START] Triggering initial batch of ${initialBatch.length} pages`);
+
+    for (const page of initialBatch) {
+      // Fire and forget - don't await
+      fetch(`${baseUrl}/api/books/${id}/generate-page`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pageId: page.pageId,
+          fromCron: true, // Treat as background job
+        }),
+      }).catch((err) => {
+        console.error(`[START] Failed to trigger page ${page.pageId}:`, err);
+      });
+    }
+
     return NextResponse.json({
       book: updatedBook,
       pages: pagesWithImages,
       pageStatuses,
       pagesToGenerate,
       hasInteriorPages: pagesToGenerate.length > 0,
+      triggeredPages: initialBatch.map((p) => p.pageId),
     });
   } catch (error) {
     console.error("Error starting full generation:", error);

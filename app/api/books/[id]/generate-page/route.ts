@@ -51,11 +51,12 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { pageId } = body;
+    // Accept either pageId or pageNumber
+    let { pageId, pageNumber, fromCron } = body;
 
-    if (!pageId) {
+    if (!pageId && pageNumber === undefined) {
       return NextResponse.json(
-        { error: "Missing pageId in request body" },
+        { error: "Missing pageId or pageNumber in request body" },
         { status: 400 }
       );
     }
@@ -84,19 +85,28 @@ export async function POST(
 
     // Check if page exists in page_statuses
     const pageStatuses: PageStatus[] = book.page_statuses || [];
-    const pageIndex = pageStatuses.findIndex((p) => p.pageId === pageId);
+
+    // Find by pageId or pageNumber
+    let pageIndex: number;
+    if (pageId) {
+      pageIndex = pageStatuses.findIndex((p) => p.pageId === pageId);
+    } else {
+      pageIndex = pageStatuses.findIndex((p) => p.pageNumber === pageNumber);
+    }
 
     if (pageIndex === -1) {
       return NextResponse.json(
-        { error: `Page "${pageId}" not found in book page_statuses` },
+        { error: `Page "${pageId || `number ${pageNumber}`}" not found in book page_statuses` },
         { status: 400 }
       );
     }
 
     const pageStatus = pageStatuses[pageIndex];
+    // Ensure we have pageId for consistency
+    pageId = pageStatus.pageId;
 
-    // Check if page is already generating or completed
-    if (pageStatus.status === "generating") {
+    // Check if page is already generating (skip check if from cron - cron handles stuck detection)
+    if (pageStatus.status === "generating" && !fromCron) {
       return NextResponse.json(
         { error: `Page "${pageId}" is already generating` },
         { status: 400 }
@@ -302,6 +312,28 @@ export async function POST(
             page_number: result.pageNumber,
           },
         });
+      }
+
+      // Chain trigger: If there are more pending pages, trigger the next one
+      // This creates a cascade effect for faster generation
+      if (!validation.isComplete && validation.pendingCount > 0) {
+        const nextPending = pageStatuses.find((p) => p.status === "pending");
+        if (nextPending) {
+          console.log(`[CHAIN] Triggering next pending page: ${nextPending.pageId}`);
+          const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://storyme-app-roan.vercel.app";
+
+          // Fire and forget - don't await
+          fetch(`${baseUrl}/api/books/${id}/generate-page`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              pageId: nextPending.pageId,
+              fromCron: true, // Treat as background job
+            }),
+          }).catch((err) => {
+            console.error(`[CHAIN] Failed to trigger next page:`, err);
+          });
+        }
       }
 
       return NextResponse.json({
