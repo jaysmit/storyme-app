@@ -226,6 +226,7 @@ export async function POST(
           pageId: page.pageId,
           fromCron: true, // Treat as background job
           workerId, // Share worker ID across initial batch for logging
+          internalSecret: process.env.CRON_SECRET, // Allow server-to-server call
         }),
       }).catch((err) => {
         console.error(`[START] Failed to trigger page ${page.pageId}:`, err);

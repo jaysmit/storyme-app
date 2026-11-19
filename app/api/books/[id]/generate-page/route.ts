@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { generateSinglePage, type CharacterInput } from "@/lib/page-generation";
 import { type PageStatus, type PageVersion, GENERATION_CONFIG } from "@/lib/types";
 import {
@@ -47,20 +48,64 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Parse body first to check for internal call
+  let body: {
+    pageId?: string;
+    pageNumber?: number;
+    fromCron?: boolean;
+    workerId?: string;
+    internalSecret?: string;
+    editInstructions?: string;
+  } = {};
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Allow internal server-to-server calls with secret (for cron/triggers)
+  const isInternalCall = body.internalSecret === process.env.CRON_SECRET && process.env.CRON_SECRET;
+
+  let supabase;
+  let userId: string;
+
+  if (isInternalCall) {
+    // Internal call - use service role client (no cookies needed)
+    supabase = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Get user_id from the book itself
+    const { data: bookCheck } = await supabase
+      .from("books")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+
+    if (!bookCheck) {
+      return NextResponse.json({ error: "Book not found" }, { status: 404 });
+    }
+    userId = bookCheck.user_id;
+    console.log(`[INTERNAL] Processing page for book ${id.slice(0, 8)} (user: ${userId.slice(0, 8)})`);
+  } else {
+    // Normal user call - use cookie-based client
+    supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    userId = user.id;
   }
 
   try {
-    const body = await request.json();
-    // Accept either pageId or pageNumber
-    let { pageId, pageNumber, fromCron, workerId: providedWorkerId } = body;
+    // Body already parsed above for internal call check
+    // Extract fields from body
+    let { pageId, pageNumber, workerId: providedWorkerId } = body;
 
     if (!pageId && pageNumber === undefined) {
       return NextResponse.json(
@@ -72,13 +117,12 @@ export async function POST(
     // Generate or use provided worker ID for job claiming
     const workerId = providedWorkerId || generateWorkerId();
 
-    // Get the book and verify ownership
-    const { data: book, error: fetchError } = await supabase
-      .from("books")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+    // Get the book (ownership already verified for internal calls, or filter by user_id)
+    let bookQuery = supabase.from("books").select("*").eq("id", id);
+    if (!isInternalCall) {
+      bookQuery = bookQuery.eq("user_id", userId);
+    }
+    const { data: book, error: fetchError } = await bookQuery.single();
 
     if (fetchError || !book) {
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
@@ -197,7 +241,7 @@ export async function POST(
 
     // Start generation log for interior page
     const generationLog = await startGenerationLog({
-      user_id: user.id,
+      user_id: userId,
       book_id: id,
       event_type: pageStatus.retryCount > 0 ? "page_regenerate" : "page_generate",
       page_number: pageStatus.pageNumber,
@@ -270,7 +314,7 @@ export async function POST(
     // Generate the page
     const result = await generateSinglePage(
       id,
-      user.id,
+      userId,
       pageId,
       config.bookId,
       characters
@@ -411,6 +455,7 @@ export async function POST(
                 body: JSON.stringify({
                   pageId: page.pageId,
                   fromCron: true, // Treat as background job
+                  internalSecret: process.env.CRON_SECRET,
                 }),
               }).catch((err) => {
                 console.error(`[CHAIN] Failed to trigger page ${page.pageId}:`, err);
@@ -480,7 +525,11 @@ export async function POST(
             fetch(`${baseUrl}/api/books/${id}/generate-page`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ pageId: page.pageId, fromCron: true }),
+              body: JSON.stringify({
+                pageId: page.pageId,
+                fromCron: true,
+                internalSecret: process.env.CRON_SECRET,
+              }),
             }).catch(console.error);
           }
         }

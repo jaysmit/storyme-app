@@ -131,6 +131,7 @@ export async function POST(
           pageId: page.pageId,
           fromCron: true, // Treat as background job
           workerId,
+          internalSecret: process.env.CRON_SECRET,
         }),
       }).catch((err) => {
         console.error(`[TRIGGER] Failed to trigger page ${page.pageId}:`, err);

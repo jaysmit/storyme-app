@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
           body: JSON.stringify({
             pageId: page.pageId,
             fromCron: true,
+            internalSecret: process.env.CRON_SECRET,
           }),
         }).catch((err) => {
           console.error(`[CRON] Failed to trigger ${page.pageId}:`, err);
