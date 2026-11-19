@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
@@ -98,6 +98,9 @@ function Step5GenerateBook({
   coverUrl,
   onViewBook,
 }: Step5Props) {
+  const router = useRouter();
+  const [isStarting, setIsStarting] = useState(false);
+
   const {
     pageStatuses,
     progress,
@@ -115,6 +118,19 @@ function Step5GenerateBook({
 
   const allComplete = progress.total > 0 && progress.completed === progress.total;
 
+  // Handle generate click - start generation and redirect to books page
+  const handleGenerateClick = async () => {
+    setIsStarting(true);
+    try {
+      await startGeneration();
+      // Redirect to books page where they can see progress
+      router.push("/books");
+    } catch (err) {
+      console.error("Failed to start generation:", err);
+      setIsStarting(false);
+    }
+  };
+
   return (
     <div>
       <div className="text-center mb-8">
@@ -122,7 +138,9 @@ function Step5GenerateBook({
           Generate Your Book
         </h1>
         <p className="text-lg text-text-muted">
-          {isGenerating
+          {isStarting
+            ? "Starting generation..."
+            : isGenerating
             ? "Creating your personalized storybook pages..."
             : allComplete
             ? "Your book is ready!"
@@ -150,9 +168,9 @@ function Step5GenerateBook({
               {characterCount} character{characterCount !== 1 && "s"} • {artStyleName} style
             </p>
 
-            {!isGenerating && !allComplete && (
+            {!isGenerating && !allComplete && !isStarting && (
               <button
-                onClick={startGeneration}
+                onClick={handleGenerateClick}
                 className="bg-accent-gold text-brand-dark font-extrabold px-6 py-3 rounded-full hover:bg-accent-gold-light transition-colors flex items-center gap-2"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -160,6 +178,13 @@ function Step5GenerateBook({
                 </svg>
                 Generate Full Book
               </button>
+            )}
+
+            {isStarting && (
+              <div className="flex items-center gap-2 text-accent-gold">
+                <div className="w-5 h-5 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" />
+                <span className="font-bold">Starting generation...</span>
+              </div>
             )}
 
             {allComplete && (
