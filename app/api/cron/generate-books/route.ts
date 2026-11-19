@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { type PageStatus, GENERATION_CONFIG } from "@/lib/types";
+import {
+  calculatePagesToTrigger,
+  logGenerationStatus,
+  isPageStalled,
+} from "@/lib/generation-manager";
 
 // Cron job to continue generating books server-side
 // This ensures generation continues even when user leaves the app
-// Called every minute by Vercel Cron
+// Called daily by Vercel Cron (Hobby plan limit)
 
-const CONCURRENT_PER_BOOK = 3; // Max pages to generate concurrently per book
-const MAX_BOOKS_PER_RUN = 5; // Max books to process per cron run
+const MAX_BOOKS_PER_RUN = 10; // Max books to process per cron run
 
 export async function GET(request: NextRequest) {
   // Verify cron secret for security
@@ -46,47 +51,35 @@ export async function GET(request: NextRequest) {
     let totalTriggered = 0;
 
     for (const book of books) {
-      const pageStatuses = book.page_statuses || [];
+      const pageStatuses: PageStatus[] = book.page_statuses || [];
 
-      // Find pages that need generation
-      const pendingPages = pageStatuses.filter(
-        (p: { status: string; pageId: string }) =>
-          p.status === "pending" && p.pageId !== "cover"
+      // Log current status
+      logGenerationStatus(book.id, pageStatuses, "[CRON] ");
+
+      // Use the generation manager to calculate pages to trigger
+      const { pagesToTrigger, activeCount, slotsAvailable } = calculatePagesToTrigger(
+        pageStatuses,
+        GENERATION_CONFIG.DEFAULT_CONCURRENCY
       );
 
-      const generatingPages = pageStatuses.filter(
-        (p: { status: string; startedAt?: string }) => {
-          if (p.status !== "generating") return false;
-          // Consider pages stuck if generating for > 3 minutes
-          if (p.startedAt) {
-            const elapsed = Date.now() - new Date(p.startedAt).getTime();
-            if (elapsed > 3 * 60 * 1000) {
-              console.log(`[CRON] Page stuck for ${Math.round(elapsed / 1000)}s, treating as pending`);
-              return false; // Treat stuck pages as not generating
-            }
-          }
-          return true;
-        }
-      );
-
-      const activelyGenerating = generatingPages.length;
-
-      // Calculate how many more pages to trigger
-      const toTriggerCount = Math.min(
-        CONCURRENT_PER_BOOK - activelyGenerating,
-        pendingPages.length
-      );
-
-      if (toTriggerCount <= 0) {
-        console.log(`[CRON] Book ${book.id.slice(0, 8)}: ${activelyGenerating} generating, ${pendingPages.length} pending - skipping`);
+      if (pagesToTrigger.length === 0) {
+        console.log(`[CRON] Book ${book.id.slice(0, 8)}: ${activeCount} active, no slots available - skipping`);
         continue;
       }
 
-      const pagesToTrigger = pendingPages.slice(0, toTriggerCount);
-      console.log(`[CRON] Book ${book.id.slice(0, 8)}: Triggering ${pagesToTrigger.length} pages`);
+      // Filter out cover page
+      const nonCoverPages = pagesToTrigger.filter(
+        (p) => p.pageId !== "cover" && p.pageNumber !== 0
+      );
+
+      if (nonCoverPages.length === 0) {
+        continue;
+      }
+
+      console.log(`[CRON] Book ${book.id.slice(0, 8)}: Triggering ${nonCoverPages.length} pages (${slotsAvailable} slots available)`);
 
       // Fire requests to generate pages
-      for (const page of pagesToTrigger) {
+      for (const page of nonCoverPages) {
         // Don't await - fire and continue
         fetch(`${baseUrl}/api/books/${book.id}/generate-page`, {
           method: "POST",

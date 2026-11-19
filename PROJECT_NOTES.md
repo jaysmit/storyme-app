@@ -191,6 +191,65 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-19) - Major Generation Overhaul
+- [x] **Generation Orchestration System** - Complete rewrite for reliability and speed
+  - **New `lib/generation-manager.ts`** - Centralized job claiming, duplicate prevention, orchestration
+  - **Configurable concurrency** - `GENERATION_CONFIG.DEFAULT_CONCURRENCY = 5` pages simultaneously
+  - **Job claiming with leases** - Prevents duplicate generation across tabs/devices
+    - Each page has `claimedBy`, `claimedAt`, `generationId` fields
+    - Claims expire after 5 minutes (stalled job detection)
+    - Workers check claims before generating, skip if already claimed
+  - **New `retrying` status** - Pages being retried show different state
+
+- [x] **New `/api/books/[id]/trigger-generation` endpoint** - Idempotent generation trigger
+  - POST: Trigger eligible pages up to concurrency limit
+  - GET: Get detailed generation status without triggering
+  - Safe to call repeatedly (won't duplicate work)
+  - Returns: status, summary, triggered pages, active count, slots available
+
+- [x] **App-Wide GenerationOrchestrator** - Automatic recovery from any page
+  - `AuthenticatedOrchestrator` in app layout runs for logged-in users
+  - Checks for incomplete books every 3 seconds
+  - Triggers generation every 5 seconds if needed
+  - Shows unobtrusive floating progress indicator
+  - User can browse other pages while generation continues
+
+- [x] **Updated `useBookGeneration` hook** - Simplified and improved
+  - Uses new trigger-generation endpoint
+  - Both polls (3s) and triggers (5s) while generating
+  - Better duplicate prevention
+  - New return values: `isComplete`, `hasErrors`, `triggerGeneration()`
+
+- [x] **Updated `generate-page/route.ts`** - Job claiming integration
+  - Checks for existing claims before generating
+  - Clears claims on completion/failure
+  - Takes over stalled/expired claims
+  - Chain triggers multiple pages to maintain concurrency
+
+- [x] **Updated cron job** - Uses generation manager functions
+  - Calls `calculatePagesToTrigger()` for consistent logic
+  - Logs generation status with `logGenerationStatus()`
+
+### Key Configuration
+```typescript
+GENERATION_CONFIG = {
+  DEFAULT_CONCURRENCY: 5,       // Pages generating simultaneously
+  CLAIM_TIMEOUT_MS: 5 * 60 * 1000,     // 5 min claim expiry
+  STALLED_THRESHOLD_MS: 4 * 60 * 1000, // 4 min stalled detection
+  POLL_INTERVAL_MS: 3000,              // 3s status polling
+  TRIGGER_INTERVAL_MS: 5000,           // 5s generation triggering
+}
+```
+
+### How It Works Now
+1. User clicks "Generate Full Book"
+2. Tokens deducted upfront for ALL pages
+3. Initial batch of 5 pages triggered
+4. Each completed page chain-triggers more to maintain 5 concurrent
+5. App-wide orchestrator ensures generation continues on any page
+6. Stalled/expired jobs automatically retried
+7. Daily cron catches any books that slipped through
+
 ### Recent Changes (2026-11-18 Evening)
 - [x] **Cover Regeneration Fix** - Critical bug where regenerating cover deleted all interior pages
   - Issue: `preview_pages: generatedPages` replaced entire array with just new cover
@@ -199,7 +258,7 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Root cause: All images uploaded to same filename (cover.jpg), so URL never changed
   - Fix: Now uses timestamped filenames (cover-{timestamp}.jpg) for unique URLs
 
-### Recent Changes (2026-11-18 Night)
+### Previous Changes (2026-11-18 Night)
 - [x] **Parallel Page Generation** - Now generates 3 pages concurrently instead of 1
   - `generate-page/route.ts` chain trigger updated to spawn multiple pages
   - Maintains target concurrency of 3 pages (triggers enough to reach target after each completion)

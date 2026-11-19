@@ -540,7 +540,134 @@ POST /api/books/[id]/reconcile
 
 ---
 
-## 11. Known Issues & Solutions
+## 11. Generation Orchestration System
+
+### Overview
+
+The generation system uses a client-triggered, server-validated approach with automatic recovery:
+
+1. **Client triggers** → Server validates and generates
+2. **Database is source of truth** → All state in `page_statuses`
+3. **Automatic recovery** → Stalled pages detected and retriggered
+4. **Duplicate prevention** → Job claiming with leases
+
+### Architecture
+
+```
+┌─────────────────────┐     ┌──────────────────────┐
+│  User's Browser     │     │   Vercel Serverless  │
+│                     │     │                      │
+│ GenerationOrchestrator    │   /trigger-generation │
+│   ↓ polls every 3s  │────▶│   ↓ checks status    │
+│   ↓ triggers every 5s     │   ↓ triggers pages   │
+│                     │     │                      │
+│ useBookGeneration   │     │   /generate-page     │
+│   ↓ shows progress  │◀────│   ↓ claims job       │
+│                     │     │   ↓ calls OpenAI     │
+└─────────────────────┘     │   ↓ saves result     │
+                            │   ↓ chain triggers   │
+                            └──────────────────────┘
+                                      │
+                            ┌─────────▼──────────┐
+                            │  Supabase Database │
+                            │  page_statuses[]   │
+                            └────────────────────┘
+```
+
+### Concurrency Configuration
+
+```typescript
+// lib/types.ts
+export const GENERATION_CONFIG = {
+  DEFAULT_CONCURRENCY: 5,       // Pages generating simultaneously
+  MIN_CONCURRENCY: 1,
+  MAX_CONCURRENCY: 10,
+  CLAIM_TIMEOUT_MS: 5 * 60 * 1000,     // 5 minutes
+  STALLED_THRESHOLD_MS: 4 * 60 * 1000, // 4 minutes
+  POLL_INTERVAL_MS: 3000,              // 3 seconds
+  TRIGGER_INTERVAL_MS: 5000,           // 5 seconds
+};
+```
+
+### Job Claiming (Duplicate Prevention)
+
+Each page generation request must claim the job before starting:
+
+```typescript
+// PageStatus fields for job claiming
+{
+  pageId: string;
+  status: "pending" | "generating" | "completed" | "failed" | "retrying";
+  claimedBy?: string;      // Worker ID that claimed this job
+  claimedAt?: string;      // When claimed
+  generationId?: string;   // Unique generation attempt ID
+}
+```
+
+**Rules:**
+1. Before generating, check if page is already claimed
+2. If `claimedBy` is set and claim is not expired, skip generation
+3. If claim is expired (> 5 minutes), take over
+4. On completion/failure, clear claim fields
+
+### Key API Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /api/books/[id]/start-full-generation` | Initialize pages, trigger initial batch |
+| `POST /api/books/[id]/trigger-generation` | Trigger eligible pages (idempotent) |
+| `GET /api/books/[id]/trigger-generation` | Get generation status |
+| `POST /api/books/[id]/generate-page` | Generate single page with job claiming |
+| `GET /api/cron/generate-books` | Daily backup recovery for stalled books |
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| `AuthenticatedOrchestrator` | App-wide component that auto-resumes incomplete books |
+| `GenerationOrchestrator` | UI component showing generation progress |
+| `useBookGeneration` | React hook for managing generation state |
+| `lib/generation-manager.ts` | Server utilities for job claiming and coordination |
+
+### Automatic Recovery
+
+Recovery happens in multiple layers:
+
+1. **Chain triggering** - Each completed page triggers more pending pages
+2. **Polling** - Client polls every 3s and triggers every 5s if needed
+3. **App-wide orchestrator** - Checks for incomplete books on any page load
+4. **Daily cron** - Catches any books that slipped through (Hobby plan limit)
+
+### Generation Flow
+
+1. User clicks "Generate Full Book"
+2. `start-full-generation` deducts tokens upfront for all pages
+3. `start-full-generation` triggers initial batch (5 pages)
+4. Each `generate-page`:
+   - Claims the job (or skips if already claimed)
+   - Generates image via OpenAI
+   - Saves to Supabase Storage
+   - Updates `page_statuses`
+   - Chain triggers more pages to maintain concurrency
+5. When all pages complete, book status → `completed`
+6. If errors occur, book status → `incomplete`
+
+### Logging
+
+All generation events are logged with consistent prefixes:
+
+```
+[CLAIM] Worker xxx claimed page page-5
+[COMPLETE] Page page-5 generated successfully
+[CHAIN] Triggering 2 pages (3 active, 2 slots)
+[CRON] Book abcd1234: 5/12 complete, triggering 3 pages
+```
+
+Logs are available in Vercel Function logs.
+
+---
+
+## 12. Known Issues & Solutions
 
 ### Image Generation Issues
 
@@ -579,6 +706,7 @@ POST /api/books/[id]/reconcile
 | `story-text.ts` | `lib/` | Personalize story text with names |
 | `generation-logs.ts` | `lib/` | Track generation analytics |
 | `book-validation.ts` | `lib/` | Book completion validation and recovery |
+| `generation-manager.ts` | `lib/` | Job claiming, duplicate prevention, orchestration utilities |
 
 ### Key Functions
 

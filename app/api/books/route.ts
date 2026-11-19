@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
 }
 
 // GET /api/books - List user's books
-export async function GET() {
+// Supports ?status=incomplete,generating_full to filter by status
+export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
   const {
@@ -103,11 +104,22 @@ export async function GET() {
   }
 
   try {
-    const { data: books, error } = await supabase
+    // Check for status filter
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get("status");
+
+    let query = supabase
       .from("books")
       .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .eq("user_id", user.id);
+
+    // Apply status filter if provided
+    if (statusFilter) {
+      const statuses = statusFilter.split(",").map((s) => s.trim());
+      query = query.in("status", statuses);
+    }
+
+    const { data: books, error } = await query.order("created_at", { ascending: false });
 
     if (error) {
       console.error("Books fetch error:", error);

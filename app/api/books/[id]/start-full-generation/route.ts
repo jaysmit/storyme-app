@@ -3,12 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getGeneratablePages } from "@/lib/page-generation";
 import { resolveBookId } from "@/lib/book-blueprints";
 import { checkTokens, deductTokens } from "@/lib/tokens";
-import { TOKEN_COSTS, type GenerationConfig } from "@/lib/types";
+import { TOKEN_COSTS, GENERATION_CONFIG, type GenerationConfig } from "@/lib/types";
 import {
   buildExpectedContents,
   initializePageStatusesFromExpected,
   mergePageStatuses,
 } from "@/lib/book-validation";
+import { generateWorkerId, logGenerationStatus } from "@/lib/generation-manager";
 
 // POST /api/books/[id]/start-full-generation - Initialize page statuses for all interior pages
 export async function POST(
@@ -204,16 +205,17 @@ export async function POST(
 
     // Return pages that need to be generated (exclude completed cover)
     const pagesToGenerate = pageStatuses.filter(
-      (p) => p.status === "pending" && p.pageId !== "cover"
+      (p) => p.status === "pending" && p.pageId !== "cover" && p.pageNumber !== 0
     );
 
     // Trigger initial batch of pages to start generation immediately
-    // This kicks off a chain reaction - each completed page triggers the next
-    const INITIAL_BATCH_SIZE = 3; // Start with 3 concurrent pages
+    // Uses configurable concurrency from GENERATION_CONFIG
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://storyme-app-roan.vercel.app";
+    const workerId = generateWorkerId();
 
-    const initialBatch = pagesToGenerate.slice(0, INITIAL_BATCH_SIZE);
-    console.log(`[START] Triggering initial batch of ${initialBatch.length} pages`);
+    const initialBatch = pagesToGenerate.slice(0, GENERATION_CONFIG.DEFAULT_CONCURRENCY);
+    console.log(`[START] Triggering initial batch of ${initialBatch.length} pages (concurrency: ${GENERATION_CONFIG.DEFAULT_CONCURRENCY})`);
+    logGenerationStatus(id, pageStatuses, "[START] ");
 
     for (const page of initialBatch) {
       // Fire and forget - don't await
@@ -223,6 +225,7 @@ export async function POST(
         body: JSON.stringify({
           pageId: page.pageId,
           fromCron: true, // Treat as background job
+          workerId, // Share worker ID across initial batch for logging
         }),
       }).catch((err) => {
         console.error(`[START] Failed to trigger page ${page.pageId}:`, err);
@@ -236,6 +239,8 @@ export async function POST(
       pagesToGenerate,
       hasInteriorPages: pagesToGenerate.length > 0,
       triggeredPages: initialBatch.map((p) => p.pageId),
+      concurrency: GENERATION_CONFIG.DEFAULT_CONCURRENCY,
+      workerId,
     });
   } catch (error) {
     console.error("Error starting full generation:", error);

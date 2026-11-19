@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthenticatedOrchestrator } from "@/components/AuthenticatedOrchestrator";
 
 export const metadata: Metadata = {
   title: "StoryMe — Picture books starring your family",
@@ -18,6 +19,8 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col bg-brand-dark text-text-light">
         {children}
+        {/* App-wide generation orchestrator - automatically resumes incomplete books */}
+        <AuthenticatedOrchestrator />
       </body>
     </html>
   );

@@ -61,14 +61,37 @@ export interface PageVersion {
 export interface PageStatus {
   pageId: string;         // "cover", "page-1", etc.
   pageNumber: number;
-  status: "pending" | "generating" | "completed" | "failed";
+  status: "pending" | "generating" | "completed" | "failed" | "retrying";
   url?: string;
   error?: string;
   startedAt?: string;
   completedAt?: string;
   retryCount: number;
   versions?: PageVersion[];  // Previous versions (most recent first, max 5)
+
+  // Job claiming fields for duplicate prevention
+  claimedBy?: string;       // Worker ID that claimed this job
+  claimedAt?: string;       // When the job was claimed
+  generationId?: string;    // Unique ID for this generation attempt
 }
+
+// Generation configuration constants
+export const GENERATION_CONFIG = {
+  // Concurrency settings
+  DEFAULT_CONCURRENCY: 5,       // Number of pages to generate simultaneously
+  MIN_CONCURRENCY: 1,
+  MAX_CONCURRENCY: 10,
+
+  // Timing settings (in milliseconds)
+  CLAIM_TIMEOUT_MS: 5 * 60 * 1000,     // 5 minutes - how long a claim is valid
+  STALLED_THRESHOLD_MS: 4 * 60 * 1000, // 4 minutes - when to consider a job stalled
+  POLL_INTERVAL_MS: 3000,              // 3 seconds - how often to poll for status
+  TRIGGER_INTERVAL_MS: 5000,           // 5 seconds - how often orchestrator triggers
+
+  // Retry settings
+  MAX_RETRIES: 3,
+  RETRY_DELAY_MS: 10000,  // 10 seconds before retry
+} as const;
 
 // Generation config stored in book for resume capability
 export interface GenerationConfig {
