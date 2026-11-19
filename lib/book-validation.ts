@@ -252,10 +252,20 @@ export async function validateBookCompletion(
     statusMap.set(status.pageId, status);
   }
 
-  // Check if page_statuses count matches expected
+  // For V2 format, treat "cover" as an alias for "page-0"
+  // This handles legacy page_statuses that have both "cover" and "page-0"
+  if (expectedPages.format === "v2" && statusMap.has("cover") && !statusMap.has("page-0")) {
+    // If we only have "cover" but expect "page-0", map it
+    const coverStatus = statusMap.get("cover")!;
+    statusMap.set("page-0", { ...coverStatus, pageId: "page-0" });
+  }
+
+  // Check if page_statuses count matches expected (warning only, doesn't block completion)
+  // Extra pages (like a "cover" alias) shouldn't prevent marking complete
   if (pageStatuses.length !== expectedPages.pageCount) {
-    issues.push(
-      `Page count mismatch: ${pageStatuses.length} in page_statuses vs ${expectedPages.pageCount} expected from blueprint`
+    // This is a warning, not a blocking issue
+    console.log(
+      `[VALIDATION] Page count note: ${pageStatuses.length} in page_statuses vs ${expectedPages.pageCount} expected from blueprint`
     );
   }
 
@@ -307,8 +317,14 @@ export async function validateBookCompletion(
   }
 
   // Check for extra pages in page_statuses that aren't in blueprint
+  // Note: "cover" is allowed as an alias for "page-0" in V2 format
   for (const [pageId] of statusMap) {
     if (!expectedPages.pageIds.includes(pageId)) {
+      // Allow "cover" as an alias in V2 format (doesn't block completion)
+      if (expectedPages.format === "v2" && pageId === "cover") {
+        console.log(`[VALIDATION] "cover" page is alias for "page-0" in V2 format`);
+        continue;
+      }
       issues.push(`Unexpected page "${pageId}" in page_statuses (not in blueprint)`);
     }
   }

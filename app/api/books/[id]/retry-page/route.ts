@@ -54,8 +54,8 @@ export async function POST(
 
     const pageStatus = pageStatuses[pageIndex];
 
-    // Allow retry for failed, pending, or stuck generating pages
-    const retryableStatuses = ["failed", "pending", "generating"];
+    // Allow retry for failed, pending, stuck generating, or completed pages (regeneration)
+    const retryableStatuses = ["failed", "pending", "generating", "completed"];
     if (!retryableStatuses.includes(pageStatus.status)) {
       return NextResponse.json(
         { error: `Cannot retry page - status is "${pageStatus.status}", expected one of: ${retryableStatuses.join(", ")}` },
@@ -66,6 +66,8 @@ export async function POST(
     console.log(`[retry-page] Resetting page ${pageStatus.pageNumber} from "${pageStatus.status}" to "pending"`);
     if (pageStatus.status === "generating") {
       console.log(`[retry-page] Page was stuck in generating state - likely timed out`);
+    } else if (pageStatus.status === "completed") {
+      console.log(`[retry-page] Regenerating completed page (user requested edit/regeneration)`);
     }
 
     // Reset page status to pending

@@ -52,8 +52,8 @@ export async function POST(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    // Get blueprint ID
-    const blueprintBookId = book.metadata?.bookId || book.metadata?.storySlug;
+    // Get blueprint ID - check generation_config first, then metadata
+    const blueprintBookId = book.generation_config?.bookId || book.metadata?.bookId || book.metadata?.storySlug;
     if (!blueprintBookId) {
       return NextResponse.json(
         { error: "Book has no blueprint ID" },
@@ -84,7 +84,8 @@ export async function POST(
     // Check if status needs correction
     const statusNeedsCorrection =
       (book.status === "completed" && !validation.isComplete) ||
-      (book.status === "generating_full" && validation.failedCount > 0 && validation.pendingCount === 0 && validation.generatingCount === 0);
+      (book.status === "generating_full" && validation.failedCount > 0 && validation.pendingCount === 0 && validation.generatingCount === 0) ||
+      (book.status === "generating_full" && validation.isComplete && validation.recommendedStatus === "completed");
 
     // Prepare response data
     const reconcileResult = {
@@ -198,8 +199,8 @@ export async function GET(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    // Get blueprint ID
-    const blueprintBookId = book.metadata?.bookId || book.metadata?.storySlug;
+    // Get blueprint ID - check generation_config first, then metadata
+    const blueprintBookId = book.generation_config?.bookId || book.metadata?.bookId || book.metadata?.storySlug;
     if (!blueprintBookId) {
       return NextResponse.json(
         { error: "Book has no blueprint ID" },
@@ -217,7 +218,8 @@ export async function GET(
     // Check if status needs correction
     const statusNeedsCorrection =
       (book.status === "completed" && !validation.isComplete) ||
-      (book.status === "generating_full" && validation.failedCount > 0 && validation.pendingCount === 0 && validation.generatingCount === 0);
+      (book.status === "generating_full" && validation.failedCount > 0 && validation.pendingCount === 0 && validation.generatingCount === 0) ||
+      (book.status === "generating_full" && validation.isComplete && validation.recommendedStatus === "completed");
 
     return NextResponse.json({
       bookId: id,
