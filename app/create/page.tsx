@@ -307,6 +307,7 @@ function Step5GenerateBook({
 
 function CreatePageInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const resumeBookId = searchParams.get("book");
 
   const [currentStep, setCurrentStep] = useState<Step>("characters");
@@ -1896,20 +1897,31 @@ function CreatePageInner() {
                         if (!currentBookId) return;
                         setApprovingCover(true);
                         try {
-                          const res = await fetch(`/api/books/${currentBookId}/approve-cover`, {
+                          // Step 1: Approve the cover
+                          const approveRes = await fetch(`/api/books/${currentBookId}/approve-cover`, {
                             method: "POST",
                           });
-                          if (!res.ok) {
-                            const data = await res.json();
+                          if (!approveRes.ok) {
+                            const data = await approveRes.json();
                             throw new Error(data.error || "Failed to approve cover");
                           }
-                          setCoverApproved(true);
-                          setCurrentStep("generate");
+
+                          // Step 2: Start full book generation
+                          const genRes = await fetch(`/api/books/${currentBookId}/start-full-generation`, {
+                            method: "POST",
+                          });
+                          if (!genRes.ok) {
+                            const data = await genRes.json();
+                            throw new Error(data.error || "Failed to start generation");
+                          }
+
+                          // Step 3: Redirect to books page where they can see progress
+                          router.push("/books");
                         } catch (err) {
                           const errorMsg = err instanceof Error ? err.message : "Unknown error";
                           setBookError(errorMsg);
+                          setApprovingCover(false);
                         }
-                        setApprovingCover(false);
                       }}
                       disabled={approvingCover || !currentBookId}
                       className={`px-8 py-4 rounded-full font-extrabold text-lg transition-colors flex items-center gap-3 mx-auto ${
@@ -1921,7 +1933,7 @@ function CreatePageInner() {
                       {approvingCover ? (
                         <>
                           <div className="w-5 h-5 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
-                          Approving...
+                          Starting generation...
                         </>
                       ) : (
                         <>
