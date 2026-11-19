@@ -107,11 +107,11 @@ function categorizeBook(book: Book): BookCategory {
         return "incomplete";
       }
 
-      // Also check if preview_pages count seems low compared to page_statuses
+      // Check if preview_pages matches expected count
+      // Use expectedCount as reference (not page_statuses which may have duplicates like "cover" + "page-0")
       const previewPagesCount = book.preview_pages?.length || 0;
-      const pageStatusesCount = book.page_statuses.length;
-      if (pageStatusesCount > 0 && previewPagesCount < pageStatusesCount) {
-        // Some pages generated but not all have preview images
+      if (expectedCount && previewPagesCount < expectedCount) {
+        // Some pages not yet in preview_pages
         return "incomplete";
       }
     }
