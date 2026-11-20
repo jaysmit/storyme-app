@@ -191,6 +191,44 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-20) - API Cost Tracking & Admin Dashboard
+- [x] **API Cost Tracking System** - Track OpenAI API costs for all generation events
+  - **Database migrations (017-019)**:
+    - `017_api_cost_tracking.sql` - Adds cost columns to generation_logs (estimated_cost_usd, input_tokens, output_tokens, pricing_version, cost_calculation_method)
+    - `018_admin_role.sql` - Adds is_admin column to profiles
+    - `019_pricing_config.sql` - Creates pricing_config table with model pricing
+  - **New `lib/pricing/` module**:
+    - `pricing-config.ts` - Types and constants for OpenAI pricing
+    - `pricing-engine.ts` - Cost calculation logic (calculateCost, calculateCaricatureCost, calculateBookPageCost)
+    - `cost-tracker.ts` - Integration with generation-logs, backfill utilities
+  - **Updated `lib/generation-logs.ts`** - Now automatically calculates and stores cost when logging generation events
+  - **New `lib/admin/auth.ts`** - Admin authentication helper (checkAdminAuth, requireAdminAuth)
+
+- [x] **Admin Analytics Dashboard** - Full admin dashboard at `/admin/analytics`
+  - **API Routes** (all auth-protected, service role for data access):
+    - `GET /api/admin/analytics/summary` - KPI totals (cost, requests, success rate, users, books)
+    - `GET /api/admin/analytics/daily` - Daily breakdown for charts (last 30 days)
+    - `GET /api/admin/analytics/users` - Per-user analytics with pagination/sorting
+    - `GET /api/admin/analytics/books` - Per-book cost breakdown with pagination/sorting
+  - **Dashboard Components**:
+    - `KPICards` - 8 metrics: total cost, requests, users, books, avg cost/book, success rate, regenerations, failures
+    - `DateRangePicker` - Quick presets (7/30/90 days, all time) + custom date range
+    - `CostChart` - Daily cost/request bar chart with tooltips
+    - `UserTable` - Sortable user list with cost, requests, books, tokens
+    - `BookCostTable` - Sortable book list with cost, pages, regenerations, status
+
+### Setup Required for Admin Dashboard
+- [ ] Run migrations 017, 018, 019 via Supabase SQL Editor
+- [ ] Set a user as admin: `UPDATE profiles SET is_admin = TRUE WHERE email = 'admin@example.com';`
+- [ ] Access dashboard at `/admin/analytics`
+
+### Pricing Configuration (as of 2026-11)
+| Model | Type | Cost |
+|-------|------|------|
+| gpt-4o | Per token | $2.50/1M input, $10/1M output |
+| gpt-image-2 | Flat rate | $0.04/image (1024x1024, low quality) |
+| gpt-image-2.5-sunburst | Flat rate | $0.08-0.10/image (varies by size) |
+
 ### Recent Changes (2026-11-19) - Major Generation Overhaul
 - [x] **Generation Orchestration System** - Complete rewrite for reliability and speed
   - **New `lib/generation-manager.ts`** - Centralized job claiming, duplicate prevention, orchestration
