@@ -978,8 +978,22 @@ function CreatePageInner() {
     "galaxy-road-trip": "The Great Galaxy Road Trip",
   };
 
-  // Request book preview (generates immediately)
-  const generateBookPreview = () => {
+  // Calculate token cost for full book (cover + interior pages)
+  const getFullBookTokenCost = () => {
+    // Find the selected story/blueprint to get page count
+    const story = stories.find((s) => s.slug === selectedStory);
+    const blueprint = blueprints.find((b) => b.bookId === selectedStory);
+
+    // Page count from story or blueprint (default to 10 if unknown)
+    const pageCount = blueprint?.pageCount || story?.page_count || 10;
+
+    // 1 token for cover + 1 token per interior page
+    // Interior pages = pageCount - 1 (excluding cover)
+    return 1 + Math.max(0, pageCount - 1);
+  };
+
+  // Request book preview (generates cover only, then redirects to books page)
+  const generateBookPreview = async () => {
     if (!selectedStory) return;
 
     if (!user) {
@@ -987,21 +1001,19 @@ function CreatePageInner() {
       return;
     }
 
-    // Generate immediately (no confirmation needed)
-    actuallyGenerateBookPreview();
-  };
+    // Confirm token cost
+    const confirmed = window.confirm(
+      `Generate cover preview?\n\nThis will use 1 token.\nYour balance: ${tokenBalance} tokens`
+    );
+    if (!confirmed) return;
 
-  // Actually generate book preview after confirmation
-  const actuallyGenerateBookPreview = async () => {
     setGeneratingBook(true);
     setBookError(null);
     setGenerationProgress(0);
     setGenerationStartTime(Date.now());
-    setIsMinimized(false);
-    setShowNotification(false);
 
     try {
-      // First, check if all selected characters have illustrations
+      // Check character illustrations
       const charsWithoutIllustrations = selectedCharacters.filter(c => !c.generated_image_url);
       if (charsWithoutIllustrations.length > 0) {
         const names = charsWithoutIllustrations.map(c => c.name).join(", ");
@@ -1012,6 +1024,7 @@ function CreatePageInner() {
         throw new Error("Please select at least one character");
       }
 
+      // Create the book
       const response = await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1028,9 +1041,9 @@ function CreatePageInner() {
       }
 
       const { book } = await response.json();
-      setCurrentBookId(book.id);
-      setGenerationProgress(10);
+      setGenerationProgress(20);
 
+      // Generate cover
       const genResponse = await fetch(`/api/books/${book.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1046,38 +1059,130 @@ function CreatePageInner() {
         throw new Error(errorData.error || errorData.message || "Failed to generate cover");
       }
 
-      const { pages, tokensRemaining } = await genResponse.json();
-      setPreviewPages(pages);
       setGenerationProgress(100);
-      setTokenBalance(tokensRemaining);
 
-      // If minimized, show notification and banner
-      if (isMinimized) {
-        sendNotification(
-          "Your cover is ready!",
-          "Your personalized storybook cover has been created. Tap to view it."
-        );
-        setShowNotification(true);
-        // Don't auto-show book viewer when minimized - let user click notification
-      } else {
-        setShowBookViewer(true);
-      }
+      // Redirect to books page where they can view the cover
+      router.push("/books");
     } catch (error) {
       console.error("Book generation error:", error);
       const errorMessage = error instanceof Error ? error.message : "Generation failed";
       setBookError(errorMessage);
+      setGeneratingBook(false);
+      setGenerationStartTime(null);
+    }
+  };
 
-      // Send error notification if minimized
-      if (isMinimized) {
-        sendNotification(
-          "Generation failed",
-          errorMessage
-        );
-      }
+  // Generate full book directly (cover + all interior pages)
+  const generateFullBookDirectly = async () => {
+    if (!selectedStory) return;
+
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
     }
 
-    setGeneratingBook(false);
-    setGenerationStartTime(null);
+    const totalTokens = getFullBookTokenCost();
+
+    // Confirm token cost
+    const confirmed = window.confirm(
+      `Generate complete book?\n\nThis will generate the cover and all interior pages.\n\nToken cost: ${totalTokens} tokens\nYour balance: ${tokenBalance} tokens`
+    );
+    if (!confirmed) return;
+
+    setGeneratingBook(true);
+    setBookError(null);
+    setGenerationProgress(0);
+    setGenerationStartTime(Date.now());
+
+    try {
+      // Check character illustrations
+      const charsWithoutIllustrations = selectedCharacters.filter(c => !c.generated_image_url);
+      if (charsWithoutIllustrations.length > 0) {
+        const names = charsWithoutIllustrations.map(c => c.name).join(", ");
+        throw new Error(`Characters need illustrations first: ${names}`);
+      }
+
+      if (selectedCharacters.length === 0) {
+        throw new Error("Please select at least one character");
+      }
+
+      // Step 1: Create the book
+      const createResponse = await fetch("/api/books", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storySlug: selectedStory,
+          artStyle: selectedStyle,
+          characterIds: selectedCharacters.map((c) => c.id),
+        }),
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to create book");
+      }
+
+      const { book } = await createResponse.json();
+      setGenerationProgress(10);
+
+      // Step 2: Generate cover (page 0)
+      const coverResponse = await fetch(`/api/books/${book.id}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storySlug: selectedStory,
+          artStyle: selectedStyle,
+          characterIds: selectedCharacters.map((c) => c.id),
+        }),
+      });
+
+      if (!coverResponse.ok) {
+        const errorData = await coverResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to generate cover");
+      }
+
+      setGenerationProgress(30);
+
+      // Step 3: Approve cover
+      const approveResponse = await fetch(`/api/books/${book.id}/approve-cover`, {
+        method: "POST",
+      });
+
+      if (!approveResponse.ok) {
+        const errorData = await approveResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to approve cover");
+      }
+
+      setGenerationProgress(40);
+
+      // Step 4: Start full book generation (interior pages)
+      const genResponse = await fetch(`/api/books/${book.id}/start-full-generation`, {
+        method: "POST",
+      });
+
+      if (!genResponse.ok) {
+        const errorData = await genResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || "Failed to start book generation");
+      }
+
+      setGenerationProgress(100);
+
+      // Redirect to books page where generation continues
+      router.push("/books");
+    } catch (error) {
+      console.error("Full book generation error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Generation failed";
+      setBookError(errorMessage);
+      setGeneratingBook(false);
+      setGenerationStartTime(null);
+    }
+  };
+
+  // Legacy function - no longer used but kept for reference
+  const actuallyGenerateBookPreview = async () => {
+    // This function is now replaced by generateBookPreview()
+    // which redirects to books page instead of showing the cover
+    await generateBookPreview();
   };
 
   const simulateDemoGeneration = async () => {
@@ -1883,18 +1988,40 @@ function CreatePageInner() {
                     title={stories.find((s) => s.slug === selectedStory)?.title || "Your Story"}
                   />
 
-                  {/* Approve Cover & Continue */}
+                  {/* Generate Full Book Options */}
                   <div className="mt-8 text-center">
                     <h3 className="text-2xl font-black text-white mb-2">
                       Love your cover?
                     </h3>
                     <p className="text-text-muted mb-6">
-                      Approve your cover to continue generating the full book.
+                      Generate the full book with all interior pages.
                     </p>
+
+                    {/* Token cost info */}
+                    <div className="bg-brand-purple border border-brand-purple-muted rounded-xl p-4 max-w-md mx-auto mb-6">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-text-muted">Interior pages:</span>
+                        <span className="text-white font-bold">{Math.max(0, getFullBookTokenCost() - 1)} tokens</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm border-t border-brand-purple-muted pt-2 mt-2">
+                        <span className="text-text-muted">Your balance:</span>
+                        <span className="text-accent-gold font-bold">{tokenBalance} tokens</span>
+                      </div>
+                    </div>
 
                     <button
                       onClick={async () => {
                         if (!currentBookId) return;
+
+                        // Calculate token cost (interior pages only - cover already paid)
+                        const interiorTokens = Math.max(0, getFullBookTokenCost() - 1);
+
+                        // Confirm tokens
+                        const confirmed = window.confirm(
+                          `Generate full book?\n\nThis will generate all interior pages.\n\nToken cost: ${interiorTokens} tokens\nYour balance: ${tokenBalance} tokens`
+                        );
+                        if (!confirmed) return;
+
                         setApprovingCover(true);
                         try {
                           // Step 1: Approve the cover
@@ -1937,10 +2064,10 @@ function CreatePageInner() {
                         </>
                       ) : (
                         <>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M20 6L9 17l-5-5" />
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
                           </svg>
-                          Approve Cover & Generate Book
+                          Generate Full Book ({Math.max(0, getFullBookTokenCost() - 1)} tokens)
                         </>
                       )}
                     </button>
@@ -2209,17 +2336,40 @@ function CreatePageInner() {
                         </div>
                       )}
 
-                      <button
-                        onClick={generateBookPreview}
-                        className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-2"
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                        </svg>
-                        Generate Cover
-                      </button>
-                      <p className="text-xs text-text-muted mt-4">
-                        This will use AI to generate your personalized book cover.
+                      {/* Generation Options */}
+                      <div className="space-y-3">
+                        {/* Preview Cover Only */}
+                        <button
+                          onClick={generateBookPreview}
+                          disabled={generatingBook}
+                          className="bg-brand-purple text-white font-bold px-6 py-3 rounded-full hover:bg-brand-purple-light transition-colors w-full flex items-center justify-center gap-2 border border-brand-purple-muted"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                          Preview Cover Only
+                          <span className="text-accent-gold text-sm">(1 token)</span>
+                        </button>
+
+                        {/* Generate Full Book */}
+                        <button
+                          onClick={generateFullBookDirectly}
+                          disabled={generatingBook}
+                          className="bg-accent-gold text-brand-dark font-extrabold px-6 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-2"
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                          </svg>
+                          Generate Full Book
+                          <span className="text-brand-dark/70 text-sm">({getFullBookTokenCost()} tokens)</span>
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-text-muted mt-4 text-center">
+                        <strong>Preview Cover:</strong> See your cover first, then decide to generate the full book.<br/>
+                        <strong>Full Book:</strong> Generate cover + all interior pages at once.
                       </p>
                     </div>
                   </div>

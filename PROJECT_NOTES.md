@@ -191,6 +191,30 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
+### Recent Changes (2026-11-24) - Create Page Generation Flow Improvements
+- [x] **Redirect to Books Page After Cover Generation**
+  - After generating a cover preview, users are now redirected to the /books page
+  - Books page shows cover with "Generate Book" button to continue
+  - Removes the step of viewing cover on create page before proceeding
+
+- [x] **Two Generation Options on Create Page**
+  - "Preview Cover Only" (1 token) - Generates just the cover, redirects to /books
+  - "Generate Full Book" (all tokens) - Generates cover + all interior pages, redirects to /books
+  - Both options show token cost and require confirmation
+
+- [x] **Token Confirmation Before Generation**
+  - All generation actions now show confirmation dialog with token cost
+  - Displays user's current token balance
+  - Preview cover: 1 token
+  - Full book: 1 token (cover) + N tokens (interior pages)
+
+- [x] **Improved Resume Flow**
+  - When users return to create page from /books (via "Generate Book" button):
+    - See their generated cover
+    - See token cost breakdown for interior pages
+    - Can approve and generate full book with one click
+  - Token cost shown clearly (interior pages only since cover already paid)
+
 ### Recent Changes (2026-11-20) - API Cost Tracking & Admin Dashboard
 - [x] **API Cost Tracking System** - Track OpenAI API costs for all generation events
   - **Database migrations (017-019)**:
