@@ -191,29 +191,61 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
-### Recent Changes (2026-11-24) - Create Page Generation Flow Improvements
+### Recent Changes (2026-11-24) - Create Page UX and Admin Monitor
+- [x] **In-Page Token Confirmation Modal**
+  - Replaced browser `window.confirm()` dialogs with styled in-page modal
+  - Shows token cost, current balance, and remaining after action
+  - "Buy Tokens" link when balance insufficient
+  - Loading state during generation
+
+- [x] **Create Page Button Improvements**
+  - "Generate Book" is now the primary action (gold button, larger)
+  - "Cover Preview Only" is secondary (smaller, outlined)
+  - Responsive text sizing for mobile (smaller on small screens)
+  - Button text simplified: "Generate Book" instead of "Generate Full Book"
+
+- [x] **Books Page Character Avatars**
+  - Now shows all 5 characters without +1 overflow badge
+  - Better representation of full crew
+
+- [x] **Cover Generation Detection**
+  - Books page now detects when cover is being generated (draft without cover)
+  - Shows "Generating..." badge with spinning animation instead of "Cover Ready"
+
+- [x] **Admin Generation Monitor** (`/admin/generations`)
+  - Real-time monitoring dashboard for book generations
+  - Stats cards: Active, Pending Pages, Failed Pages, Completed (24h), Failed (24h), Avg Duration, Cost (24h)
+  - Active Books view with expandable details:
+    - Page status grid (color-coded: pending/generating/completed/failed)
+    - Progress bar showing completion percentage
+    - Failed pages with error messages
+  - API Logs view:
+    - Table of recent generation events (last 24 hours)
+    - Event type, status, page number, duration, cost, error details
+    - Filter by book ID
+    - Link to view generated images
+  - Auto-refresh every 5 seconds (toggleable)
+  - New `/api/admin/generations` endpoint
+
+### Previous Changes (2026-11-24) - Create Page Generation Flow
 - [x] **Redirect to Books Page After Cover Generation**
   - After generating a cover preview, users are now redirected to the /books page
   - Books page shows cover with "Generate Book" button to continue
-  - Removes the step of viewing cover on create page before proceeding
 
 - [x] **Two Generation Options on Create Page**
-  - "Preview Cover Only" (1 token) - Generates just the cover, redirects to /books
-  - "Generate Full Book" (all tokens) - Generates cover + all interior pages, redirects to /books
-  - Both options show token cost and require confirmation
+  - "Generate Book" (all tokens) - Primary action, generates cover + all interior pages
+  - "Cover Preview Only" (1 token) - Secondary, generates just the cover
+  - Both redirect to /books after starting
 
 - [x] **Token Confirmation Before Generation**
-  - All generation actions now show confirmation dialog with token cost
+  - All generation actions show in-page confirmation modal with token cost
   - Displays user's current token balance
-  - Preview cover: 1 token
-  - Full book: 1 token (cover) + N tokens (interior pages)
 
 - [x] **Improved Resume Flow**
-  - When users return to create page from /books (via "Generate Book" button):
+  - When users return to create page from /books:
     - See their generated cover
     - See token cost breakdown for interior pages
     - Can approve and generate full book with one click
-  - Token cost shown clearly (interior pages only since cover already paid)
 
 ### Recent Changes (2026-11-20) - API Cost Tracking & Admin Dashboard
 - [x] **API Cost Tracking System** - Track OpenAI API costs for all generation events

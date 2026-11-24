@@ -2,20 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { type PageStatus } from "@/lib/types";
 
 interface Page {
   page_number: number;
   url: string;
   title: string;
   story_text?: string;
-}
-
-interface PageStatus {
-  pageId: string;
-  pageNumber: number;
-  status: "pending" | "generating" | "completed" | "failed";
-  url?: string;
-  error?: string;
 }
 
 interface TextOverlay {

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import BookViewer from "@/components/BookViewer";
+import { GENERATION_CONFIG, type PageStatus } from "@/lib/types";
 
 interface PersonalizedPage {
   page_number: number;
@@ -22,14 +23,6 @@ interface TextOverlay {
   backgroundColor: string;
   textAlign: "left" | "center" | "right";
   visible: boolean;
-}
-
-interface PageStatus {
-  pageId: string;
-  pageNumber: number;
-  status: "pending" | "generating" | "completed" | "failed";
-  url?: string;
-  error?: string;
 }
 
 interface Book {
@@ -366,9 +359,103 @@ function BooksPageContent() {
   const [regenerating, setRegenerating] = useState<Set<string>>(new Set());
   const [regenerationErrors, setRegenerationErrors] = useState<Record<string, string>>({});
 
+  // Refs for polling intervals
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const triggerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTriggerRef = useRef<number>(0);
+
+  // Check if any books need generation (generating or with pending pages)
+  const hasGeneratingBooks = useCallback(() => {
+    return books.some((book) => {
+      const category = categorizeBook(book);
+      if (category === "generating") return true;
+      // Also check for cover being generated (draft without cover)
+      if (book.status === "draft" && !book.preview_pages?.some((p) => p.page_number === 0)) return true;
+      return false;
+    });
+  }, [books]);
+
+  // Get books that need generation triggered
+  const getBooksNeedingGeneration = useCallback(() => {
+    return books.filter((book) => {
+      // Only trigger for books actively generating full book
+      if (book.status !== "generating_full" && book.status !== "incomplete") return false;
+      // Must have pending pages
+      const hasPending = book.page_statuses?.some(
+        (p) => p.status === "pending" || p.status === "retrying"
+      );
+      return hasPending;
+    });
+  }, [books]);
+
+  // Trigger generation for pending books
+  const triggerPendingGeneration = useCallback(async () => {
+    const booksToTrigger = getBooksNeedingGeneration();
+    if (booksToTrigger.length === 0) return;
+
+    // Don't trigger too frequently
+    const now = Date.now();
+    if (now - lastTriggerRef.current < GENERATION_CONFIG.TRIGGER_INTERVAL_MS) return;
+    lastTriggerRef.current = now;
+
+    debugLog(`Triggering generation for ${booksToTrigger.length} book(s)`);
+
+    for (const book of booksToTrigger) {
+      try {
+        debugLog(`POST /api/books/${book.id}/trigger-generation`);
+        await fetch(`/api/books/${book.id}/trigger-generation`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            concurrency: GENERATION_CONFIG.DEFAULT_CONCURRENCY,
+          }),
+        });
+      } catch (error) {
+        debugLog(`Failed to trigger generation for ${book.id}`, error);
+      }
+    }
+  }, [getBooksNeedingGeneration]);
+
+  // Initial fetch
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  // Auto-refresh and trigger generation when there are generating books
+  useEffect(() => {
+    // Clear existing intervals
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (triggerIntervalRef.current) {
+      clearInterval(triggerIntervalRef.current);
+      triggerIntervalRef.current = null;
+    }
+
+    if (hasGeneratingBooks() && !loading) {
+      debugLog("Starting auto-refresh for generating books");
+
+      // Poll for status updates
+      pollIntervalRef.current = setInterval(() => {
+        debugLog("Auto-refresh: fetching books");
+        fetchBooks(true);
+      }, GENERATION_CONFIG.POLL_INTERVAL_MS);
+
+      // Trigger generation for pending pages
+      triggerIntervalRef.current = setInterval(() => {
+        triggerPendingGeneration();
+      }, GENERATION_CONFIG.TRIGGER_INTERVAL_MS);
+
+      // Also trigger immediately
+      triggerPendingGeneration();
+    }
+
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (triggerIntervalRef.current) clearInterval(triggerIntervalRef.current);
+    };
+  }, [hasGeneratingBooks, loading, triggerPendingGeneration]);
 
   // Handle ?preview=bookId URL parameter
   useEffect(() => {
@@ -497,9 +584,11 @@ function BooksPageContent() {
     setMissingPages([]);
   }
 
-  async function fetchBooks() {
-    setLoading(true);
-    debugLog("GET /api/books - fetching books");
+  async function fetchBooks(isAutoRefresh = false) {
+    if (!isAutoRefresh) {
+      setLoading(true);
+    }
+    debugLog("GET /api/books - fetching books", { isAutoRefresh });
     try {
       const res = await fetch("/api/books");
       const data = await res.json();
@@ -529,7 +618,9 @@ function BooksPageContent() {
       debugLog("GET /api/books - exception", error);
       console.error("Failed to fetch books:", error);
     }
-    setLoading(false);
+    if (!isAutoRefresh) {
+      setLoading(false);
+    }
   }
 
   // Regenerate a single page with timeout
