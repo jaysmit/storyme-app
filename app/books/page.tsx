@@ -149,7 +149,13 @@ function categorizeBook(book: Book): BookCategory {
   // If it has generating status but no page_statuses yet, still generating
   if (isGeneratingStatus) return "generating";
 
-  // Everything else is a cover (preview_ready, cover_approved, draft - ready to generate full book)
+  // Check if cover is missing (draft book with no cover = cover being generated)
+  const hasCover = book.preview_pages?.some((p) => p.page_number === 0);
+  if (book.status === "draft" && !hasCover) {
+    return "generating";
+  }
+
+  // Everything else is a cover (preview_ready, cover_approved, draft with cover - ready to generate full book)
   return "cover";
 }
 
@@ -237,18 +243,21 @@ function BookCard({
         </div>
 
         {/* Status badge */}
-        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold ${status.bgColor} ${status.color}`}>
+        <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold ${status.bgColor} ${status.color} flex items-center gap-1.5`}>
+          {(category === "generating" || status.label === "Generating...") && (
+            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          )}
           {status.label}
         </div>
 
-        {/* Character avatars */}
+        {/* Character avatars - show all (up to 5) */}
         {book.characters_snapshot && book.characters_snapshot.length > 0 && (
           <div className="absolute bottom-3 left-3 flex -space-x-2">
-            {book.characters_snapshot.slice(0, 4).map((char, i) => (
+            {book.characters_snapshot.slice(0, 5).map((char, i) => (
               <div
                 key={char.id}
                 className="w-8 h-8 rounded-full border-2 border-brand-dark overflow-hidden bg-brand-purple"
-                style={{ zIndex: 4 - i }}
+                style={{ zIndex: 5 - i }}
               >
                 {char.generated_image_url ? (
                   <img
@@ -263,11 +272,6 @@ function BookCard({
                 )}
               </div>
             ))}
-            {book.characters_snapshot.length > 4 && (
-              <div className="w-8 h-8 rounded-full border-2 border-brand-dark bg-brand-purple-muted flex items-center justify-center text-xs text-text-muted">
-                +{book.characters_snapshot.length - 4}
-              </div>
-            )}
           </div>
         )}
       </button>

@@ -9,6 +9,7 @@ import BookViewer from "@/components/BookViewer";
 import CharacterFormModal, { type PendingCharacter } from "@/components/ui/CharacterFormModal";
 import CaricatureResultModal from "@/components/ui/CaricatureResultModal";
 import StoryPreviewModal from "@/components/ui/StoryPreviewModal";
+import TokenConfirmModal from "@/components/ui/TokenConfirmModal";
 import { createClient } from "@/lib/supabase/client";
 import type { Character, IdentityProfile, PageStatus } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
@@ -344,6 +345,11 @@ function CreatePageInner() {
   const [bookError, setBookError] = useState<string | null>(null);
   const [generationStartTime, setGenerationStartTime] = useState<number | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // Token confirmation modal state
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
+  const [tokenModalAction, setTokenModalAction] = useState<"cover" | "fullBook" | "interior" | null>(null);
+  const [tokenModalLoading, setTokenModalLoading] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
@@ -993,7 +999,7 @@ function CreatePageInner() {
   };
 
   // Request book preview (generates cover only, then redirects to books page)
-  const generateBookPreview = async () => {
+  const generateBookPreview = () => {
     if (!selectedStory) return;
 
     if (!user) {
@@ -1001,16 +1007,14 @@ function CreatePageInner() {
       return;
     }
 
-    // Confirm token cost
-    const confirmed = window.confirm(
-      `Generate cover preview?\n\nThis will use 1 token.\nYour balance: ${tokenBalance} tokens`
-    );
-    if (!confirmed) return;
+    // Open token confirmation modal
+    setTokenModalAction("cover");
+    setTokenModalOpen(true);
+  };
 
-    setGeneratingBook(true);
-    setBookError(null);
-    setGenerationProgress(0);
-    setGenerationStartTime(Date.now());
+  // Actually generate the cover after confirmation
+  const executeGenerateCover = async () => {
+    setTokenModalLoading(true);
 
     try {
       // Check character illustrations
@@ -1023,6 +1027,13 @@ function CreatePageInner() {
       if (selectedCharacters.length === 0) {
         throw new Error("Please select at least one character");
       }
+
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
+      setGeneratingBook(true);
+      setBookError(null);
+      setGenerationProgress(0);
+      setGenerationStartTime(Date.now());
 
       // Create the book
       const response = await fetch("/api/books", {
@@ -1069,11 +1080,13 @@ function CreatePageInner() {
       setBookError(errorMessage);
       setGeneratingBook(false);
       setGenerationStartTime(null);
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
     }
   };
 
   // Generate full book directly (cover + all interior pages)
-  const generateFullBookDirectly = async () => {
+  const generateFullBookDirectly = () => {
     if (!selectedStory) return;
 
     if (!user) {
@@ -1081,18 +1094,14 @@ function CreatePageInner() {
       return;
     }
 
-    const totalTokens = getFullBookTokenCost();
+    // Open token confirmation modal
+    setTokenModalAction("fullBook");
+    setTokenModalOpen(true);
+  };
 
-    // Confirm token cost
-    const confirmed = window.confirm(
-      `Generate complete book?\n\nThis will generate the cover and all interior pages.\n\nToken cost: ${totalTokens} tokens\nYour balance: ${tokenBalance} tokens`
-    );
-    if (!confirmed) return;
-
-    setGeneratingBook(true);
-    setBookError(null);
-    setGenerationProgress(0);
-    setGenerationStartTime(Date.now());
+  // Actually generate the full book after confirmation
+  const executeGenerateFullBook = async () => {
+    setTokenModalLoading(true);
 
     try {
       // Check character illustrations
@@ -1105,6 +1114,13 @@ function CreatePageInner() {
       if (selectedCharacters.length === 0) {
         throw new Error("Please select at least one character");
       }
+
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
+      setGeneratingBook(true);
+      setBookError(null);
+      setGenerationProgress(0);
+      setGenerationStartTime(Date.now());
 
       // Step 1: Create the book
       const createResponse = await fetch("/api/books", {
@@ -1175,6 +1191,8 @@ function CreatePageInner() {
       setBookError(errorMessage);
       setGeneratingBook(false);
       setGenerationStartTime(null);
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
     }
   };
 
@@ -1183,6 +1201,73 @@ function CreatePageInner() {
     // This function is now replaced by generateBookPreview()
     // which redirects to books page instead of showing the cover
     await generateBookPreview();
+  };
+
+  // Execute interior page generation (when cover already exists)
+  const executeGenerateInteriorPages = async () => {
+    if (!currentBookId) return;
+
+    setTokenModalLoading(true);
+
+    try {
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
+      setApprovingCover(true);
+
+      // Step 1: Approve the cover
+      const approveRes = await fetch(`/api/books/${currentBookId}/approve-cover`, {
+        method: "POST",
+      });
+      if (!approveRes.ok) {
+        const data = await approveRes.json();
+        throw new Error(data.error || "Failed to approve cover");
+      }
+
+      // Step 2: Start full book generation
+      const genRes = await fetch(`/api/books/${currentBookId}/start-full-generation`, {
+        method: "POST",
+      });
+      if (!genRes.ok) {
+        const data = await genRes.json();
+        throw new Error(data.error || "Failed to start generation");
+      }
+
+      // Step 3: Redirect to books page where they can see progress
+      router.push("/books");
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      setBookError(errorMsg);
+      setApprovingCover(false);
+      setTokenModalOpen(false);
+      setTokenModalLoading(false);
+    }
+  };
+
+  // Handle token modal confirmation
+  const handleTokenModalConfirm = () => {
+    if (tokenModalAction === "cover") {
+      executeGenerateCover();
+    } else if (tokenModalAction === "fullBook") {
+      executeGenerateFullBook();
+    } else if (tokenModalAction === "interior") {
+      executeGenerateInteriorPages();
+    }
+  };
+
+  // Get token cost based on current action
+  const getTokenModalCost = () => {
+    if (tokenModalAction === "cover") return 1;
+    if (tokenModalAction === "fullBook") return getFullBookTokenCost();
+    if (tokenModalAction === "interior") return Math.max(0, getFullBookTokenCost() - 1);
+    return 0;
+  };
+
+  // Get action name for modal
+  const getTokenModalActionName = () => {
+    if (tokenModalAction === "cover") return "generate a cover preview";
+    if (tokenModalAction === "fullBook") return "generate the complete book";
+    if (tokenModalAction === "interior") return "generate the interior pages";
+    return "";
   };
 
   const simulateDemoGeneration = async () => {
@@ -2010,48 +2095,13 @@ function CreatePageInner() {
                     </div>
 
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         if (!currentBookId) return;
-
-                        // Calculate token cost (interior pages only - cover already paid)
-                        const interiorTokens = Math.max(0, getFullBookTokenCost() - 1);
-
-                        // Confirm tokens
-                        const confirmed = window.confirm(
-                          `Generate full book?\n\nThis will generate all interior pages.\n\nToken cost: ${interiorTokens} tokens\nYour balance: ${tokenBalance} tokens`
-                        );
-                        if (!confirmed) return;
-
-                        setApprovingCover(true);
-                        try {
-                          // Step 1: Approve the cover
-                          const approveRes = await fetch(`/api/books/${currentBookId}/approve-cover`, {
-                            method: "POST",
-                          });
-                          if (!approveRes.ok) {
-                            const data = await approveRes.json();
-                            throw new Error(data.error || "Failed to approve cover");
-                          }
-
-                          // Step 2: Start full book generation
-                          const genRes = await fetch(`/api/books/${currentBookId}/start-full-generation`, {
-                            method: "POST",
-                          });
-                          if (!genRes.ok) {
-                            const data = await genRes.json();
-                            throw new Error(data.error || "Failed to start generation");
-                          }
-
-                          // Step 3: Redirect to books page where they can see progress
-                          router.push("/books");
-                        } catch (err) {
-                          const errorMsg = err instanceof Error ? err.message : "Unknown error";
-                          setBookError(errorMsg);
-                          setApprovingCover(false);
-                        }
+                        setTokenModalAction("interior");
+                        setTokenModalOpen(true);
                       }}
                       disabled={approvingCover || !currentBookId}
-                      className={`px-8 py-4 rounded-full font-extrabold text-lg transition-colors flex items-center gap-3 mx-auto ${
+                      className={`px-6 sm:px-8 py-3 sm:py-4 rounded-full font-extrabold text-base sm:text-lg transition-colors flex items-center gap-2 sm:gap-3 mx-auto ${
                         approvingCover || !currentBookId
                           ? "bg-brand-purple-muted text-text-muted cursor-not-allowed"
                           : "bg-accent-gold text-brand-dark hover:bg-accent-gold-light"
@@ -2060,14 +2110,15 @@ function CreatePageInner() {
                       {approvingCover ? (
                         <>
                           <div className="w-5 h-5 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
-                          Starting generation...
+                          <span className="text-sm sm:text-base">Starting...</span>
                         </>
                       ) : (
                         <>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
                             <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
                           </svg>
-                          Generate Full Book ({Math.max(0, getFullBookTokenCost() - 1)} tokens)
+                          <span className="text-sm sm:text-base">Generate Book</span>
+                          <span className="text-xs sm:text-sm opacity-70">({Math.max(0, getFullBookTokenCost() - 1)} tokens)</span>
                         </>
                       )}
                     </button>
@@ -2338,38 +2389,38 @@ function CreatePageInner() {
 
                       {/* Generation Options */}
                       <div className="space-y-3">
-                        {/* Preview Cover Only */}
+                        {/* Generate Full Book - Primary */}
+                        <button
+                          onClick={generateFullBookDirectly}
+                          disabled={generatingBook}
+                          className="bg-accent-gold text-brand-dark font-extrabold px-4 sm:px-6 py-3 sm:py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-1.5 sm:gap-2"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="shrink-0">
+                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+                          </svg>
+                          <span className="text-sm sm:text-base">Generate Book</span>
+                          <span className="text-brand-dark/70 text-xs sm:text-sm">({getFullBookTokenCost()} tokens)</span>
+                        </button>
+
+                        {/* Preview Cover Only - Secondary */}
                         <button
                           onClick={generateBookPreview}
                           disabled={generatingBook}
-                          className="bg-brand-purple text-white font-bold px-6 py-3 rounded-full hover:bg-brand-purple-light transition-colors w-full flex items-center justify-center gap-2 border border-brand-purple-muted"
+                          className="bg-brand-purple text-white font-bold px-4 sm:px-6 py-2.5 sm:py-3 rounded-full hover:bg-brand-purple-light transition-colors w-full flex items-center justify-center gap-1.5 sm:gap-2 border border-brand-purple-muted"
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                             <rect x="3" y="3" width="18" height="18" rx="2" />
                             <circle cx="8.5" cy="8.5" r="1.5" />
                             <path d="M21 15l-5-5L5 21" />
                           </svg>
-                          Preview Cover Only
-                          <span className="text-accent-gold text-sm">(1 token)</span>
-                        </button>
-
-                        {/* Generate Full Book */}
-                        <button
-                          onClick={generateFullBookDirectly}
-                          disabled={generatingBook}
-                          className="bg-accent-gold text-brand-dark font-extrabold px-6 py-4 rounded-full hover:bg-accent-gold-light transition-colors w-full flex items-center justify-center gap-2"
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-                          </svg>
-                          Generate Full Book
-                          <span className="text-brand-dark/70 text-sm">({getFullBookTokenCost()} tokens)</span>
+                          <span className="text-xs sm:text-sm">Cover Preview Only</span>
+                          <span className="text-accent-gold text-xs">(1 token)</span>
                         </button>
                       </div>
 
                       <p className="text-xs text-text-muted mt-4 text-center">
-                        <strong>Preview Cover:</strong> See your cover first, then decide to generate the full book.<br/>
-                        <strong>Full Book:</strong> Generate cover + all interior pages at once.
+                        <strong>Generate Book:</strong> Create your complete book now.<br/>
+                        <strong>Cover Preview:</strong> See just the cover first.
                       </p>
                     </div>
                   </div>
@@ -2489,6 +2540,21 @@ function CreatePageInner() {
         onClose={handleCaricatureClose}
         tokenBalance={tokenBalance}
         isRegenerating={isRegenerating}
+      />
+
+      {/* Token Confirmation Modal */}
+      <TokenConfirmModal
+        isOpen={tokenModalOpen}
+        onClose={() => {
+          setTokenModalOpen(false);
+          setTokenModalAction(null);
+          setTokenModalLoading(false);
+        }}
+        onConfirm={handleTokenModalConfirm}
+        actionName={getTokenModalActionName()}
+        tokenCost={getTokenModalCost()}
+        currentBalance={tokenBalance}
+        loading={tokenModalLoading}
       />
 
       <Footer />

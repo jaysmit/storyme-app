@@ -58,6 +58,12 @@ export default async function AdminLayout({
                 Analytics
               </Link>
               <Link
+                href="/admin/generations"
+                className="text-sm font-semibold text-text-muted hover:text-text-light transition-colors"
+              >
+                Generations
+              </Link>
+              <Link
                 href="/"
                 className="text-sm font-semibold text-text-muted hover:text-text-light transition-colors"
               >
