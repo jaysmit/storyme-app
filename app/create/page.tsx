@@ -1725,8 +1725,35 @@ function CreatePageInner() {
                   Choose your adventure
                 </h1>
                 <p className="text-lg text-text-muted max-w-2xl mx-auto">
-                  Pick a world for your characters to explore. Each adventure has unique settings and stories waiting to be told.
+                  Create your own unique story or pick from our adventures below.
                 </p>
+              </div>
+
+              {/* Create your own story CTA */}
+              <div className="bg-gradient-to-br from-accent-gold/20 to-accent-teal/20 border-2 border-accent-gold rounded-3xl p-8 mb-10">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="flex-1 text-center md:text-left">
+                    <h2 className="text-2xl font-black text-white mb-2">
+                      ✨ Create your own story
+                    </h2>
+                    <p className="text-text-muted">
+                      Design a completely custom adventure with your own plot, scenes, and characters.
+                    </p>
+                  </div>
+                  <Link
+                    href="/create/custom"
+                    className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors whitespace-nowrap text-lg"
+                  >
+                    Start creating
+                  </Link>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4 mb-10">
+                <div className="flex-1 h-px bg-brand-purple-muted" />
+                <span className="text-text-muted font-bold uppercase text-sm">Or choose an adventure below</span>
+                <div className="flex-1 h-px bg-brand-purple-muted" />
               </div>
 
               {/* Filter placeholder (maintains layout when filter becomes sticky) */}
@@ -1771,7 +1798,7 @@ function CreatePageInner() {
 
                 const selectedCategoryLabel = selectedCategory
                   ? `${categoryIcons[selectedCategory] || "📖"} ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}`
-                  : "All worlds";
+                  : "All stories";
 
                 return (
                   <>
@@ -1822,7 +1849,7 @@ function CreatePageInner() {
                                       : "text-white hover:bg-brand-purple"
                                   }`}
                                 >
-                                  All worlds
+                                  All stories
                                 </button>
                                 {categories.map((cat) => (
                                   <button

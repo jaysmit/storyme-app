@@ -212,6 +212,12 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Books page now detects when cover is being generated (draft without cover)
   - Shows "Generating..." badge with spinning animation instead of "Cover Ready"
 
+- [x] **Auto-refresh and Generation Triggering**
+  - Books page now auto-refreshes every 3 seconds when there are generating books
+  - Automatically triggers generation for books with pending pages
+  - Polling stops when all books complete
+  - No loading spinner on auto-refresh (smooth UI updates)
+
 - [x] **Admin Generation Monitor** (`/admin/generations`)
   - Real-time monitoring dashboard for book generations
   - Stats cards: Active, Pending Pages, Failed Pages, Completed (24h), Failed (24h), Avg Duration, Cost (24h)

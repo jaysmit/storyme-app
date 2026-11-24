@@ -102,13 +102,12 @@ export default function Header({ theme = "dark" }: HeaderProps) {
 
   const navLinks = user
     ? [
-        { href: "/worlds", label: "Worlds" },
-        { href: "/characters", label: "Characters" },
+        { href: "/stories", label: "Stories" },
+        { href: "/characters", label: "My Crew" },
         { href: "/books", label: "My Books" },
-        { href: "/favorites", label: "Favorites" },
       ]
     : [
-        { href: "/worlds", label: "Worlds" },
+        { href: "/stories", label: "Stories" },
         { href: "/pricing", label: "Pricing" },
       ];
 
@@ -256,7 +255,7 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                       className="block px-4 py-2 text-sm text-[#F3F0FF] hover:bg-brand-purple-muted transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      My Characters
+                      My Crew
                     </Link>
                     <Link
                       href="/books"
@@ -266,11 +265,11 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                       My Books
                     </Link>
                     <Link
-                      href="/favorites"
+                      href="/stories?filter=favorites"
                       className="block px-4 py-2 text-sm text-[#F3F0FF] hover:bg-brand-purple-muted transition-colors"
                       onClick={() => setShowUserMenu(false)}
                     >
-                      Favorites
+                      My Favorites
                     </Link>
                   </div>
                   {isAdmin && (
