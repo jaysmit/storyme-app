@@ -25,6 +25,7 @@ export default function Header({ theme = "dark" }: HeaderProps) {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [tokens, setTokens] = useState<number | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Only fetch if we don't have cached user
@@ -33,7 +34,10 @@ export default function Header({ theme = "dark" }: HeaderProps) {
       cachedUser = user;
       setUser(user);
       setLoading(false);
-      if (user) fetchTokens();
+      if (user) {
+        fetchTokens();
+        checkAdminStatus(user.id);
+      }
     }
 
     async function fetchTokens() {
@@ -48,22 +52,41 @@ export default function Header({ theme = "dark" }: HeaderProps) {
       }
     }
 
+    async function checkAdminStatus(userId: string) {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", userId)
+          .single();
+        setIsAdmin(data?.is_admin === true);
+      } catch {
+        setIsAdmin(false);
+      }
+    }
+
     if (cachedUser === null) {
       getUser();
     } else if (cachedUser) {
       fetchTokens();
+      checkAdminStatus(cachedUser.id);
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       cachedUser = session?.user ?? null;
       setUser(session?.user ?? null);
       setLoading(false);
-      if (session?.user) fetchTokens();
-      else setTokens(null);
+      if (session?.user) {
+        fetchTokens();
+        checkAdminStatus(session.user.id);
+      } else {
+        setTokens(null);
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+  }, [supabase.auth, supabase]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -250,6 +273,24 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                       Favorites
                     </Link>
                   </div>
+                  {isAdmin && (
+                    <div className="border-t py-2" style={{ borderColor: "#3D3A6E" }}>
+                      <Link
+                        href="/admin/analytics"
+                        className="block px-4 py-2 text-sm text-[#F4C95D] hover:bg-brand-purple-muted transition-colors"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        📊 Analytics Dashboard
+                      </Link>
+                      <Link
+                        href="/admin/generations"
+                        className="block px-4 py-2 text-sm text-[#F4C95D] hover:bg-brand-purple-muted transition-colors"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        ⚙️ Generation Monitor
+                      </Link>
+                    </div>
+                  )}
                   <div className="border-t py-2" style={{ borderColor: "#3D3A6E" }}>
                     <button
                       onClick={handleSignOut}
@@ -376,6 +417,25 @@ export default function Header({ theme = "dark" }: HeaderProps) {
                       <p className="text-xs text-text-muted truncate">{user.email}</p>
                     </div>
                   </div>
+                  {isAdmin && (
+                    <>
+                      <div className="border-t my-2" style={{ borderColor: "#3D3A6E" }} />
+                      <Link
+                        href="/admin/analytics"
+                        className="px-4 py-3 text-base font-bold no-underline text-[#F4C95D] hover:bg-brand-purple-muted/50 transition-colors flex items-center gap-2"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        📊 Analytics Dashboard
+                      </Link>
+                      <Link
+                        href="/admin/generations"
+                        className="px-4 py-3 text-base font-bold no-underline text-[#F4C95D] hover:bg-brand-purple-muted/50 transition-colors flex items-center gap-2"
+                        onClick={() => setShowMobileMenu(false)}
+                      >
+                        ⚙️ Generation Monitor
+                      </Link>
+                    </>
+                  )}
                   <button
                     onClick={() => {
                       handleSignOut();
