@@ -191,7 +191,44 @@ vercel logs storyme-app-roan.vercel.app --follow
 - [x] Header navigation updated with "My Books" link
 - [x] Error states and loading indicators throughout
 
-### Recent Changes (2026-11-24) - Create Page UX and Admin Monitor
+### Recent Changes (2026-11-24 Night) - Navigation Restructure and Custom Story Architecture
+- [x] **Header Navigation Changes**
+  - Renamed "Worlds" to "Stories" (href: /stories)
+  - Renamed "Characters" to "My Crew"
+  - Removed "Favorites" from main nav (moved to filter on Stories page)
+  - Admin links in dropdown for admin users
+
+- [x] **New /stories Page**
+  - Complete stories browsing with favorites filter
+  - Logged-in users see heart icons on each story card
+  - Filter dropdown includes "My Favorites" option with count
+  - Empty favorites state with CTA to browse stories
+  - Copied from /worlds with all features intact
+
+- [x] **Story Favorites System**
+  - New `story_favorites` table (migration 020) with RLS policies
+  - API updated: GET returns `storyFavorites` array
+  - POST/DELETE support `story_slug` field for story favorites
+  - Separate from book favorites system
+
+- [x] **Create Page Updates**
+  - "Create your own story" CTA at top of story step
+  - Gradient border box with "Start creating" button
+  - Divider text "Or choose an adventure below"
+  - Filter label changed from "All worlds" to "All stories"
+
+- [x] **Custom Story Creator** (`/create/custom`)
+  - Placeholder page with coming soon banner
+  - Outlines 6-step flow: Crew → Describe → Style → Reference → Generate → Edit
+  - Feature preview cards showing what's coming
+  - Full page structure ready for future implementation
+
+- [x] **Redirects & Compatibility**
+  - /worlds redirects to /stories
+  - /favorites page kept for book favorites
+  - All story detail and preview pages updated with /stories links
+
+### Previous Changes (2026-11-24) - Create Page UX and Admin Monitor
 - [x] **In-Page Token Confirmation Modal**
   - Replaced browser `window.confirm()` dialogs with styled in-page modal
   - Shows token cost, current balance, and remaining after action
