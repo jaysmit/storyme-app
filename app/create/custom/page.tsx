@@ -1,13 +1,22 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import { createClient } from "@/lib/supabase/client";
 import type { Character } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
+
+// Reference image with ID for insertion into description
+interface ReferenceImage {
+  id: string;        // "#01", "#02", etc.
+  url: string;       // Data URL or Supabase URL
+  name: string;      // Original filename
+  uploadedAt: Date;
+}
 
 type Step = "crew" | "describe" | "style" | "reference" | "generate" | "edit";
 
@@ -68,8 +77,13 @@ function CustomStoryPageInner() {
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   const [customStyleDescription, setCustomStyleDescription] = useState("");
 
-  // Step 4: Reference images
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+  // Step 2: Reference images (embedded in describe step)
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
+  const [showReferenceDropdown, setShowReferenceDropdown] = useState(false);
+  const [previewImage, setPreviewImage] = useState<ReferenceImage | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Auth check and character fetch
   useEffect(() => {
@@ -197,6 +211,76 @@ function CustomStoryPageInner() {
       .map((id) => characters.find((c) => c.id === id))
       .filter((c): c is Character => c !== undefined);
   };
+
+  // Handle reference image upload
+  const handleReferenceUpload = (files: FileList | null) => {
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      if (referenceImages.length >= 10) break; // Max 10 references
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Find the next available ID number
+        const existingNumbers = referenceImages.map(r => parseInt(r.id.replace("#", "")));
+        let nextNum = 1;
+        while (existingNumbers.includes(nextNum)) {
+          nextNum++;
+        }
+        const paddedId = `#${String(nextNum).padStart(2, "0")}`;
+
+        setReferenceImages(prev => [...prev, {
+          id: paddedId,
+          url: reader.result as string,
+          name: file.name,
+          uploadedAt: new Date()
+        }]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Delete a reference image (keep original IDs, don't re-number)
+  const deleteReferenceImage = (id: string) => {
+    setReferenceImages(prev => prev.filter(r => r.id !== id));
+    if (previewImage?.id === id) {
+      setPreviewImage(null);
+    }
+  };
+
+  // Insert reference ID at cursor position in textarea
+  const insertReference = (refId: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = bookDescription;
+
+    const newText = text.slice(0, start) + refId + " " + text.slice(end);
+    setBookDescription(newText);
+
+    // Restore cursor position after the inserted text
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + refId.length + 1;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+
+    setShowReferenceDropdown(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowReferenceDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (loading) {
     return (
@@ -443,7 +527,7 @@ function CustomStoryPageInner() {
             </div>
           )}
 
-          {/* Step 2: Describe Book (Coming Soon) */}
+          {/* Step 2: Describe Book */}
           {currentStep === "describe" && (
             <div>
               <div className="text-center mb-10">
@@ -475,96 +559,230 @@ function CustomStoryPageInner() {
                 </div>
               </div>
 
-              {/* Coming Soon Banner */}
-              <div className="bg-gradient-to-br from-accent-gold/20 to-accent-teal/20 border-2 border-dashed border-accent-gold/50 rounded-3xl p-8 text-center">
-                <div className="text-6xl mb-4">🚧</div>
-                <h2 className="text-3xl font-black text-white mb-4">Coming Soon!</h2>
-                <p className="text-lg text-text-muted max-w-2xl mx-auto mb-6">
-                  The custom story creator is under development. Soon you&apos;ll be able to describe your
-                  own unique adventure with custom plots, settings, and scenes.
-                </p>
-
-                {/* Show selected crew */}
-                {orderedCharacterIds.length > 0 && (
-                  <div className="mb-6">
-                    <p className="text-sm text-text-muted mb-3">Your selected crew:</p>
-                    <div className="flex justify-center gap-2">
-                      {getSelectedCharactersInOrder().map((char, index) => (
-                        <div
-                          key={char.id}
-                          className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-accent-gold"
-                          title={char.name}
-                        >
-                          {char.generated_image_url || char.original_photo_url ? (
-                            <img
-                              src={char.generated_image_url || char.original_photo_url || ""}
-                              alt={char.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-brand-purple flex items-center justify-center text-white font-bold">
-                              {char.name.charAt(0)}
-                            </div>
-                          )}
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-accent-gold rounded-full flex items-center justify-center text-brand-dark text-xs font-bold">
-                            {index + 1}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <Link
-                  href={getPremadeAdventureUrl()}
-                  className="inline-block bg-accent-gold text-brand-dark font-bold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors"
-                >
-                  Use premade adventures for now
-                </Link>
+              {/* Book Title */}
+              <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-6 mb-6">
+                <label className="block text-white font-bold mb-3">
+                  Book Title <span className="text-accent-gold">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={bookTitle}
+                  onChange={(e) => setBookTitle(e.target.value)}
+                  placeholder="Enter your book title..."
+                  className="w-full bg-brand-dark border border-brand-purple-muted rounded-xl px-4 py-3 text-white placeholder-text-muted focus:border-accent-gold focus:ring-1 focus:ring-accent-gold focus:outline-none transition-colors"
+                  maxLength={100}
+                />
               </div>
 
-              {/* Preview of what's coming */}
-              <div className="mt-8 bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-8">
-                <h3 className="text-xl font-black text-white mb-6">What you&apos;ll be able to do:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-accent-gold/20 rounded-2xl flex items-center justify-center text-2xl shrink-0">
-                      📝
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white mb-1">Title & Theme</h4>
-                      <p className="text-sm text-text-muted">Name your book and choose a theme like adventure, fantasy, or sports.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-accent-gold/20 rounded-2xl flex items-center justify-center text-2xl shrink-0">
-                      📖
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white mb-1">Story Description</h4>
-                      <p className="text-sm text-text-muted">Describe what happens in your story - the plot, settings, and key moments.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-accent-gold/20 rounded-2xl flex items-center justify-center text-2xl shrink-0">
-                      🎨
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white mb-1">Art Style</h4>
-                      <p className="text-sm text-text-muted">Choose from preset styles or upload reference images for a custom look.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-accent-gold/20 rounded-2xl flex items-center justify-center text-2xl shrink-0">
-                      ✨
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white mb-1">AI Generation</h4>
-                      <p className="text-sm text-text-muted">Our AI creates unique illustrations and brings your story to life.</p>
-                    </div>
-                  </div>
+              {/* Theme Selection */}
+              <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-6 mb-6">
+                <label className="block text-white font-bold mb-3">
+                  Theme <span className="text-accent-gold">*</span>
+                </label>
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+                  {storyThemes.map((theme) => (
+                    <button
+                      key={theme.id}
+                      onClick={() => setSelectedTheme(theme.id)}
+                      className={`flex flex-col items-center p-3 rounded-xl border-2 transition-all ${
+                        selectedTheme === theme.id
+                          ? "border-accent-gold bg-accent-gold/10"
+                          : "border-brand-purple-muted bg-brand-dark hover:border-accent-gold/50"
+                      }`}
+                    >
+                      <span className="text-2xl mb-1">{theme.emoji}</span>
+                      <span className="text-xs text-white font-medium truncate w-full text-center">
+                        {theme.label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Story Description with Reference Insertion */}
+              <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-6 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-white font-bold">
+                    Story Description
+                  </label>
+                  {/* Insert reference dropdown */}
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      onClick={() => setShowReferenceDropdown(!showReferenceDropdown)}
+                      disabled={referenceImages.length === 0}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        referenceImages.length === 0
+                          ? "text-text-muted cursor-not-allowed"
+                          : "text-accent-gold hover:bg-accent-gold/10"
+                      }`}
+                      title={referenceImages.length === 0 ? "Upload reference images first" : "Insert reference"}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                      Insert
+                    </button>
+
+                    {/* Reference dropdown */}
+                    {showReferenceDropdown && referenceImages.length > 0 && (
+                      <div className="absolute right-0 top-full mt-2 bg-brand-dark border border-brand-purple-muted rounded-xl p-3 shadow-xl z-20 min-w-[200px]">
+                        <p className="text-xs text-text-muted mb-2">Click to insert reference:</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {referenceImages.map((ref) => (
+                            <button
+                              key={ref.id}
+                              onClick={() => insertReference(ref.id)}
+                              className="relative group aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-accent-gold transition-colors"
+                            >
+                              <Image
+                                src={ref.url}
+                                alt={ref.name}
+                                fill
+                                className="object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white font-bold text-sm">{ref.id}</span>
+                              </div>
+                              <div className="absolute top-1 left-1 bg-accent-gold text-brand-dark text-xs font-bold px-1.5 py-0.5 rounded">
+                                {ref.id}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  value={bookDescription}
+                  onChange={(e) => setBookDescription(e.target.value)}
+                  placeholder="Describe your story... You can reference images like #01 or #02 to show the AI what you mean."
+                  rows={5}
+                  className="w-full bg-brand-dark border border-brand-purple-muted rounded-xl px-4 py-3 text-white placeholder-text-muted focus:border-accent-gold focus:ring-1 focus:ring-accent-gold focus:outline-none transition-colors resize-none"
+                />
+                <p className="text-xs text-text-muted mt-2">
+                  Tip: Upload reference images below and use {`{#01}`}, {`{#02}`} etc. in your description to point the AI to specific visual references.
+                </p>
+              </div>
+
+              {/* Reference Images Gallery */}
+              <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-6 mb-6">
+                <label className="block text-white font-bold mb-3">
+                  Reference Images <span className="text-text-muted font-normal">(optional)</span>
+                </label>
+                <p className="text-sm text-text-muted mb-4">
+                  Upload images to help the AI understand your vision. Max 10 images.
+                </p>
+
+                <div className="flex flex-wrap gap-3">
+                  {/* Uploaded reference images */}
+                  {referenceImages.map((ref) => (
+                    <div
+                      key={ref.id}
+                      className="relative group w-24 h-24 rounded-xl overflow-hidden border-2 border-brand-purple-muted hover:border-accent-gold transition-colors cursor-pointer"
+                      onClick={() => setPreviewImage(ref)}
+                    >
+                      <Image
+                        src={ref.url}
+                        alt={ref.name}
+                        fill
+                        className="object-cover"
+                      />
+                      {/* ID badge */}
+                      <div className="absolute top-1 left-1 bg-accent-gold text-brand-dark text-xs font-bold px-1.5 py-0.5 rounded">
+                        {ref.id}
+                      </div>
+                      {/* Delete button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteReferenceImage(ref.id);
+                        }}
+                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add image button */}
+                  {referenceImages.length < 10 && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-24 h-24 rounded-xl border-2 border-dashed border-brand-purple-muted hover:border-accent-gold bg-brand-dark flex flex-col items-center justify-center gap-1 transition-colors"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-text-muted">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      <span className="text-xs text-text-muted">Add image</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => handleReferenceUpload(e.target.files)}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Page Count Slider */}
+              <div className="bg-brand-purple-light border border-brand-purple-muted rounded-3xl p-6">
+                <label className="block text-white font-bold mb-3">
+                  Number of Pages: <span className="text-accent-gold">{pageCount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="5"
+                  max="20"
+                  value={pageCount}
+                  onChange={(e) => setPageCount(parseInt(e.target.value))}
+                  className="w-full h-2 bg-brand-dark rounded-lg appearance-none cursor-pointer accent-accent-gold"
+                />
+                <div className="flex justify-between text-xs text-text-muted mt-2">
+                  <span>5 pages</span>
+                  <span>20 pages</span>
+                </div>
+              </div>
+
+              {/* Image Preview Modal */}
+              {previewImage && (
+                <div
+                  className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                  onClick={() => setPreviewImage(null)}
+                >
+                  <div className="relative max-w-2xl max-h-[80vh] w-full" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative aspect-square rounded-2xl overflow-hidden">
+                      <Image
+                        src={previewImage.url}
+                        alt={previewImage.name}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="absolute top-4 left-4 bg-accent-gold text-brand-dark font-bold px-3 py-1.5 rounded-lg">
+                      {previewImage.id}
+                    </div>
+                    <button
+                      onClick={() => setPreviewImage(null)}
+                      className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <p className="text-center text-white mt-4 font-medium">{previewImage.name}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -585,7 +803,7 @@ function CustomStoryPageInner() {
               Back
             </button>
 
-            {currentStep === "crew" && (
+            {(currentStep === "crew" || currentStep === "describe") && (
               <button
                 onClick={nextStep}
                 disabled={!canProceed()}
