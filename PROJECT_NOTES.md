@@ -218,10 +218,18 @@ vercel logs storyme-app-roan.vercel.app --follow
   - Filter label changed from "All worlds" to "All stories"
 
 - [x] **Custom Story Creator** (`/create/custom`)
-  - Placeholder page with coming soon banner
-  - Outlines 6-step flow: Crew → Describe → Style → Reference → Generate → Edit
-  - Feature preview cards showing what's coming
-  - Full page structure ready for future implementation
+  - Full crew selection step with character grid and selection badges
+  - Selected crew summary with priority order (1-5) and reorder buttons
+  - "Choose premade adventure" buttons that preserve crew when switching
+  - Coming soon banner on describe step showing selected crew avatars
+  - 6-step flow: Crew → Describe → Style → Reference → Generate → Edit
+
+- [x] **Crew Preservation Between Workflows**
+  - Create page passes crew IDs via `?crew=id1,id2,id3` URL params
+  - Custom page reads crew from URL and restores selection
+  - Create page starts on "story" step if crew param present
+  - Custom page starts on "describe" step if crew param present
+  - Seamless switching without losing crew selection
 
 - [x] **Redirects & Compatibility**
   - /worlds redirects to /stories
