@@ -310,8 +310,9 @@ function CreatePageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const resumeBookId = searchParams.get("book");
+  const crewFromUrl = searchParams.get("crew"); // Crew IDs passed from custom page
 
-  const [currentStep, setCurrentStep] = useState<Step>("characters");
+  const [currentStep, setCurrentStep] = useState<Step>(crewFromUrl ? "story" : "characters");
   const [resumingBook, setResumingBook] = useState(false);
 
   // Existing characters from database
@@ -498,7 +499,17 @@ function CreatePageInner() {
         const res = await fetch("/api/characters");
         if (res.ok) {
           const data = await res.json();
-          setExistingCharacters(data.characters || []);
+          const characters = data.characters || [];
+          setExistingCharacters(characters);
+
+          // Restore crew selection from URL params (when coming from custom page)
+          if (crewFromUrl) {
+            const crewIds = crewFromUrl.split(",").filter(id => id.trim());
+            // Only select characters that actually exist
+            const validIds = crewIds.filter(id => characters.some((c: Character) => c.id === id));
+            setSelectedCharacterIds(new Set(validIds));
+            setOrderedCharacterIds(validIds);
+          }
         }
         // Fetch tokens
         fetchTokens();
@@ -1741,7 +1752,7 @@ function CreatePageInner() {
                     </p>
                   </div>
                   <Link
-                    href="/create/custom"
+                    href={`/create/custom${orderedCharacterIds.length > 0 ? `?crew=${orderedCharacterIds.join(",")}` : ""}`}
                     className="bg-accent-gold text-brand-dark font-extrabold px-8 py-4 rounded-full hover:bg-accent-gold-light transition-colors whitespace-nowrap text-lg"
                   >
                     Start creating
